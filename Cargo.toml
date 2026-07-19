@@ -1,0 +1,3 @@
+[workspace]
+members = ["gleamler", "gleamler_macros"]
+resolver = "2"
