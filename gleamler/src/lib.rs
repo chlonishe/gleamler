@@ -1,4 +1,4 @@
-#![allow(unsafe_op_in_unsafe_fn, dead_code, unused_imports)]
+// #![allow(unsafe_op_in_unsafe_fn, dead_code, unused_imports)]
 
 extern crate self as gleamler;
 

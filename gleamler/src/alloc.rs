@@ -25,7 +25,7 @@ unsafe impl GlobalAlloc for EnifAllocator {
             // `layout.align() - 1`. The requirement for an additional `usize` just shifts the
             // problem without changing the padding requirement.
             let total_size = SIZEOF_USIZE + layout.size() + layout.align() - 1;
-            let ptr = enif_alloc(total_size) as *mut u8;
+            let ptr = unsafe { enif_alloc(total_size) as *mut u8 };
 
             // Shift the returned pointer to make space for the original pointer
             let ptr1 = ptr.wrapping_add(SIZEOF_USIZE);
@@ -35,11 +35,11 @@ unsafe impl GlobalAlloc for EnifAllocator {
 
             // Write the original pointer immediately in front of the aligned pointer
             let header = aligned_ptr.wrapping_sub(SIZEOF_USIZE);
-            *(header as *mut usize) = ptr as usize;
+            unsafe { *(header as *mut usize) = ptr as usize };
 
             aligned_ptr
         } else {
-            enif_alloc(layout.size()) as *mut u8
+            unsafe { enif_alloc(layout.size()) as *mut u8 }
         }
     }
 
@@ -47,11 +47,11 @@ unsafe impl GlobalAlloc for EnifAllocator {
         let ptr = if layout.align() > MAX_ALIGN {
             // Retrieve the original pointer
             let header = ptr.wrapping_sub(SIZEOF_USIZE);
-            let ptr = *(header as *mut usize);
+            let ptr = unsafe { *(header as *mut usize) };
             ptr as *mut c_void
         } else {
             ptr as *mut c_void
         };
-        enif_free(ptr);
+        unsafe { enif_free(ptr) };
     }
 }

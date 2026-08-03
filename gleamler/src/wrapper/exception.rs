@@ -13,7 +13,7 @@ use crate::{
 ///
 /// And of course the usual rules about `env` and `term` still apply.
 pub unsafe fn raise_exception(env: NIF_ENV, term: NIF_TERM) -> NIF_TERM {
-    enif_raise_exception(env, term)
+    unsafe { enif_raise_exception(env, term) }
 }
 
 /// Raise a `badarg` exception.
@@ -26,5 +26,5 @@ pub unsafe fn raise_exception(env: NIF_ENV, term: NIF_TERM) -> NIF_TERM {
 ///
 /// And of course `env` must be a valid environment.
 pub unsafe fn raise_badarg(env: NIF_ENV) -> NIF_TERM {
-    enif_make_badarg(env)
+    unsafe { enif_make_badarg(env) }
 }

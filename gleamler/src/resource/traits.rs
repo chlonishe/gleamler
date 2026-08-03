@@ -14,11 +14,11 @@ static mut RESOURCE_TYPES: OnceLock<HashMap<TypeId, usize>> = OnceLock::new();
 /// Register an Erlang resource type handle for a particular type given by its `TypeId`
 #[allow(static_mut_refs)]
 pub(crate) unsafe fn register_resource_type(type_id: TypeId, resource_type: NifResourcePtr) {
-    RESOURCE_TYPES.get_or_init(Default::default);
-    RESOURCE_TYPES
+    unsafe { RESOURCE_TYPES.get_or_init(Default::default) };
+    unsafe { RESOURCE_TYPES
         .get_mut()
         .unwrap()
-        .insert(type_id, resource_type as usize);
+        .insert(type_id, resource_type as usize); }
 }
 
 /// Trait that needs to be implemented to use a type as a NIF resource type.

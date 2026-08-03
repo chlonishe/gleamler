@@ -72,13 +72,13 @@ impl<'a> Env<'a> {
     /// Don't create multiple `Env`s with the same lifetime.
     #[inline]
     pub unsafe fn new<T>(_lifetime_marker: &'a T, env: NIF_ENV) -> Env<'a> {
-        Self::new_internal(_lifetime_marker, env, EnvKind::ProcessBound)
+        unsafe { Self::new_internal(_lifetime_marker, env, EnvKind::ProcessBound) }
     }
 
     #[doc(hidden)]
     #[inline]
     pub unsafe fn new_init_env<T>(_lifetime_marker: &'a T, env: NIF_ENV) -> Env<'a> {
-        Self::new_internal(_lifetime_marker, env, EnvKind::Init)
+        unsafe { Self::new_internal(_lifetime_marker, env, EnvKind::Init) }
     }
 
     pub fn as_c_arg(self) -> NIF_ENV {
@@ -179,8 +179,8 @@ impl<'a> Env<'a> {
     /// Like `binary_to_term`, but can only be called on valid
     /// and trusted data.
     pub unsafe fn binary_to_term_trusted(self, data: &[u8]) -> Option<(Term<'a>, usize)> {
-        crate::wrapper::env::binary_to_term(self.as_c_arg(), data, false)
-            .map(|(term, size)| (Term::new(self, term), size))
+        unsafe { crate::wrapper::env::binary_to_term(self.as_c_arg(), data, false) }
+            .map(|(term, size)| (unsafe { Term::new(self, term) }, size))
     }
 }
 

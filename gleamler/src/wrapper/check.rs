@@ -3,7 +3,7 @@ use crate::wrapper::{NIF_ENV, NIF_TERM};
 macro_rules! impl_check_fun {
     ($name:ident, $inner:ident) => {
         pub unsafe fn $name(env: NIF_ENV, term: NIF_TERM) -> bool {
-            crate::sys::$inner(env, term) == 1
+            unsafe { crate::sys::$inner(env, term) == 1 }
         }
     };
 }

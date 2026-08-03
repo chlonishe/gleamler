@@ -47,8 +47,8 @@ where
 {
     unsafe fn into_returned(self, env: Env) -> NifReturned {
         match self {
-            Ok(inner) => inner.into_returned(env),
-            Err(inner) => inner.into_returned(env),
+            Ok(inner) => unsafe { inner.into_returned(env) },
+            Err(inner) => unsafe { inner.into_returned(env) },
         }
     }
 }
@@ -75,23 +75,23 @@ impl NifReturned {
     pub unsafe fn apply(self, env: Env) -> NIF_TERM {
         match self {
             NifReturned::Term(inner) => inner,
-            NifReturned::BadArg => crate::wrapper::exception::raise_badarg(env.as_c_arg()),
+            NifReturned::BadArg => unsafe { crate::wrapper::exception::raise_badarg(env.as_c_arg()) },
             NifReturned::Raise(inner) => {
-                crate::wrapper::exception::raise_exception(env.as_c_arg(), inner)
+                unsafe { crate::wrapper::exception::raise_exception(env.as_c_arg(), inner) }
             }
             NifReturned::Reschedule {
                 fun_name,
                 flags,
                 fun,
                 args,
-            } => crate::sys::enif_schedule_nif(
+            } => unsafe { crate::sys::enif_schedule_nif(
                 env.as_c_arg(),
                 fun_name.as_ptr() as *const c_char,
                 flags as i32,
                 fun,
                 args.len() as i32,
                 args.as_ptr(),
-            ),
+            ) },
         }
     }
 }

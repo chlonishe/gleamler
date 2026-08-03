@@ -11,7 +11,7 @@ unsafe impl NifReturnable for Return<'_> {
     unsafe fn into_returned(self, env: Env) -> NifReturned {
         match self {
             Return::Term(inner) => NifReturned::Term(inner.as_c_arg()),
-            Return::Error(inner) => inner.into_returned(env),
+            Return::Error(inner) => unsafe { inner.into_returned(env) },
         }
     }
 }

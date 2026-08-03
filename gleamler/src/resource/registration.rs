@@ -163,11 +163,11 @@ unsafe extern "C" fn resource_destructor<T>(_env: *mut ErlNifEnv, handle: *mut c
 where
     T: Resource,
 {
-    let env = Env::new_internal(&_env, _env, EnvKind::Callback);
-    let aligned = align_alloced_mem_for_struct::<T>(handle);
+    let env = unsafe { Env::new_internal(&_env, _env, EnvKind::Callback) };
+    let aligned = unsafe { align_alloced_mem_for_struct::<T>(handle) };
     // Destructor takes ownership, thus the resource object will be dropped after the function has
     // run.
-    let obj = ptr::read::<T>(aligned as *mut T);
+    let obj = unsafe { ptr::read::<T>(aligned as *mut T) };
     if T::IMPLEMENTS_DESTRUCTOR {
         obj.destructor(env);
     }
@@ -179,11 +179,11 @@ unsafe extern "C" fn resource_down<T: Resource>(
     pid: *const ErlNifPid,
     mon: *const ErlNifMonitor,
 ) {
-    let env = Env::new_internal(&env, env, EnvKind::Callback);
-    let aligned = align_alloced_mem_for_struct::<T>(obj);
-    let res = &*(aligned as *const T);
-    let pid = LocalPid::from_c_arg(*pid);
-    let mon = Monitor::from_c_arg(*mon);
+    let env = unsafe { Env::new_internal(&env, env, EnvKind::Callback) };
+    let aligned = unsafe { align_alloced_mem_for_struct::<T>(obj) };
+    let res = unsafe { &*(aligned as *const T) };
+    let pid = unsafe { LocalPid::from_c_arg(*pid) };
+    let mon = unsafe { Monitor::from_c_arg(*mon) };
 
     res.down(env, pid, mon);
 }
@@ -194,11 +194,11 @@ unsafe extern "C" fn resource_dyncall<T: Resource>(
     obj: *mut c_void,
     call_data: *mut c_void,
 ) {
-    let env = Env::new_internal(&env, env, EnvKind::Callback);
-    let aligned = align_alloced_mem_for_struct::<T>(obj);
-    let res = &*(aligned as *const T);
+    let env = unsafe { Env::new_internal(&env, env, EnvKind::Callback) };
+    let aligned = unsafe { align_alloced_mem_for_struct::<T>(obj) };
+    let res = unsafe { &*(aligned as *const T) };
 
-    res.dyncall(env, call_data);
+    unsafe { res.dyncall(env, call_data) };
 }
 
 pub unsafe fn open_resource_type(
@@ -214,7 +214,7 @@ pub unsafe fn open_resource_type(
 
     let res = {
         let mut tried = MaybeUninit::uninit();
-        OPEN_RESOURCE_TYPE(env, name_p, &init, flags, tried.as_mut_ptr())
+        unsafe { OPEN_RESOURCE_TYPE(env, name_p, &init, flags, tried.as_mut_ptr()) }
     };
 
     if res.is_null() {

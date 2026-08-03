@@ -31,13 +31,13 @@ pub unsafe fn make_atom(
 
     // Create a new atom with the requested encoding.
     // Returns 0 if creation fails (e.g. invalid text/encoding).
-    if enif_make_new_atom_len(
+    if unsafe { enif_make_new_atom_len(
         env,
         name.as_ptr() as *const c_char,
         name.len(),
         &mut atom_out as *mut NIF_TERM,
         encoding,
-    ) != 0
+    ) } != 0
     {
         Ok(atom_out)
     } else {
@@ -52,13 +52,13 @@ pub unsafe fn make_existing_atom(
 ) -> Result<NIF_TERM, Error> {
     let mut atom_out: NIF_TERM = 0;
 
-    if enif_make_existing_atom_len(
+    if unsafe { enif_make_existing_atom_len(
         env,
         name.as_ptr() as *const c_char,
         name.len(),
         &mut atom_out as *mut NIF_TERM,
         encoding,
-    ) != 0
+    ) } != 0
     {
         Ok(atom_out)
     } else {
@@ -79,7 +79,7 @@ pub unsafe fn make_existing_atom(
 pub unsafe fn get_atom(env: NIF_ENV, term: NIF_TERM) -> Result<String, Error> {
     // Determine the length of the atom, in bytes.
     let mut len = 0;
-    let success = enif_get_atom_length(env, term, &mut len, ErlNifCharEncoding::ERL_NIF_UTF8);
+    let success = unsafe { enif_get_atom_length(env, term, &mut len, ErlNifCharEncoding::ERL_NIF_UTF8) };
     if success == 0 {
         return Err(Error::BadArg);
     }
@@ -88,18 +88,18 @@ pub unsafe fn get_atom(env: NIF_ENV, term: NIF_TERM) -> Result<String, Error> {
     // enif_get_atom() writes a null terminated string,
     // so add 1 to the atom's length to make room for it.
     let mut string = String::with_capacity(len as usize + 1);
-    let bytes = string.as_mut_vec();
-    let nbytes = enif_get_atom(
+    let bytes = unsafe { string.as_mut_vec() };
+    let nbytes = unsafe { enif_get_atom(
         env,
         term,
         bytes.as_mut_ptr(),
         len + 1,
         ErlNifCharEncoding::ERL_NIF_UTF8,
-    );
+    ) };
     assert!(nbytes as c_uint == len + 1);
 
     // This relies on Erlang guaranteeing valid UTF-8 for ERL_NIF_UTF8 reads.
-    bytes.set_len(len as usize); // drop the null byte
+    unsafe { bytes.set_len(len as usize) }; // drop the null byte
 
     Ok(string)
 }
@@ -108,7 +108,7 @@ pub unsafe fn get_atom(env: NIF_ENV, term: NIF_TERM) -> Result<String, Error> {
 pub unsafe fn get_atom(env: NIF_ENV, term: NIF_TERM) -> Result<String, Error> {
     // Determine the length of the atom, in bytes.
     let mut len = 0;
-    let success = enif_get_atom_length(env, term, &mut len, ErlNifCharEncoding::ERL_NIF_LATIN1);
+    let success = unsafe { enif_get_atom_length(env, term, &mut len, ErlNifCharEncoding::ERL_NIF_LATIN1) };
     if success == 0 {
         return Err(Error::BadArg);
     }
@@ -127,13 +127,13 @@ pub unsafe fn get_atom(env: NIF_ENV, term: NIF_TERM) -> Result<String, Error> {
     assert!(nbytes as c_uint == len + 1);
 
     // This is safe unless the VM is lying to us.
-    bytes.set_len(len as usize); // drop the null byte
+    unsafe { bytes.set_len(len as usize) }; // drop the null byte
 
     // Convert from Latin-1 bytes to a String.
     let nonascii_count = bytes.iter().filter(|&&b| b >= 128).count();
     if nonascii_count == 0 {
         // The string is ASCII, so it is safe to convert without copying.
-        Ok(String::from_utf8_unchecked(bytes))
+        Ok(unsafe { String::from_utf8_unchecked(bytes) })
     } else {
         // Transcode from Latin-1 to UTF-8.
         let mut out = String::with_capacity(bytes.len() + nonascii_count);

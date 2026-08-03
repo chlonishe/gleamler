@@ -82,16 +82,16 @@ where
     where
         F: FnOnce(&'a T) -> &'b [u8],
     {
-        let bin = f(&*self.inner);
-        let binary = enif_make_resource_binary(
+        let bin = f(unsafe { &*self.inner });
+        let binary = unsafe { enif_make_resource_binary(
             env.as_c_arg(),
             self.raw,
             bin.as_ptr() as *const c_void,
             bin.len(),
-        );
+        ) };
 
-        let term = Term::new(env, binary);
-        Binary::from_term_and_slice(term, bin)
+        let term = unsafe { Term::new(env, binary) };
+        unsafe { Binary::from_term_and_slice(term, bin) }
     }
 
     fn from_term(term: Term) -> Result<Self, Error> {
@@ -185,13 +185,13 @@ impl<'a> Env<'a> {
     ) -> Result<(), super::DynamicResourceCallError> {
         use crate::sys::enif_dynamic_resource_call;
 
-        let res = enif_dynamic_resource_call(
+        let res = unsafe { enif_dynamic_resource_call(
             self.as_c_arg(),
             module.as_c_arg(),
             name.as_c_arg(),
             resource.as_c_arg(),
             call_data,
-        );
+        ) };
 
         if res == 0 {
             Ok(())
