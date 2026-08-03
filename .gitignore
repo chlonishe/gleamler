@@ -1,2 +1,7 @@
+/build
+
+/priv/*.dll
+/priv/*.so
+/priv/*.dylib
 /target
 Cargo.lock

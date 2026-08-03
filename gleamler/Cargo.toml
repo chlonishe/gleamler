@@ -2,9 +2,26 @@
 name = "gleamler"
 version = "0.1.0"
 edition = "2024"
+build = "build.rs"
+
+[features]
+default = ["nif_version_2_17"]
+nif_version_2_14 = []
+nif_version_2_15 = ["nif_version_2_14"]
+nif_version_2_16 = ["nif_version_2_15"]
+nif_version_2_17 = ["nif_version_2_16"]
+nif_version_2_18 = ["nif_version_2_17"]
+allocator = []
+big_integer = []
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-gleamler_macros = {path = "../gleamler_macros"}
+gleamler_macros = { path = "../gleamler_macros" }
+inventory = "0.3"
+libloading = "0.9"
+libc = "0.2"
+
+[build-dependencies]
+regex-lite = "0.1"
