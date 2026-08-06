@@ -1,5 +1,3 @@
-// #![allow(unsafe_op_in_unsafe_fn, dead_code, unused_imports)]
-
 extern crate self as gleamler;
 
 #[doc(hidden)]
@@ -88,5 +86,11 @@ pub fn divide(a: f64, b: f64) -> f64 {
 pub fn make_pair(a: i64, b: String) -> (i64, String) {
     (a, b)
 }
+
+#[gleam_nif]
+pub fn factorial(n: i64) -> i64 {
+    if n <= 1 { 1 } else { n * factorial(n - 1) }
+}
+
 
 init_nifs!([add, sub, greet, double_list, is_positive, divide, make_pair]);

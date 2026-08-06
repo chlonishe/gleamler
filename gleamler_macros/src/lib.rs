@@ -1,7 +1,28 @@
+#![recursion_limit = "128"]
+
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, FnArg, ItemFn, Pat, PatIdent, Ident, Token};
 use syn::punctuated::Punctuated;
+
+mod context;
+mod encode_decode_templates;
+mod ex_struct;
+mod map;
+mod record;
+mod resource_impl;
+mod tagged_enum;
+mod tuple;
+mod unit_enum;
+mod untagged_enum;
+
+#[derive(Debug)]
+enum RustlerAttr {
+    Encode,
+    Decode,
+    Module(String),
+    Tag(String),
+}
 
 #[proc_macro_attribute]
 pub fn gleam_nif(_attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -66,6 +87,7 @@ pub fn gleam_nif(_attr: TokenStream, item: TokenStream) -> TokenStream {
             };
             let args: &[::gleamler::Term] = &terms;
 
+            // Panics across the FFI boundary would abort the BEAM scheduler thread.
             let result: std::thread::Result<Result<_, ::gleamler::Error>> =
                 std::panic::catch_unwind(move || {
                     #(#args_decoding)*
@@ -106,11 +128,11 @@ impl syn::parse::Parse for InitInput {
 #[proc_macro]
 pub fn init_nifs(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as InitInput);
-    
+
     let nif_consts: Vec<_> = input.names.iter().map(|name| {
         syn::Ident::new(&format!("__GLEAMLER_NIF_{}", name), name.span())
     }).collect();
-    
+
     let funcs: Vec<_> = nif_consts.iter().map(|const_name| {
         quote! {
             ::gleamler::sys::ErlNifFunc {
@@ -121,7 +143,7 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
             }
         }
     }).collect();
-    
+
     let entry_body = quote! {
         use ::gleamler::sys::{ErlNifFunc, ErlNifEntry, NIF_MAJOR_VERSION, NIF_MINOR_VERSION, ERL_NIF_ENTRY_OPTIONS};
         use ::gleamler::codegen_runtime::min_erts;
@@ -129,7 +151,7 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
         use std::ffi::c_char;
 
         let funcs = vec![#(#funcs),*];
-        
+
         let funcs_ptr = funcs.as_ptr();
         let num_of_funcs = funcs.len() as i32;
         std::mem::forget(funcs);
@@ -137,7 +159,7 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
         let entry = Box::new(ErlNifEntry {
             major: NIF_MAJOR_VERSION,
             minor: NIF_MINOR_VERSION,
-            name: b"gleamler_nif\0".as_ptr() as *const c_char,
+            name: b"gleamler_nif_ffi\0".as_ptr() as *const c_char,
             num_of_funcs,
             funcs: funcs_ptr,
             load: None,
@@ -152,7 +174,7 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
 
         Box::into_raw(entry) as *const _
     };
-    
+
     let expanded = quote! {
         #[cfg(not(target_os = "windows"))]
         #[unsafe(no_mangle)]
@@ -174,6 +196,68 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
             #entry_body
         }
     };
-    
+
     TokenStream::from(expanded)
 }
+
+#[proc_macro_derive(NifStruct, attributes(module, rustler))]
+pub fn nif_struct(input: TokenStream) -> TokenStream {
+    let ast = syn::parse(input).unwrap();
+    ex_struct::transcoder_decorator(&ast, false).into()
+}
+
+#[proc_macro_derive(NifException, attributes(module, rustler))]
+pub fn nif_exception(input: TokenStream) -> TokenStream {
+    let ast = syn::parse(input).unwrap();
+    ex_struct::transcoder_decorator(&ast, true).into()
+}
+
+#[proc_macro_derive(NifMap, attributes(rustler))]
+pub fn nif_map(input: TokenStream) -> TokenStream {
+    let ast = syn::parse(input).unwrap();
+    map::transcoder_decorator(&ast).into()
+}
+
+#[proc_macro_derive(NifTuple, attributes(rustler))]
+pub fn nif_tuple(input: TokenStream) -> TokenStream {
+    let ast = syn::parse(input).unwrap();
+    tuple::transcoder_decorator(&ast).into()
+}
+
+#[proc_macro_derive(NifRecord, attributes(tag, rustler))]
+pub fn nif_record(input: TokenStream) -> TokenStream {
+    let ast = syn::parse(input).unwrap();
+    record::transcoder_decorator(&ast).into()
+}
+
+#[proc_macro_derive(NifUnitEnum, attributes(rustler))]
+pub fn nif_unit_enum(input: TokenStream) -> TokenStream {
+    let ast = syn::parse(input).unwrap();
+    unit_enum::transcoder_decorator(&ast).into()
+}
+
+#[proc_macro_derive(NifTaggedEnum, attributes(rustler))]
+pub fn nif_tagged_enum(input: TokenStream) -> TokenStream {
+    let ast = syn::parse(input).unwrap();
+    tagged_enum::transcoder_decorator(&ast).into()
+}
+
+#[proc_macro_derive(NifUntaggedEnum, attributes(rustler))]
+pub fn nif_untagged_enum(input: TokenStream) -> TokenStream {
+    let ast = syn::parse(input).unwrap();
+    untagged_enum::transcoder_decorator(&ast).into()
+}
+
+#[proc_macro_attribute]
+pub fn resource_impl(args: TokenStream, item: TokenStream) -> TokenStream {
+    let mut attributes = resource_impl::Attributes::default();
+
+    if !args.is_empty() {
+        let parser = syn::meta::parser(|meta| attributes.parse(meta));
+        syn::parse_macro_input!(args with parser);
+    }
+    let input = syn::parse_macro_input!(item as syn::ItemImpl);
+
+    resource_impl::transcoder_decorator(attributes, input).into()
+}
+// ;)      
