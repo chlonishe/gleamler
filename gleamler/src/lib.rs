@@ -93,4 +93,4 @@ pub fn factorial(n: i64) -> i64 {
 }
 
 
-init_nifs!([add, sub, greet, double_list, is_positive, divide, make_pair]);
+init_nifs!([add, sub, greet, double_list, is_positive, divide, make_pair, factorial]);
