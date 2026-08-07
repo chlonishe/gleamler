@@ -1,4 +1,4 @@
-//Tests
+//Tests ;)
 
 import gleam/int
 import gleam/float
@@ -23,4 +23,6 @@ pub fn main() {
 
   let pair = gleamler_nif.rust_make_pair(42, "answer")
   io.println("make_pair         = " <> string.inspect(pair))
+
+  io.println("factorial(6)       =" <> int.to_string(gleamler_nif.rust_factorial(6)))
 }

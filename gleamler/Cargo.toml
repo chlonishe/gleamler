@@ -25,3 +25,4 @@ libc = "0.2"
 
 [build-dependencies]
 regex-lite = "0.1"
+gleamler_codegen = { path = "../gleamler_codegen" }

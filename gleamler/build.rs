@@ -909,4 +909,23 @@ fn main() {
 
     // The following lines are important to tell Cargo to recompile if something changes.
     println!("cargo:rerun-if-changed=build.rs");
+    
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
+        .expect("CARGO_MANIFEST_DIR not set");
+
+    let lib_rs_path = std::path::Path::new(&manifest_dir).join("src/lib.rs");
+    let lib_rs = std::fs::read_to_string(&lib_rs_path)
+        .expect("failed to read src/lib.rs for gleamler_codegen");
+
+    let functions = gleamler_codegen::parse_nif_functions(&lib_rs);
+
+    let out_erl = std::path::Path::new(&manifest_dir).join("../src/gleamler_nif_ffi.erl");
+    let out_gleam = std::path::Path::new(&manifest_dir).join("../src/gleamler_nif.gleam");
+
+    std::fs::write(&out_erl, gleamler_codegen::generate_erl(&functions))
+        .expect("failed to write ../src/gleamler_nif_ffi.erl");
+    std::fs::write(&out_gleam, gleamler_codegen::generate_gleam(&functions))
+        .expect("failed to write ../src/gleamler_nif.gleam");
+
+    println!("cargo:rerun-if-changed=src/lib.rs");
 }
