@@ -89,7 +89,6 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
             argc: ::gleamler::codegen_runtime::c_int,
             argv: *const ::gleamler::codegen_runtime::NIF_TERM,
         ) -> ::gleamler::codegen_runtime::NIF_TERM {
-            eprintln!("[Rust ffi] {} called, argc={}", stringify!(#fn_name), argc);
             use ::gleamler::codegen_runtime::NifReturnable;
 
             let lifetime = ();
