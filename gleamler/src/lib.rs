@@ -92,5 +92,9 @@ pub fn factorial(n: i64) -> i64 {
     if n <= 1 { 1 } else { n * factorial(n - 1) }
 }
 
+#[gleam_nif(dirty_cpu)]
+pub fn fib(n: i64) -> i64 {
+    if n <= 1 { n } else { fib(n - 1) + fib(n - 2) }
+}
 
-init_nifs!([add, sub, greet, double_list, is_positive, divide, make_pair, factorial]);
+init_nifs!([add, sub, greet, double_list, is_positive, divide, make_pair, factorial, fib]);

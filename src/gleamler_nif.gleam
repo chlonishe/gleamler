@@ -25,3 +25,6 @@ pub fn rust_make_pair(a: Int, b: String) -> #(Int, String)
 @external(erlang, "gleamler_nif_ffi", "factorial")
 pub fn rust_factorial(n: Int) -> Int
 
+@external(erlang, "gleamler_nif_ffi", "fib")
+pub fn rust_fib(n: Int) -> Int
+

@@ -1,5 +1,5 @@
 -module(gleamler_nif_ffi).
--export([add/2, sub/2, greet/1, double_list/1, is_positive/1, divide/2, make_pair/2, factorial/1]).
+-export([add/2, sub/2, greet/1, double_list/1, is_positive/1, divide/2, make_pair/2, factorial/1, fib/1]).
 
 -on_load(init/0).
 
@@ -30,3 +30,4 @@ is_positive(_A) -> exit(nif_library_not_loaded).
 divide(_A, _B) -> exit(nif_library_not_loaded).
 make_pair(_A, _B) -> exit(nif_library_not_loaded).
 factorial(_A) -> exit(nif_library_not_loaded).
+fib(_A) -> exit(nif_library_not_loaded).

@@ -25,12 +25,28 @@ enum RustlerAttr {
 }
 
 #[proc_macro_attribute]
-pub fn gleam_nif(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
     let input_fn = parse_macro_input!(item as ItemFn);
     let fn_name = &input_fn.sig.ident;
     let ffi_fn_name = syn::Ident::new(&format!("ffi_{}", fn_name), fn_name.span());
     let nif_const_name = syn::Ident::new(&format!("__GLEAMLER_NIF_{}", fn_name), fn_name.span());
 
+    let mut nif_flags = quote!(0);
+    if !attr.is_empty() {
+        use syn::parse::Parser;
+        let parser = syn::punctuated::Punctuated::<syn::Ident, syn::Token![,]>::parse_terminated;
+        let args = parser.parse(attr)
+            .expect("gleam_nif attributes must be identifiers like dirty_cpu, dirty_io");
+        for arg in args {
+            if arg == "dirty_cpu" {
+                nif_flags = quote!(::gleamler::schedule::SchedulerFlags::DirtyCpu as ::gleamler::codegen_runtime::c_uint);
+            } else if arg == "dirty_io" {
+                nif_flags = quote!(::gleamler::schedule::SchedulerFlags::DirtyIo as ::gleamler::codegen_runtime::c_uint);
+            } else {
+                panic!("unknown gleam_nif attribute: {}", arg);
+            }
+        }
+    }
     let mut args_decoding = Vec::new();
     let mut args_names = Vec::new();
     let mut arg_idx: usize = 0;
@@ -87,7 +103,6 @@ pub fn gleam_nif(_attr: TokenStream, item: TokenStream) -> TokenStream {
             };
             let args: &[::gleamler::Term] = &terms;
 
-            // Panics across the FFI boundary would abort the BEAM scheduler thread.
             let result: std::thread::Result<Result<_, ::gleamler::Error>> =
                 std::panic::catch_unwind(move || {
                     #(#args_decoding)*
@@ -104,7 +119,7 @@ pub fn gleam_nif(_attr: TokenStream, item: TokenStream) -> TokenStream {
             name: concat!(stringify!(#fn_name), "\0").as_ptr()
                 as *const ::gleamler::codegen_runtime::c_char,
             arity: #arity,
-            flags: 0,
+            flags: #nif_flags,
             raw_func: #ffi_fn_name,
         };
     };

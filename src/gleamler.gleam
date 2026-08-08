@@ -25,4 +25,6 @@ pub fn main() {
   io.println("make_pair         = " <> string.inspect(pair))
 
   io.println("factorial(6)       =" <> int.to_string(gleamler_nif.rust_factorial(6)))
+
+  io.println("fib(8) dirty CPU         =" <> int.to_string(gleamler_nif.rust_fib(8)))
 }
