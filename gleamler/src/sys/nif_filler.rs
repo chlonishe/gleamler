@@ -22,7 +22,8 @@ mod internal {
                 Ok(val) if !val.is_empty() => Some(val),
                 _ => None,
             };
-            let lib = unsafe { Library::open(beam_location, FLAGS) };
+            let beam_path = beam_location.as_deref().map(std::ffi::OsStr::new);
+            let lib = unsafe { Library::open(beam_path, FLAGS) };
             DlsymNifFiller {
                 lib: lib.unwrap().into(),
             }

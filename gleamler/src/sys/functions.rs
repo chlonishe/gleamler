@@ -4,8 +4,13 @@
 use super::nif_filler::DynNifFiller;
 use super::types::*;
 
-static mut DYN_NIF_CALLBACKS: DynNifCallbacks =
-    unsafe { std::mem::MaybeUninit::zeroed().assume_init() };
+use std::sync::OnceLock;
+
+static DYN_NIF_CALLBACKS: OnceLock<DynNifCallbacks> = OnceLock::new();
+
+pub fn callbacks() -> &'static DynNifCallbacks {
+    DYN_NIF_CALLBACKS.get().expect("NIF callbacks not initialized")
+}
 
 #[cfg(target_os = "windows")]
 #[unsafe(no_mangle)]
@@ -14,13 +19,19 @@ pub static mut TWinDynNifCallbacks: DynNifCallbacks =
     unsafe { std::mem::MaybeUninit::zeroed().assume_init() };
 
 pub unsafe fn internal_set_symbols(callbacks: DynNifCallbacks) {
-    DYN_NIF_CALLBACKS = callbacks;
+    DYN_NIF_CALLBACKS
+        .set(callbacks)
+        .expect("NIF callbacks already initialized");
 }
 
 #[cfg(not(target_os = "windows"))]
 pub unsafe fn internal_write_symbols() {
-    let filler = nif_filler::new();
-    DYN_NIF_CALLBACKS.write_symbols(filler);
+    DYN_NIF_CALLBACKS.get_or_init(|| {
+        let mut callbacks = DynNifCallbacks::default();
+        let filler = nif_filler::new();
+        callbacks.write_symbols(filler);
+        callbacks
+    });
 }
 
 #[cfg(target_os = "windows")]

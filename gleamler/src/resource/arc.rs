@@ -44,6 +44,9 @@ where
         let alloc_size = get_alloc_size_struct::<T>();
         let resource_type = T::get_resource_type().unwrap();
         let mem_raw = unsafe { enif_alloc_resource(resource_type, alloc_size) };
+        if mem_raw.is_null() {
+            panic!("enif_alloc_resource returned null (out of memory)");
+        }
         let aligned_mem = unsafe { align_alloced_mem_for_struct::<T>(mem_raw) as *mut T };
 
         unsafe { ptr::write(aligned_mem, data) };

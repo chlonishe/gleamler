@@ -150,7 +150,7 @@ impl Registration {
             )
         };
         if let Some(ptr) = res {
-            unsafe { traits::register_resource_type(type_id, ptr) };
+            traits::register_resource_type(type_id, ptr);
             Ok(())
         } else {
             Err(ResourceInitError)

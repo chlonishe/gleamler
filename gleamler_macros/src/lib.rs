@@ -51,6 +51,7 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut args_names = Vec::new();
     let mut arg_idx: usize = 0;
     let mut has_env = false;
+    let mut nif_arg_idx: usize = 0;
 
     for arg in &input_fn.sig.inputs {
         if let FnArg::Typed(pat_type) = arg {
@@ -59,7 +60,8 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
                 let arg_type = &pat_type.ty;
 
                 let type_str = quote!(#arg_type).to_string().replace(' ', "");
-                if type_str.contains("Env") && arg_idx == 0 {
+                let is_env = type_str == "Env" || type_str.ends_with("::Env");
+                if is_env && arg_idx == 0 {
                     has_env = true;
                     args_names.push(arg_ident.clone());
                     args_decoding.push(quote! { let #arg_ident = env; });
@@ -69,12 +71,13 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
 
                 args_names.push(arg_ident.clone());
                 args_decoding.push(quote! {
-                    let #arg_ident: #arg_type = match args[#arg_idx].decode() {
+                    let #arg_ident: #arg_type = match args[#nif_arg_idx].decode() {
                         Ok(v) => v,
                         Err(_) => return Err(::gleamler::Error::BadArg),
                     };
                 });
                 arg_idx += 1;
+                nif_arg_idx += 1;
             }
         }
     }
@@ -158,7 +161,7 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
         }
     }).collect();
 
-    let entry_body = quote! {
+        let entry_body = quote! {
         use ::gleamler::sys::{ErlNifFunc, ErlNifEntry, NIF_MAJOR_VERSION, NIF_MINOR_VERSION, ERL_NIF_ENTRY_OPTIONS};
         use ::gleamler::codegen_runtime::min_erts;
         use ::gleamler::wrapper::get_nif_resource_type_init_size;
@@ -176,7 +179,20 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
             name: b"gleamler_nif_ffi\0".as_ptr() as *const c_char,
             num_of_funcs,
             funcs: funcs_ptr,
-            load: None,
+            load: Some({
+                unsafe extern "C" fn __gleamler_nif_load(
+                    env: *mut ::gleamler::sys::ErlNifEnv,
+                    _priv_data: *mut *mut ::gleamler::sys::c_void,
+                    _load_info: ::gleamler::sys::ERL_NIF_TERM,
+                ) -> ::gleamler::sys::c_int {
+                    let env = unsafe { ::gleamler::Env::new_init_env(&(), env) };
+                    match ::gleamler::resource::Registration::register_all_collected(env) {
+                        Ok(()) => 0,
+                        Err(_) => 1,
+                    }
+                }
+                __gleamler_nif_load
+            }),
             reload: None,
             upgrade: None,
             unload: None,

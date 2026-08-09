@@ -10,7 +10,7 @@ mod monitor;
 mod registration;
 mod term;
 mod traits;
-mod util;
+pub(crate) mod util;
 
 pub use arc::ResourceArc;
 pub use error::*;

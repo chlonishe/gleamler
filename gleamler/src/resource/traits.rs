@@ -1,24 +1,19 @@
 use std::any::TypeId;
 use std::collections::HashMap;
-use std::sync::OnceLock;
+use std::sync::{OnceLock, RwLock};
 
 use crate::sys::ErlNifResourceType;
 use crate::{Env, LocalPid, Monitor};
 
 type NifResourcePtr = *const ErlNifResourceType;
 
-/// Map from `TypeId` to the `NifResourcePtr`. To be able to store this in a `OnceLock`, the
-/// pointer is type-erased and stored as a `usize`.
-static mut RESOURCE_TYPES: OnceLock<HashMap<TypeId, usize>> = OnceLock::new();
+static RESOURCE_TYPES: OnceLock<RwLock<HashMap<TypeId, usize>>> = OnceLock::new();
 
 /// Register an Erlang resource type handle for a particular type given by its `TypeId`
-#[allow(static_mut_refs)]
-pub(crate) unsafe fn register_resource_type(type_id: TypeId, resource_type: NifResourcePtr) {
-    unsafe { RESOURCE_TYPES.get_or_init(Default::default) };
-    unsafe { RESOURCE_TYPES
-        .get_mut()
-        .unwrap()
-        .insert(type_id, resource_type as usize); }
+pub(crate) fn register_resource_type(type_id: TypeId, resource_type: NifResourcePtr) {
+    let map = RESOURCE_TYPES.get_or_init(|| RwLock::new(HashMap::new()));
+    let mut guard = map.write().expect("RESOURCE_TYPES poisoned");
+    guard.insert(type_id, resource_type as usize);
 }
 
 /// Trait that needs to be implemented to use a type as a NIF resource type.
@@ -65,10 +60,10 @@ pub trait Resource: Sized + Send + Sync + 'static {
 #[doc(hidden)]
 pub(crate) trait ResourceExt: 'static {
     /// Get the NIF resource type handle for this type if it had been registered before
-    #[allow(static_mut_refs)]
     fn get_resource_type() -> Option<NifResourcePtr> {
-        let map = unsafe { RESOURCE_TYPES.get()? };
-        map.get(&TypeId::of::<Self>())
+        let map = RESOURCE_TYPES.get()?;
+        let guard = map.read().expect("RESOURCE_TYPES poisoned");
+        guard.get(&TypeId::of::<Self>())
             .map(|ptr| *ptr as NifResourcePtr)
     }
 }

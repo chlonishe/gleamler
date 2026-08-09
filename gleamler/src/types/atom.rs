@@ -372,4 +372,8 @@ atoms! {
 
     /// The `step` atom used by `Elixir.Range` vor Elixir >= v1.12
     step,
+
+    some,
+
+    none,
 }

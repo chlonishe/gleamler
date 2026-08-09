@@ -51,8 +51,8 @@ impl fmt::Debug for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
             Error::BadArg => write!(fmt, "{{error, badarg}}"),
-            Error::Atom(s) => write!(fmt, "{{error, {s}}}"),         // <-- убран ref
-            Error::RaiseAtom(s) => write!(fmt, "throw({s})"),        // <-- убран ref
+            Error::Atom(s) => write!(fmt, "{{error, {s}}}"),
+            Error::RaiseAtom(s) => write!(fmt, "throw({s})"),
             Error::RaiseTerm(_) => write!(fmt, "throw(<term>)"),
             Error::Term(_) => write!(fmt, "{{error, {{:error, <term>}}}}"),
         }

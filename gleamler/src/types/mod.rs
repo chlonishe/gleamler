@@ -95,8 +95,8 @@ where
 {
     fn encode<'c>(&self, env: Env<'c>) -> Term<'c> {
         match *self {
-            Some(ref value) => value.encode(env),
-            None => atom::nil().encode(env),
+            Some(ref value) => (atom::some(), value.encode(env)).encode(env),
+            None => atom::none().encode(env),
         }
     }
 }
@@ -106,16 +106,17 @@ where
     T: Decoder<'a>,
 {
     fn decode(term: Term<'a>) -> NifResult<Self> {
-        if let Ok(term) = term.decode::<T>() {
-            Ok(Some(term))
-        } else {
-            let decoded_atom: atom::Atom = term.decode()?;
-            if decoded_atom == atom::nil() {
-                Ok(None)
-            } else {
-                Err(Error::BadArg)
+        if let Ok((tag, inner)) = term.decode::<(atom::Atom, Term<'a>)>() {
+            if tag == atom::some() {
+                return Ok(Some(inner.decode()?));
             }
         }
+        if let Ok(decoded_atom) = term.decode::<atom::Atom>() {
+            if decoded_atom == atom::none() || decoded_atom == atom::nil() {
+                return Ok(None);
+            }
+        }
+        Err(Error::BadArg)
     }
 }
 

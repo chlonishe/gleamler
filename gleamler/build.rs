@@ -52,7 +52,7 @@ pub struct CallbacksApiBuilder<'a>(&'a mut String);
 impl ApiBuilder for CallbacksApiBuilder<'_> {
     fn init(&mut self) {
         writeln!(self.0, "#[allow(dead_code)]").unwrap();
-        writeln!(self.0, "#[derive(Default, Copy, Clone)]").unwrap();
+        writeln!(self.0, "#[derive(Default, Copy, Clone, Debug)]").unwrap();
         writeln!(self.0, "pub struct DynNifCallbacks {{").unwrap();
     }
 
@@ -94,7 +94,7 @@ impl ApiBuilder for ForwardersApiBuilder<'_> {
         writeln!(self.0, "{{").unwrap();
         writeln!(
             self.0,
-            "    (unsafe {{ DYN_NIF_CALLBACKS.{name}.unwrap_unchecked() }})({args_names})"
+            "    (unsafe {{ callbacks().{name}.unwrap_unchecked() }})({args_names})"
         )
         .unwrap();
         writeln!(self.0, "}}\n").unwrap();
@@ -117,7 +117,7 @@ impl ApiBuilder for ForwardersApiBuilder<'_> {
         write!(self.0, "pub unsafe fn get_{name}() -> ").unwrap();
         write_variadic_fn_type(self.0, args, ret);
         writeln!(self.0, " {{").unwrap();
-        writeln!(self.0, "    unsafe {{ DYN_NIF_CALLBACKS.{name}.unwrap_unchecked() }}").unwrap();
+        writeln!(self.0, "    unsafe {{ callbacks().{name}.unwrap_unchecked() }}").unwrap();
         writeln!(self.0, "}}\n").unwrap();
     }
     fn dummy(&mut self, _name: &str) {}
@@ -868,7 +868,7 @@ fn main() {
 
     let target_family = if target_family_or_current == "windows" {
         OsFamily::Win
-    } else if cfg!(target_family = "unix") {
+    } else if target_family_or_current == "unix" {
         OsFamily::Unix
     } else {
         panic!("Unsupported Operational System Family")

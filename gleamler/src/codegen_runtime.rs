@@ -100,8 +100,8 @@ impl fmt::Debug for NifReturned {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
             NifReturned::BadArg => write!(fmt, "{{error, badarg}}"),
-            NifReturned::Term(s) => write!(fmt, "{{ok, {s}}}"),      // <-- убран ref
-            NifReturned::Raise(s) => write!(fmt, "throw({s})"),      // <-- убран ref
+            NifReturned::Term(s) => write!(fmt, "{{ok, {s}}}"),
+            NifReturned::Raise(s) => write!(fmt, "throw({s})"),
             NifReturned::Reschedule { .. } => write!(fmt, "reschedule()"),
         }
     }

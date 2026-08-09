@@ -1,14 +1,15 @@
-//Tests ;)
-
 import gleam/int
 import gleam/float
 import gleam/io
-import gleam/bool
 import gleam/string
+import gleam/bool
 
 import gleamler_nif
+import vm
+import stress_test
 
 pub fn main() {
+  io.println("=== Basic smoke test ===")
   io.println("add(5, 10)        = " <> int.to_string(gleamler_nif.rust_add(5, 10)))
   io.println("sub(100, 7)       = " <> int.to_string(gleamler_nif.rust_sub(100, 7)))
   io.println("greet(\"Gleam\")    = " <> gleamler_nif.rust_greet("Gleam"))
@@ -24,7 +25,44 @@ pub fn main() {
   let pair = gleamler_nif.rust_make_pair(42, "answer")
   io.println("make_pair         = " <> string.inspect(pair))
 
-  io.println("factorial(6)       =" <> int.to_string(gleamler_nif.rust_factorial(6)))
+  io.println("factorial(6)      = " <> int.to_string(gleamler_nif.rust_factorial(6)))
+  io.println("fib(8) dirty CPU  = " <> int.to_string(gleamler_nif.rust_fib(8)))
 
-  io.println("fib(8) dirty CPU         =" <> int.to_string(gleamler_nif.rust_fib(8)))
+  io.println("\n=== i128 / u128 roundtrip ===")
+  let i128_max = 170141183460469231731687303715884105727
+  let i128_min = -170141183460469231731687303715884105728
+  let u128_max = 340282366920938463463374607431768211455
+
+  io.println("echo_i128(MAX)    = " <> int.to_string(gleamler_nif.rust_echo_i128(i128_max)))
+  io.println("echo_i128(MIN)    = " <> int.to_string(gleamler_nif.rust_echo_i128(i128_min)))
+  io.println("echo_u128(MAX)    = " <> int.to_string(gleamler_nif.rust_echo_u128(u128_max)))
+
+  io.println("\n=== VM integration test ===")
+  let program = [
+    vm.Push(vm.VInt(5)),
+    vm.Push(vm.VInt(10)),
+    vm.Add,
+    vm.Push(vm.VString("World")),
+    vm.Greet,
+    vm.Push(vm.VList([1, 2, 3])),
+    vm.DoubleList,
+    vm.Push(vm.VInt(42)),
+    vm.Push(vm.VString("life")),
+    vm.MakePair,
+    vm.Push(vm.VInt(6)),
+    vm.Factorial,
+    vm.Push(vm.VInt(21)),
+    vm.Fib,
+    vm.Push(vm.VInt(170141183460469231731687303715884105727)),
+    vm.EchoI128,
+    vm.Push(vm.VInt(-170141183460469231731687303715884105728)),
+    vm.EchoI128,
+  ]
+
+  case vm.run(program) {
+    Ok(stack) -> io.println("VM final stack: " <> vm.inspect_stack(stack))
+    Error(e) -> io.println("VM error: " <> e)
+  }
+
+  stress_test.run()
 }

@@ -9,6 +9,7 @@ pub fn get_alloc_size_struct<T>() -> usize {
 /// first aligned pointer within the allocation where a `T` may be stored.
 /// Unsafe: `ptr` must point to a large enough allocation and not be null.
 pub unsafe fn align_alloced_mem_for_struct<T>(ptr: *const c_void) -> *const c_void {
-    let offset = mem::align_of::<T>() - ((ptr as usize) % mem::align_of::<T>());
+    let align = mem::align_of::<T>();
+    let offset = (align - ((ptr as usize) % align)) % align;
     unsafe { ptr.add(offset) }
 }

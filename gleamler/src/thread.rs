@@ -34,7 +34,16 @@ impl JobSpawner for ThreadSpawner {
 /// Note that the thread creates a new `Env` and passes it to the closure, so the closure
 /// runs under a separate environment, not under `env`.
 ///
-pub fn spawn<'a, S, F>(env: Env<'a>, thread_fn: F)
+/// Implements threaded NIFs using the default [`ThreadSpawner`].
+pub fn spawn<'a, F>(env: Env<'a>, thread_fn: F)
+where
+    F: for<'b> FnOnce(Env<'b>) -> Term<'b> + Send + panic::UnwindSafe + 'static,
+{
+    spawn_with::<ThreadSpawner, _>(env, thread_fn)
+}
+
+/// Implements threaded NIFs with a custom [`JobSpawner`].
+pub fn spawn_with<'a, S, F>(env: Env<'a>, thread_fn: F)
 where
     F: for<'b> FnOnce(Env<'b>) -> Term<'b> + Send + panic::UnwindSafe + 'static,
     S: JobSpawner,
@@ -45,7 +54,6 @@ where
             match panic::catch_unwind(|| thread_fn(env)) {
                 Ok(term) => term,
                 Err(err) => {
-                    // Try to get an error message from Rust.
                     let reason = if let Some(string) = err.downcast_ref::<String>() {
                         string.encode(env)
                     } else if let Some(&s) = err.downcast_ref::<&'static str>() {

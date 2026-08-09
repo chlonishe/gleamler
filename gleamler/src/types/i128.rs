@@ -14,13 +14,15 @@ impl Encoder for i128 {
             etf[2] = 16; // length in bytes
             if *self < 0 {
                 etf[3] = 1;
-                let bytes = (-self).to_le_bytes();
+                let bytes = self.wrapping_neg().to_le_bytes();
                 etf[4..].copy_from_slice(&bytes);
             } else {
                 etf[4..].copy_from_slice(&self.to_le_bytes());
             }
-            let (term, _) = env.binary_to_term(&etf).unwrap();
-            term
+            match env.binary_to_term(&etf) {
+                Some((term, _)) => term,
+                None => env.error_tuple("i128_encode_failed"),
+            }
         }
     }
 }
@@ -35,8 +37,10 @@ impl Encoder for u128 {
             etf[1] = SMALL_BIG_EXT;
             etf[2] = 16; // length in bytes
             etf[4..].copy_from_slice(&self.to_le_bytes());
-            let (term, _) = env.binary_to_term(&etf).unwrap();
-            term
+            match env.binary_to_term(&etf) {
+                Some((term, _)) => term,
+                None => env.error_tuple("u128_encode_failed"),
+            }
         }
     }
 }
@@ -76,7 +80,6 @@ impl<'a> Decoder<'a> for i128 {
         res[..n].copy_from_slice(&input[4..4 + n]);
 
         if res[15] >= 128 && is_pos {
-            // Value is too large for i128
             return Err(Error::BadArg);
         }
 
@@ -84,7 +87,7 @@ impl<'a> Decoder<'a> for i128 {
         if is_pos {
             Ok(res)
         } else {
-            Ok(-res)
+            Ok(res.wrapping_neg())
         }
     }
 }
@@ -120,7 +123,6 @@ impl<'a> Decoder<'a> for u128 {
         }
 
         if input[3] == 1 {
-            // Negative value
             return Err(Error::BadArg);
         }
 
