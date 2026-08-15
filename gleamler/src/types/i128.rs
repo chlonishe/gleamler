@@ -14,10 +14,11 @@ impl Encoder for i128 {
             etf[2] = 16; // length in bytes
             if *self < 0 {
                 etf[3] = 1;
-                let bytes = self.wrapping_neg().to_le_bytes();
-                etf[4..].copy_from_slice(&bytes);
+                let abs = (*self as u128).wrapping_neg();
+                etf[4..].copy_from_slice(&abs.to_le_bytes());
             } else {
-                etf[4..].copy_from_slice(&self.to_le_bytes());
+                etf[3] = 0;
+                etf[4..].copy_from_slice(&(*self as u128).to_le_bytes());
             }
             match env.binary_to_term(&etf) {
                 Some((term, _)) => term,
@@ -76,18 +77,18 @@ impl<'a> Decoder<'a> for i128 {
 
         let is_pos = input[3] == 0;
 
-        let mut res = [0; 16];
+        let mut res = [0u8; 16];
         res[..n].copy_from_slice(&input[4..4 + n]);
 
-        if res[15] >= 128 && is_pos {
+        if is_pos && res[15] >= 0x80 {
             return Err(Error::BadArg);
         }
 
-        let res = i128::from_le_bytes(res);
+        let raw = u128::from_le_bytes(res);
         if is_pos {
-            Ok(res)
+            Ok(raw as i128)
         } else {
-            Ok(res.wrapping_neg())
+            Ok((raw.wrapping_neg()) as i128)
         }
     }
 }
