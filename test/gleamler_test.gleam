@@ -1,6 +1,7 @@
 import gleeunit
 import gleeunit/should
 import gleam/option
+import gleam/list
 
 import gleamler_nif
 
@@ -9,9 +10,13 @@ pub fn main() {
 }
 
 fn make_range(start: Int, end: Int) -> List(Int) {
+  do_make_range(start, end, [])
+}
+
+fn do_make_range(start: Int, end: Int, acc: List(Int)) -> List(Int) {
   case start > end {
-    True -> []
-    False -> [start, ..make_range(start + 1, end)]
+    True -> list.reverse(acc)
+    False -> do_make_range(start + 1, end, [start, ..acc])
   }
 }
 
