@@ -83,7 +83,12 @@ pub fn stress_add_wrap(a: i64, b: i64) -> i64 { a.wrapping_add(b) }
 pub fn stress_mul_wrap(a: i64, b: i64) -> i64 { a.wrapping_mul(b) }
 
 #[gleam_nif]
-pub fn stress_repeat_string(s: String, n: i64) -> String { s.repeat(n as usize) }
+pub fn stress_repeat_string(s: String, n: i64) -> String {
+    if n < 0 {
+        return String::new();
+    }
+    s.repeat(n as usize)
+}
 
 #[gleam_nif]
 pub fn stress_string_len(s: String) -> i64 { s.len() as i64 }
