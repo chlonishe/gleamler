@@ -75,7 +75,6 @@ macro_rules! impl_nifencoder_nifdecoder_for_tuple {
     }
 }
 
-impl_nifencoder_nifdecoder_for_tuple!();
 impl_nifencoder_nifdecoder_for_tuple!(0: A);
 impl_nifencoder_nifdecoder_for_tuple!(0: A, 1: B);
 impl_nifencoder_nifdecoder_for_tuple!(0: A, 1: B, 2: C);

@@ -376,4 +376,11 @@ atoms! {
     some,
 
     none,
+
+    /// Out-of-memory indicator.
+    oom,
+    
+    i128_encode_failed,
+    u128_encode_failed,
+    big_int_encoder_invalid_bytes,
 }

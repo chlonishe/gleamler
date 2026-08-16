@@ -107,12 +107,17 @@ where
 {
     fn decode(term: Term<'a>) -> NifResult<Self> {
         if let Ok((tag, inner)) = term.decode::<(atom::Atom, Term<'a>)>() {
-            if tag == atom::some() {
+            let tag_str = tag.to_term(term.get_env()).atom_to_string().unwrap_or_default();
+            if tag == atom::some() || tag_str == "Some" {
                 return Ok(Some(inner.decode()?));
             }
         }
         if let Ok(decoded_atom) = term.decode::<atom::Atom>() {
-            if decoded_atom == atom::none() || decoded_atom == atom::nil() {
+            let s = term.atom_to_string().unwrap_or_default();
+            if decoded_atom == atom::none()
+                || decoded_atom == atom::nil()
+                || s == "None"
+            {
                 return Ok(None);
             }
         }
@@ -182,5 +187,21 @@ where
     fn encode<'c>(&self, env: Env<'c>) -> Term<'c> {
         let (keys, values): (Vec<_>, Vec<_>) = self.iter().unzip();
         Term::map_from_arrays(env, &keys, &values).unwrap()
+    }
+}
+
+impl Encoder for () {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        atom::nil().to_term(env)
+    }
+}
+
+impl<'a> Decoder<'a> for () {
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        if term.is_empty_list() || term == atom::nil().to_term(term.get_env()) {
+            Ok(())
+        } else {
+            Err(Error::BadArg)
+        }
     }
 }

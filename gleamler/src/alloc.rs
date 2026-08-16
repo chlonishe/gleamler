@@ -22,7 +22,11 @@ unsafe impl GlobalAlloc for EnifAllocator {
         // the interval `[ptr, layout.align())`, so in the worst case, we have to pad with
         // `layout.align() - 1`. The requirement for an additional `usize` just shifts the
         // problem without changing the padding requirement.
-        let total_size = std::mem::size_of::<usize>() + layout.size() + layout.align() - 1;
+        let total_size = std::mem::size_of::<usize>()
+            .checked_add(layout.size())
+            .and_then(|s| s.checked_add(layout.align() - 1))
+            .expect("allocation size overflow");
+        
         let ptr = unsafe { enif_alloc(total_size) as *mut u8 };
 
         if ptr.is_null() {

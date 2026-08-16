@@ -1,5 +1,9 @@
 extern crate self as gleamler;
 
+#[cfg(feature = "allocator")]
+#[global_allocator]
+static GLOBAL_ALLOCATOR: crate::alloc::EnifAllocator = crate::alloc::EnifAllocator;
+
 #[doc(hidden)]
 pub mod wrapper;
 #[doc(hidden)]

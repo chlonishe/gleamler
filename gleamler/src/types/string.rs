@@ -1,5 +1,6 @@
-use super::binary::{Binary, OwnedBinary};
+use super::binary::{Binary, NewBinary, OwnedBinary};
 use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
+use crate::types::atom;
 
 impl<'a> Decoder<'a> for String {
     #[inline]
@@ -30,14 +31,20 @@ impl Encoder for &str {
 impl Encoder for str {
     fn encode<'b>(&self, env: Env<'b>) -> Term<'b> {
         let str_len = self.len();
-        let mut bin = match OwnedBinary::new(str_len) {
-            Some(bin) => bin,
-            None => panic!("binary term allocation fail"),
-        };
-        bin.as_mut_slice()
-            .write_all(self.as_bytes())
-            .expect("memory copy of string failed");
-        bin.release(env).to_term(env)
+        if str_len <= 64 {
+            let mut bin = NewBinary::new(env, str_len);
+            bin.as_mut_slice().copy_from_slice(self.as_bytes());
+            bin.into()
+        } else {
+            let mut bin = match OwnedBinary::new(str_len) {
+                Some(bin) => bin,
+                None => return atom::oom().to_term(env),
+            };
+            bin.as_mut_slice()
+                .write_all(self.as_bytes())
+                .expect("memory copy of string failed");
+            bin.release(env).to_term(env)
+        }
     }
 }
 

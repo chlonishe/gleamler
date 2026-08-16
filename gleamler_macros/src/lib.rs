@@ -32,21 +32,35 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
     let nif_const_name = syn::Ident::new(&format!("__GLEAMLER_NIF_{}", fn_name), fn_name.span());
 
     let mut nif_flags = quote!(0);
+    let mut alias: Option<syn::LitStr> = None;
+
     if !attr.is_empty() {
         use syn::parse::Parser;
-        let parser = syn::punctuated::Punctuated::<syn::Ident, syn::Token![,]>::parse_terminated;
-        let args = parser.parse(attr)
-            .expect("gleam_nif attributes must be identifiers like dirty_cpu, dirty_io");
-        for arg in args {
-            if arg == "dirty_cpu" {
+        let parser = syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated;
+        let metas = parser.parse(attr)
+            .expect("gleam_nif attributes must be comma-separated meta items, e.g. dirty_cpu, alias = \"name\"");
+        for meta in metas {
+            if meta.path().is_ident("dirty_cpu") {
                 nif_flags = quote!(::gleamler::schedule::SchedulerFlags::DirtyCpu as ::gleamler::codegen_runtime::c_uint);
-            } else if arg == "dirty_io" {
+            } else if meta.path().is_ident("dirty_io") {
                 nif_flags = quote!(::gleamler::schedule::SchedulerFlags::DirtyIo as ::gleamler::codegen_runtime::c_uint);
+            } else if meta.path().is_ident("alias") {
+                let expr: syn::Expr = meta.require_name_value()
+                    .expect("alias must be a name-value pair: alias = \"name\"")
+                    .value.clone();
+                if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(lit_str), .. }) = expr {
+                    alias = Some(lit_str);
+                } else {
+                    panic!("alias value must be a string literal");
+                }
             } else {
-                panic!("unknown gleam_nif attribute: {}", arg);
+                panic!("unknown gleam_nif attribute");
             }
         }
     }
+
+    let export_name = alias.as_ref().map(|s| s.value()).unwrap_or_else(|| fn_name.to_string());
+    let export_name_lit = syn::LitStr::new(&format!("{}\0", export_name), fn_name.span());
     let mut args_decoding = Vec::new();
     let mut args_names = Vec::new();
     let mut arg_idx: usize = 0;
@@ -106,6 +120,9 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
             };
             let args: &[::gleamler::Term] = &terms;
 
+            if (argc as usize) != (#arity as usize) {
+                return unsafe { ::gleamler::codegen_runtime::NifReturned::BadArg.apply(env) };
+            }
             let result: std::thread::Result<Result<_, ::gleamler::Error>> =
                 std::panic::catch_unwind(move || {
                     #(#args_decoding)*
@@ -119,7 +136,7 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
         #[doc(hidden)]
         #[allow(non_upper_case_globals)]
         pub const #nif_const_name: ::gleamler::nif::Nif = ::gleamler::nif::Nif {
-            name: concat!(stringify!(#fn_name), "\0").as_ptr()
+            name: #export_name_lit.as_ptr()
                 as *const ::gleamler::codegen_runtime::c_char,
             arity: #arity,
             flags: #nif_flags,
@@ -168,11 +185,9 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
         use ::gleamler::wrapper::get_nif_resource_type_init_size;
         use std::ffi::c_char;
 
-        let funcs = vec![#(#funcs),*];
-
+        let funcs: &'static [_] = Box::leak(vec![#(#funcs),*].into_boxed_slice());
         let funcs_ptr = funcs.as_ptr();
         let num_of_funcs = funcs.len() as i32;
-        std::mem::forget(funcs);
 
         let entry = Box::new(ErlNifEntry {
             major: NIF_MAJOR_VERSION,

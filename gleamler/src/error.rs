@@ -54,7 +54,7 @@ impl fmt::Debug for Error {
             Error::Atom(s) => write!(fmt, "{{error, {s}}}"),
             Error::RaiseAtom(s) => write!(fmt, "throw({s})"),
             Error::RaiseTerm(_) => write!(fmt, "throw(<term>)"),
-            Error::Term(_) => write!(fmt, "{{error, {{:error, <term>}}}}"),
+            Error::Term(_) => write!(fmt, "{{error, <term>}}"),
         }
     }
 }

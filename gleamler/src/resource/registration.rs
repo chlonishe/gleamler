@@ -139,12 +139,18 @@ impl Registration {
         }
 
         let type_id = (self.get_type_id)();
-        let type_name = self.type_name.unwrap_or_else(self.get_type_name);
+        let type_name = self.type_name.unwrap_or_else(|| {
+            let raw = (self.get_type_name)();
+            raw.rsplit("::").next().unwrap_or(raw)
+                .split('<').next().unwrap_or(raw)
+                .trim()
+        });
 
-        let res: Option<*const ErlNifResourceType> = unsafe {
+        let name = CString::new(type_name).unwrap();
+        let res = unsafe {
             open_resource_type(
                 env.as_c_arg(),
-                CString::new(type_name).unwrap().as_bytes_with_nul(),
+                name.as_bytes_with_nul(),
                 self.init,
                 ErlNifResourceFlags::ERL_NIF_RT_CREATE,
             )

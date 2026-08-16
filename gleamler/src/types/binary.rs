@@ -346,6 +346,10 @@ impl<'a> Binary<'a> {
     /// If `term` is not an `iolist`, an error will be returned.
     #[inline]
     pub fn from_iolist(term: Term<'a>) -> Result<Self, Error> {
+        if term.is_binary() {
+            return Binary::from_term(term);
+        }
+        
         let env = term.get_env();
         let mut binary = MaybeUninit::uninit();
         if unsafe {
@@ -512,10 +516,17 @@ impl<'a> NewBinary<'a> {
     }
 
     pub fn from_iter(env: Env<'a>, iter: impl ExactSizeIterator<Item = u8>) -> Self {
-        let mut bin = Self::new(env, iter.len());
+        let expected = iter.len();
+        let mut bin = Self::new(env, expected);
+        let mut written = 0;
         for (src, dst) in ::std::iter::zip(iter, bin.iter_mut()) {
             *dst = src;
+            written += 1;
         }
+        assert_eq!(
+            written, expected,
+            "ExactSizeIterator reported incorrect length"
+        );
         bin
     }
 }

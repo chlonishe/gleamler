@@ -1,5 +1,6 @@
 use crate::types::atom;
 use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
+use std::convert::TryFrom;
 
 macro_rules! erl_make {
     ($self:expr, $env:ident, $encode_fun:ident, $type:ty) => {
@@ -65,8 +66,43 @@ impl_number_transcoder!(i8, i32, enif_make_int, enif_get_int);
 impl_number_transcoder!(u8, u32, enif_make_uint, enif_get_uint);
 impl_number_transcoder!(i16, i32, enif_make_int, enif_get_int);
 impl_number_transcoder!(u16, u32, enif_make_uint, enif_get_uint);
-impl_number_transcoder!(usize, u64, enif_make_uint64, enif_get_uint64);
-impl_number_transcoder!(isize, i64, enif_make_int64, enif_get_int64);
+
+impl Encoder for usize {
+    #[inline]
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        erl_make!(*self, env, enif_make_uint64, u64)
+    }
+}
+
+impl Decoder<'_> for usize {
+    #[inline]
+    fn decode(term: Term) -> NifResult<usize> {
+        let mut res: u64 = Default::default();
+        if erl_get!(enif_get_uint64, term, res) == 0 {
+            return Err(Error::BadArg);
+        }
+        usize::try_from(res).map_err(|_| Error::BadArg)
+    }
+}
+
+impl Encoder for isize {
+    #[inline]
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        erl_make!(*self, env, enif_make_int64, i64)
+    }
+}
+
+impl Decoder<'_> for isize {
+    #[inline]
+    fn decode(term: Term) -> NifResult<isize> {
+        let mut res: i64 = Default::default();
+        if erl_get!(enif_get_int64, term, res) == 0 {
+            return Err(Error::BadArg);
+        }
+        isize::try_from(res).map_err(|_| Error::BadArg)
+    }
+}
+
 impl_number_encoder!(f32, f64, enif_make_double);
 
 // Manual Decoder impls for floats so they can fall back to decoding from integer terms

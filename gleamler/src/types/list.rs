@@ -40,13 +40,14 @@ use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 /// ```
 pub struct ListIterator<'a> {
     term: Term<'a>,
+    len: usize,
 }
 
 impl<'a> ListIterator<'a> {
     fn new(term: Term<'a>) -> Option<Self> {
         if term.is_list() {
-            let iter = ListIterator { term };
-            Some(iter)
+            let len = term.list_length().unwrap_or(0);
+            Some(ListIterator { term, len })
         } else {
             None
         }
@@ -64,11 +65,11 @@ impl<'a> Iterator for ListIterator<'a> {
         match cell {
             Some((head, tail)) => unsafe {
                 self.term = Term::new(self.term.get_env(), tail);
+                self.len -= 1;
                 Some(Term::new(self.term.get_env(), head))
             },
             None => {
                 if self.term.is_empty_list() {
-                    // We reached the end of the list, finish the iterator.
                     None
                 } else {
                     panic!("list iterator found improper list")
@@ -76,15 +77,17 @@ impl<'a> Iterator for ListIterator<'a> {
             }
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.len, Some(self.len))
+    }
 }
 
+impl<'a> ExactSizeIterator for ListIterator<'a> {}
+
 impl<'a> Decoder<'a> for ListIterator<'a> {
-    #[inline]
     fn decode(term: Term<'a>) -> NifResult<Self> {
-        match ListIterator::new(term) {
-            Some(iter) => Ok(iter),
-            None => Err(Error::BadArg),
-        }
+        ListIterator::new(term).ok_or(Error::BadArg)
     }
 }
 

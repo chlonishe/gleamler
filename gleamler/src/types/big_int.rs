@@ -44,9 +44,7 @@ const INTEGER: u8 = 98;
 const SMALL_BIG_EXT: u8 = 110;
 const LARGE_BIG_EXT: u8 = 111;
 
-crate::atoms! {
-    big_int_encoder_invalid_bytes
-}
+use crate::types::atom;
 
 fn decode_big_integer(input: &[u8]) -> NifResult<BigInt> {
     if Some(&EXTERNAL_TERM_FORMAT_VERSION) != input.first() {
@@ -124,7 +122,7 @@ impl Encoder for BigInt {
         let binary = encode_big_integer(self);
         match env.binary_to_term(&binary) {
             Some((term, _)) => term,
-            None => env.error_tuple(big_int_encoder_invalid_bytes()),
+            None => env.error_tuple(atom::big_int_encoder_invalid_bytes()),
         }
     }
 }

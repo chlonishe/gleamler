@@ -57,6 +57,8 @@ impl<'a> Term<'a> {
             // and 'b.  (They are either exactly the same lifetime, or the
             // lifetimes of two .run() calls on the same OwnedEnv.)
             unsafe { Term::new(env, self.as_c_arg()) }
+        } else if self.is_atom() {
+            unsafe { Term::new(env, self.as_c_arg()) }
         } else {
             unsafe { Term::new(env, enif_make_copy(env.as_c_arg(), self.as_c_arg())) }
         }
