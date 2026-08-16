@@ -307,9 +307,11 @@ pub fn heavy(n: i64) -> i64 { n }
     fn erl_output_smoke() {
         let funcs = vec![NifFunc {
             name: "add".into(),
+            alias: None,
             args: vec![("a".into(), "i64".into()), ("b".into(), "i64".into())],
             ret: "i64".into(),
             arity: 2,
+            docs: vec![],
         }];
         let out = generate_erl(&funcs);
         assert!(out.contains("-export([add/2])."));
@@ -321,9 +323,11 @@ pub fn heavy(n: i64) -> i64 { n }
     fn gleam_output_basic() {
         let funcs = vec![NifFunc {
             name: "greet".into(),
+            alias: None,
             args: vec![("name".into(), "String".into())],
             ret: "String".into(),
             arity: 1,
+            docs: vec![],
         }];
         let out = generate_gleam(&funcs);
         assert!(out.contains(r#"@external(erlang, "gleamler_nif_ffi", "greet")"#));
@@ -334,12 +338,14 @@ pub fn heavy(n: i64) -> i64 { n }
     fn gleam_output_complex_types() {
         let funcs = vec![NifFunc {
             name: "calc".into(),
+            alias: None,
             args: vec![
                 ("items".into(), "Vec<i64>".into()),
                 ("flag".into(), "Option<bool>".into()),
             ],
             ret: "Result<String, i64>".into(),
             arity: 2,
+            docs: vec![],
         }];
         let out = generate_gleam(&funcs);
         assert!(out.contains("import gleam/option"));
@@ -352,9 +358,11 @@ pub fn heavy(n: i64) -> i64 { n }
     fn gleam_tuple_type() {
         let funcs = vec![NifFunc {
             name: "pair".into(),
+            alias: None,
             args: vec![("a".into(), "i64".into()), ("b".into(), "String".into())],
             ret: "(i64, String)".into(),
             arity: 2,
+            docs: vec![],
         }];
         let out = generate_gleam(&funcs);
         assert!(out.contains("#(Int, String)"));
@@ -364,9 +372,11 @@ pub fn heavy(n: i64) -> i64 { n }
     fn gleam_dict_type() {
         let funcs = vec![NifFunc {
             name: "m".into(),
+            alias: None,
             args: vec![("x".into(), "HashMap<String, i64>".into())],
             ret: "nil".into(),
             arity: 1,
+            docs: vec![],
         }];
         let out = generate_gleam(&funcs);
         assert!(out.contains("Dict(String, Int)"));
