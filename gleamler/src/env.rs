@@ -246,7 +246,7 @@ impl OwnedEnv {
         T: Encoder,
     {
         if is_scheduler_thread() {
-            panic!("send_and_clear: current thread is managed");
+            return Err(SendError);
         }
 
         let message = self.run(|env| closure(env).encode(env).as_c_arg());
