@@ -38,7 +38,23 @@ cargo build -p gleamler --release
 New-Item -ItemType Directory -Force -Path priv | Out-Null
 
 if ($IsWindows -or $env:OS -eq "Windows_NT") {
-    Copy-Item target/release/gleamler.dll priv/gleamler.dll -Force
+    $targetSubdir = if ($env:CARGO_BUILD_TARGET) { 
+        Join-Path "target" $env:CARGO_BUILD_TARGET "release"
+    } else { 
+        "target/release"
+    }
+
+    $dllPaths = @(
+        Join-Path $targetSubdir "gleamler.dll"
+        "target/release/gleamler.dll"
+    )
+    $dllPath = $dllPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+    if (-not $dllPath) {
+        throw "Could not find gleamler.dll. Looked in: $($dllPaths -join ', ')"
+    }
+
+    Copy-Item $dllPath priv/gleamler.dll -Force
 } else {
     $ext = if (& uname -s | Select-String -Pattern "Darwin") { "dylib" } else { "so" }
     Copy-Item target/release/libgleamler.$ext priv/gleamler.$ext -Force
@@ -53,3 +69,4 @@ if ($Run) {
 }
 
 Write-Host "==> Done!" -ForegroundColor Green
+
