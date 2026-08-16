@@ -12,12 +12,6 @@ pub fn callbacks() -> &'static DynNifCallbacks {
     DYN_NIF_CALLBACKS.get().expect("NIF callbacks not initialized")
 }
 
-#[cfg(target_os = "windows")]
-#[unsafe(no_mangle)]
-#[used]
-pub static mut TWinDynNifCallbacks: DynNifCallbacks =
-    unsafe { std::mem::MaybeUninit::zeroed().assume_init() };
-
 pub unsafe fn internal_set_symbols(callbacks: DynNifCallbacks) {
     DYN_NIF_CALLBACKS
         .set(callbacks)
