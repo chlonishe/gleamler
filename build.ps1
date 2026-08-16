@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$rustSrc = "gleamler/src/nifs.rs", "gleamler/src/lib.rs"
+$rustSrc = Get-ChildItem -Path "gleamler/src" -Filter "*.rs" -Recurse | Select-Object -ExpandProperty FullName
 $erlOut = "src/gleamler_nif_ffi.erl"
 $gleamOut = "src/gleamler_nif.gleam"
 
