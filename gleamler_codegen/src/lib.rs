@@ -241,15 +241,36 @@ fn split_args(s: &str) -> Vec<String> {
     let mut depth = 0i32;
     let mut cur = String::new();
     let mut res = Vec::new();
+    let mut in_string = false;
+    let mut string_delim = '\0';
+
     for c in s.chars() {
+        if in_string {
+            cur.push(c);
+            if c == string_delim {
+                in_string = false;
+            }
+            continue;
+        }
+
         match c {
-            '<' | '(' => { depth += 1; cur.push(c); }
-            '>' | ')' => { depth -= 1; cur.push(c); }
-            ',' if depth == 0 => { res.push(cur.trim().to_string()); cur.clear(); }
+            '"' | '\'' => {
+                in_string = true;
+                string_delim = c;
+                cur.push(c);
+            }
+            '<' | '(' | '[' => { depth += 1; cur.push(c); }
+            '>' | ')' | ']' => { depth -= 1; cur.push(c); }
+            ',' if depth == 0 => {
+                res.push(cur.trim().to_string());
+                cur.clear();
+            }
             _ => cur.push(c),
         }
     }
-    if !cur.is_empty() { res.push(cur.trim().to_string()); }
+    if !cur.is_empty() {
+        res.push(cur.trim().to_string());
+    }
     res
 }
 
@@ -380,5 +401,13 @@ pub fn heavy(n: i64) -> i64 { n }
         }];
         let out = generate_gleam(&funcs);
         assert!(out.contains("Dict(String, Int)"));
+    }
+
+    #[test]
+    fn split_args_nested_brackets() {
+        assert_eq!(
+            split_args("Vec<[u8; 4]>, String"),
+            vec!["Vec<[u8; 4]>", "String"]
+        );
     }
 }
