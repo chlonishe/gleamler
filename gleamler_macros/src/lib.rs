@@ -63,8 +63,6 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
     let export_name_lit = syn::LitStr::new(&format!("{}\0", export_name), fn_name.span());
     let mut args_decoding = Vec::new();
     let mut args_names = Vec::new();
-    let mut arg_idx: usize = 0;
-    let mut has_env = false;
     let mut nif_arg_idx: usize = 0;
 
     for arg in &input_fn.sig.inputs {
@@ -76,11 +74,10 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
                 let type_str = quote!(#arg_type).to_string().replace(' ', "");
                 let type_base = type_str.split('<').next().unwrap_or(&type_str).to_string();
                 let is_env = type_base == "Env" || type_base.ends_with("::Env");
-                if is_env && arg_idx == 0 {
-                    has_env = true;
+                
+                if is_env {
                     args_names.push(arg_ident.clone());
                     args_decoding.push(quote! { let #arg_ident = env; });
-                    arg_idx += 1;
                     continue;
                 }
 
@@ -91,13 +88,12 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
                         Err(_) => return Err(::gleamler::Error::BadArg),
                     };
                 });
-                arg_idx += 1;
                 nif_arg_idx += 1;
             }
         }
     }
 
-    let arity = if has_env { arg_idx - 1 } else { arg_idx } as u32;
+    let arity = nif_arg_idx as u32;
 
     let expanded = quote! {
         #input_fn

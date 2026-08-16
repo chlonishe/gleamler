@@ -36,7 +36,7 @@ fn parse_nif_function(func: ItemFn) -> Option<NifFunc> {
         if let FnArg::Typed(pat_type) = arg {
             let ty = type_to_string(&pat_type.ty);
             let norm_ty = normalize(&ty);
-            if idx == 0 && (norm_ty == "Env" || norm_ty.ends_with("::Env")) {
+            if norm_ty == "Env" || norm_ty.ends_with("::Env") {
                 continue;
             }
             let name = match pat_type.pat.as_ref() {
