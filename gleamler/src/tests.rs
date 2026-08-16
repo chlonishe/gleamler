@@ -5,11 +5,23 @@ mod tests {
     use std::mem;
 
     #[test]
-    fn min_erts_default_feature() {
+    fn min_erts_matches_feature() {
+        let expected = if cfg!(feature = "nif_version_2_18") {
+            b"OTP-29"
+        } else if cfg!(feature = "nif_version_2_17") {
+            b"OTP-26"
+        } else if cfg!(feature = "nif_version_2_16") {
+            b"OTP-24"
+        } else if cfg!(feature = "nif_version_2_15") {
+            b"OTP-22"
+        } else {
+            b"OTP-21"
+        };
         let erts = min_erts();
         assert!(
-            erts.starts_with(b"OTP-26"),
-            "expected OTP-26, got {:?}",
+            erts.starts_with(expected),
+            "expected {:?}, got {:?}",
+            std::str::from_utf8(expected),
             std::str::from_utf8(erts)
         );
     }
