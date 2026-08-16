@@ -107,17 +107,12 @@ where
 {
     fn decode(term: Term<'a>) -> NifResult<Self> {
         if let Ok((tag, inner)) = term.decode::<(atom::Atom, Term<'a>)>() {
-            let tag_str = tag.to_term(term.get_env()).atom_to_string().unwrap_or_default();
-            if tag == atom::some() || tag_str == "Some" {
+            if tag == atom::some() {
                 return Ok(Some(inner.decode()?));
             }
         }
         if let Ok(decoded_atom) = term.decode::<atom::Atom>() {
-            let s = term.atom_to_string().unwrap_or_default();
-            if decoded_atom == atom::none()
-                || decoded_atom == atom::nil()
-                || s == "None"
-            {
+            if decoded_atom == atom::none() || decoded_atom == atom::nil() {
                 return Ok(None);
             }
         }
