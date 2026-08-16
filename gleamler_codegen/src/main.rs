@@ -30,6 +30,12 @@ fn main() {
     visit_dirs(&scan_dir, &mut |path| {
         if let Ok(content) = fs::read_to_string(path) {
             for func in parse_nif_functions(&content) {
+                if functions.contains_key(&func.name) {
+                    panic!(
+                        "gleamler_codegen: duplicate #[gleam_nif] function name '{}' found in file {:?}",
+                        func.name, path
+                    );
+                }
                 functions.insert(func.name.clone(), func);
             }
         }
