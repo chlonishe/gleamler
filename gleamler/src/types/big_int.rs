@@ -47,34 +47,54 @@ const LARGE_BIG_EXT: u8 = 111;
 use crate::types::atom;
 
 fn decode_big_integer(input: &[u8]) -> NifResult<BigInt> {
-    if Some(&EXTERNAL_TERM_FORMAT_VERSION) != input.first() {
+    if input.len() < 2 || Some(&EXTERNAL_TERM_FORMAT_VERSION) != input.first() {
         return Err(Error::BadArg);
     }
 
     match input[1] {
-        SMALL_INTEGER => Ok(BigInt::from(input[2])),
+        SMALL_INTEGER => {
+            if input.len() < 3 {
+                return Err(Error::BadArg);
+            }
+            Ok(BigInt::from(input[2]))
+        }
 
-        INTEGER => Ok(BigInt::from_signed_bytes_be(&input[2..6])),
+        INTEGER => {
+            if input.len() < 6 {
+                return Err(Error::BadArg);
+            }
+            Ok(BigInt::from_signed_bytes_be(&input[2..6]))
+        }
 
         SMALL_BIG_EXT => {
+            if input.len() < 4 {
+                return Err(Error::BadArg);
+            }
             let n = input[2] as usize;
+            if input.len() < 4 + n {
+                return Err(Error::BadArg);
+            }
             let sign = if input[3] == 0 {
                 Sign::Plus
             } else {
                 Sign::Minus
             };
-
             Ok(BigInt::from_bytes_le(sign, &input[4..n + 4]))
         }
 
         LARGE_BIG_EXT => {
+            if input.len() < 7 {
+                return Err(Error::BadArg);
+            }
             let n = u32::from_be_bytes([input[2], input[3], input[4], input[5]]) as usize;
+            if input.len() < 7 + n {
+                return Err(Error::BadArg);
+            }
             let sign = if input[6] == 0 {
                 Sign::Plus
             } else {
                 Sign::Minus
             };
-
             Ok(BigInt::from_bytes_le(sign, &input[7..n + 7]))
         }
 
