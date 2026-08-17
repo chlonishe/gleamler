@@ -12,7 +12,7 @@ use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 /// [docs](https://doc.rust-lang.org/std/iter/trait.Iterator.html)), there are a couple of tricky
 /// parts to using it.
 ///
-/// Because the iterator is an iterator over `Term`s, you need to decode the terms before you
+/// Because the iterator is an iterator over `NifResult<Term>`s, you need to decode the terms before you
 /// can do anything with them.
 ///
 /// ## Example
@@ -30,7 +30,7 @@ use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 ///
 /// let result: NifResult<Vec<i64>> = list_iterator
 ///     // Produces an iterator of NifResult<i64>
-///     .map(|x| x.decode::<i64>())
+///     .map(|x| x.and_then(|term| term.decode::<i64>()))
 ///     // Lifts each value out of the result. Returns Ok(Vec<i64>) if successful, the first error
 ///     // Error(Error) on failure.
 ///     .collect::<NifResult<Vec<i64>>>();
@@ -39,12 +39,17 @@ use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 /// ```
 pub struct ListIterator<'a> {
     term: Term<'a>,
+    done: bool,
 }
 
 impl<'a> ListIterator<'a> {
     fn new(term: Term<'a>) -> Option<Self> {
         if term.is_list() {
-            Some(ListIterator { term })
+            let iter = ListIterator { 
+                term,
+                done: false,
+            };
+            Some(iter)
         } else {
             None
         }
@@ -52,23 +57,29 @@ impl<'a> ListIterator<'a> {
 }
 
 impl<'a> Iterator for ListIterator<'a> {
-    type Item = Term<'a>;
+    type Item = NifResult<Term<'a>>;
 
     #[inline]
-    fn next(&mut self) -> Option<Term<'a>> {
+    fn next(&mut self) -> Option<NifResult<Term<'a>>> {
+        if self.done {
+            return None;
+        }
+
         let env = self.term.get_env();
         let cell = unsafe { list::get_list_cell(env.as_c_arg(), self.term.as_c_arg()) };
 
         match cell {
             Some((head, tail)) => unsafe {
                 self.term = Term::new(self.term.get_env(), tail);
-                Some(Term::new(self.term.get_env(), head))
+                Some(Ok(Term::new(self.term.get_env(), head)))
             },
             None => {
                 if self.term.is_empty_list() {
+                    self.done = true;
                     None
                 } else {
-                    panic!("list iterator found improper list")
+                    self.done = true;
+                    Some(Err(Error::BadArg))
                 }
             }
         }
@@ -102,8 +113,7 @@ where
     #[inline]
     fn decode(term: Term<'a>) -> NifResult<Self> {
         let iter: ListIterator = term.decode()?;
-        let res: NifResult<Self> = iter.map(|x| x.decode::<T>()).collect();
-        res
+        iter.map(|res| res.and_then(|x| x.decode::<T>())).collect()
     }
 }
 
