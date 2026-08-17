@@ -24,15 +24,16 @@ unsafe impl NifReturnable for crate::error::Error {
         match self {
             Error::BadArg => NifReturned::BadArg,
             Error::Atom(atom_str) => {
-                let atom = types::atom::Atom::from_str(env, atom_str)
-                    .expect("Error::Atom: bad atom")
-                    .to_term(env);
-                NifReturned::Term(atom.as_c_arg())
+                match types::atom::Atom::from_str(env, atom_str) {
+                    Ok(atom) => NifReturned::Term(atom.to_term(env).as_c_arg()),
+                    Err(_) => NifReturned::BadArg,
+                }
             }
             Error::RaiseAtom(atom_str) => {
-                let atom = types::atom::Atom::from_str(env, atom_str)
-                    .expect("Error::RaiseAtom: bad argument");
-                NifReturned::Raise(atom.as_c_arg())
+                match types::atom::Atom::from_str(env, atom_str) {
+                    Ok(atom) => NifReturned::Raise(atom.as_c_arg()),
+                    Err(_) => NifReturned::BadArg,
+                }
             }
             Error::RaiseTerm(ref term_unencoded) => {
                 let term = term_unencoded.encode(env);
