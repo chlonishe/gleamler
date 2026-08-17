@@ -99,7 +99,38 @@ fn type_to_string(ty: &syn::Type) -> String {
 }
 
 fn normalize(s: &str) -> String {
-    s.split_whitespace().collect()
+    let mut result = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    
+    while let Some(c) = chars.next() {
+        if c == '\'' {
+            if let Some(&next_c) = chars.peek() {
+                if next_c.is_ascii_alphabetic() || next_c == '_' {
+                    while let Some(&ahead) = chars.peek() {
+                        if ahead.is_ascii_alphanumeric() || ahead == '_' {
+                            chars.next(); 
+                        } else {
+                            break;
+                        }
+                    }
+                    continue;
+                }
+            }
+        }
+        result.push(c);
+    }
+    
+    let mut s: String = result.split_whitespace().collect();
+    
+    while let Some(pos) = s.find("<>") {
+        s.replace_range(pos..pos+2, "");
+    }
+    
+    s = s.replace(",>", ">");
+    s = s.replace("<,", "<");
+    s = s.replace(",,", ",");
+    
+    s
 }
 
 pub fn generate_erl(funcs: &[NifFunc]) -> String {
@@ -229,6 +260,17 @@ fn rust_to_gleam(rust: &str) -> String {
                 let inner = &t[1..t.len()-1];
                 let parts: Vec<_> = inner.split(',').map(|s| rust_to_gleam(s.trim())).collect();
                 format!("#({})", parts.join(", "))
+            } 
+            else if let (Some(start), Some(end)) = (t.find('<'), t.rfind('>')) {
+                if end == t.len() - 1 {
+                    let prefix = &t[..start];
+                    let inner = &t[start+1..end];
+                    let parts = split_args(inner);
+                    let mapped_parts: Vec<_> = parts.iter().map(|p| rust_to_gleam(p)).collect();
+                    format!("{}({})", prefix, mapped_parts.join(", "))
+                } else {
+                    t
+                }
             } else {
                 t
             }
@@ -432,5 +474,47 @@ pub fn heavy(n: i64) -> i64 { n }
         }];
         let out = generate_gleam(&funcs);
         assert!(out.contains("data: List(Int)"));
+    }
+
+    #[test]
+    fn gleam_lifetimes_in_references() {
+        let funcs = vec![NifFunc {
+            name: "f".into(), alias: None,
+            args: vec![
+                ("s".into(), "&'a str".into()), 
+                ("b".into(), "&'env [u8]".into())
+            ],
+            ret: "nil".into(), arity: 2, docs: vec![],
+        }];
+        let out = generate_gleam(&funcs);
+        assert!(out.contains("s: String"));
+        assert!(out.contains("b: List(Int)"));
+    }
+
+    #[test]
+    fn gleam_lifetimes_in_binary() {
+        let funcs = vec![NifFunc {
+            name: "f".into(), alias: None,
+            args: vec![("b".into(), "Binary<'a>".into())],
+            ret: "OwnedBinary<'env>".into(), arity: 1, docs: vec![],
+        }];
+        let out = generate_gleam(&funcs);
+        assert!(out.contains("b: BitArray"));
+        assert!(out.contains("-> BitArray"));
+    }
+
+    #[test]
+    fn gleam_lifetimes_in_complex_generics() {
+        let funcs = vec![NifFunc {
+            name: "f".into(), alias: None,
+            args: vec![
+                ("x".into(), "Foo<'a, T>".into()),
+                ("y".into(), "Bar<T, 'env, U>".into())
+            ],
+            ret: "nil".into(), arity: 2, docs: vec![],
+        }];
+        let out = generate_gleam(&funcs);
+        assert!(out.contains("x: Foo(T)"));
+        assert!(out.contains("y: Bar(T, U)"));
     }
 }
