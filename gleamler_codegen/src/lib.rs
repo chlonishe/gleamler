@@ -250,17 +250,18 @@ fn rust_to_gleam(rust: &str) -> String {
                 let inner = &t[8..t.len()-1];
                 let parts = split_args(inner);
                 if parts.len() == 2 {
-                    format!("Dict({}, {})", rust_to_gleam(&parts[0]), rust_to_gleam(&parts[1]))
+                    format!("dict.Dict({}, {})", rust_to_gleam(&parts[0]), rust_to_gleam(&parts[1]))
                 } else {
-                    "Dict(k, v)".into()
+                    "dict.Dict(k, v)".into()
                 }
             } else if t.starts_with("ResourceArc<") && t.ends_with(">") {
                 t[12..t.len()-1].to_string()
             } else if t.starts_with('(') && t.ends_with(')') {
                 let inner = &t[1..t.len()-1];
-                let parts: Vec<_> = inner.split(',').map(|s| rust_to_gleam(s.trim())).collect();
-                format!("#({})", parts.join(", "))
-            } 
+                let parts = split_args(inner);
+                let mapped_parts: Vec<_> = parts.iter().map(|s| rust_to_gleam(s)).collect();
+                format!("#({})", mapped_parts.join(", "))
+            }
             else if let (Some(start), Some(end)) = (t.find('<'), t.rfind('>')) {
                 if end == t.len() - 1 {
                     let prefix = &t[..start];
@@ -433,15 +434,12 @@ pub fn heavy(n: i64) -> i64 { n }
     #[test]
     fn gleam_dict_type() {
         let funcs = vec![NifFunc {
-            name: "m".into(),
-            alias: None,
+            name: "m".into(), alias: None,
             args: vec![("x".into(), "HashMap<String, i64>".into())],
-            ret: "nil".into(),
-            arity: 1,
-            docs: vec![],
+            ret: "nil".into(), arity: 1, docs: vec![],
         }];
         let out = generate_gleam(&funcs);
-        assert!(out.contains("Dict(String, Int)"));
+        assert!(out.contains("dict.Dict(String, Int)"));
     }
 
     #[test]
@@ -516,5 +514,17 @@ pub fn heavy(n: i64) -> i64 { n }
         let out = generate_gleam(&funcs);
         assert!(out.contains("x: Foo(T)"));
         assert!(out.contains("y: Bar(T, U)"));
+    }
+
+    #[test]
+    fn gleam_tuple_with_nested_generics() {
+        let funcs = vec![NifFunc {
+            name: "complex".into(), alias: None,
+            args: vec![],
+            ret: "(HashMap<String, i64>, bool)".into(),
+            arity: 0, docs: vec![],
+        }];
+        let out = generate_gleam(&funcs);
+        assert!(out.contains("#(dict.Dict(String, Int), Bool)"));
     }
 }
