@@ -192,7 +192,7 @@ impl<'a> Context<'a> {
             return attrs;
         }
 
-        panic!("Expected encode and/or decode in gleamler attribute");
+        vec![GleamlerAttr::Encode, GleamlerAttr::Decode]
     }
 
     fn try_parse_tag(meta: &Meta) -> Option<Vec<GleamlerAttr>> {
