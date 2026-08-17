@@ -231,7 +231,7 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
 
         #[cfg(target_os = "windows")]
         #[unsafe(no_mangle)]
-        pub extern "C" fn nif_init(callbacks: *mut ::gleamler::codegen_runtime::DynNifCallbacks) -> *const ::gleamler::sys::ErlNifEntry {
+        pub unsafe extern "C" fn nif_init(callbacks: *mut ::gleamler::codegen_runtime::DynNifCallbacks) -> *const ::gleamler::sys::ErlNifEntry {
             unsafe {
                 ::gleamler::codegen_runtime::internal_set_symbols(*callbacks);
             }
