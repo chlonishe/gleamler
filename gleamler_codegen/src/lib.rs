@@ -228,7 +228,10 @@ fn rust_to_gleam(rust: &str) -> String {
         "f32"|"f64" => "Float".into(),
         "bool" => "Bool".into(),
         "String" => "String".into(),
-        "Atom" => "String".into(),
+        "Atom" => panic!(
+            "gleamler_codegen: bare Atom type is not supported in #[gleam_nif] signatures. \
+            Gleam has no built-in Atom type"
+        ),
         "Binary"|"OwnedBinary"|"NewBinary" => "BitArray".into(),
         "nil"|"()" => "Nil".into(),
         _ => {
