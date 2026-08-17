@@ -66,8 +66,8 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut nif_arg_idx: usize = 0;
 
     for arg in &input_fn.sig.inputs {
-        if let FnArg::Typed(pat_type) = arg {
-            if let Pat::Ident(PatIdent { ident, .. }) = &*pat_type.pat {
+        if let FnArg::Typed(pat_type) = arg
+            && let Pat::Ident(PatIdent { ident, .. }) = &*pat_type.pat {
                 let arg_ident = ident;
                 let arg_type = &pat_type.ty;
 
@@ -90,7 +90,6 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
                 });
                 nif_arg_idx += 1;
             }
-        }
     }
 
     let arity = nif_arg_idx as u32;

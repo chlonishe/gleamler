@@ -161,11 +161,10 @@ where
     T: Decoder<'a>,
 {
     fn decode(term: Term<'a>) -> NifResult<Self> {
-        if let Ok(decoded_atom) = term.decode::<atom::Atom>() {
-            if decoded_atom == atom::undefined() {
+        if let Ok(decoded_atom) = term.decode::<atom::Atom>()
+            && decoded_atom == atom::undefined() {
                 return Ok(Self(None));
             }
-        }
 
         if let Ok(term) = term.decode::<T>() {
             Ok(Self(Some(term)))

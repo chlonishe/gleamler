@@ -313,7 +313,7 @@ impl<'a> Iterator for MapIterator<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.forward.next().and_then(|(key, value)| {
-            if self.reverse.last_key.map_or(false, |k| {
+            if self.reverse.last_key.is_some_and(|k| {
                 unsafe { crate::sys::enif_compare(k.as_c_arg(), key.as_c_arg()) == 0 }
             }) {
                 self.forward.done = true;
@@ -328,7 +328,7 @@ impl<'a> Iterator for MapIterator<'a> {
 impl DoubleEndedIterator for MapIterator<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.reverse.next().and_then(|(key, value)| {
-            if self.forward.last_key.map_or(false, |k| {
+            if self.forward.last_key.is_some_and(|k| {
                 unsafe { crate::sys::enif_compare(k.as_c_arg(), key.as_c_arg()) == 0 }
             }) {
                 self.forward.done = true;

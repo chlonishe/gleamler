@@ -14,13 +14,11 @@ pub fn parse_nif_functions(source: &str) -> Vec<NifFunc> {
     let file = parse_file(source).expect("failed to parse lib.rs");
     let mut functions = Vec::new();
     for item in file.items {
-        if let syn::Item::Fn(func) = item {
-            if has_gleam_nif(&func.attrs) {
-                if let Some(f) = parse_nif_function(func) {
+        if let syn::Item::Fn(func) = item
+            && has_gleam_nif(&func.attrs)
+                && let Some(f) = parse_nif_function(func) {
                     functions.push(f);
                 }
-            }
-        }
     }
     functions
 }
@@ -79,13 +77,11 @@ fn parse_nif_function(func: ItemFn) -> Option<NifFunc> {
 
         let docs: Vec<String> = func.attrs.iter()
         .filter_map(|a| {
-            if a.path().is_ident("doc") {
-                if let syn::Meta::NameValue(nv) = &a.meta {
-                    if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = &nv.value {
+            if a.path().is_ident("doc")
+                && let syn::Meta::NameValue(nv) = &a.meta
+                    && let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(s), .. }) = &nv.value {
                         return Some(s.value().trim().to_string());
                     }
-                }
-            }
             None
         })
         .collect();
@@ -103,9 +99,9 @@ fn normalize(s: &str) -> String {
     let mut chars = s.chars().peekable();
     
     while let Some(c) = chars.next() {
-        if c == '\'' {
-            if let Some(&next_c) = chars.peek() {
-                if next_c.is_ascii_alphabetic() || next_c == '_' {
+        if c == '\''
+            && let Some(&next_c) = chars.peek()
+                && (next_c.is_ascii_alphabetic() || next_c == '_') {
                     while let Some(&ahead) = chars.peek() {
                         if ahead.is_ascii_alphanumeric() || ahead == '_' {
                             chars.next(); 
@@ -115,8 +111,6 @@ fn normalize(s: &str) -> String {
                     }
                     continue;
                 }
-            }
-        }
         result.push(c);
     }
     

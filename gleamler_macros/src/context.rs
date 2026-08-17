@@ -199,11 +199,10 @@ impl<'a> Context<'a> {
         if let Meta::NameValue(name_value) = meta {
             let expr = &name_value.value;
 
-            if let syn::Expr::Lit(lit_expr) = expr {
-                if let Lit::Str(ref tag) = lit_expr.lit {
+            if let syn::Expr::Lit(lit_expr) = expr
+                && let Lit::Str(ref tag) = lit_expr.lit {
                     return Some(vec![GleamlerAttr::Tag(tag.value())]);
                 }
-            }
         }
         panic!("Cannot parse tag")
     }
@@ -212,12 +211,11 @@ impl<'a> Context<'a> {
         if let Meta::NameValue(name_value) = meta {
             let expr = &name_value.value;
 
-            if let syn::Expr::Lit(lit_expr) = expr {
-                if let Lit::Str(ref module) = lit_expr.lit {
+            if let syn::Expr::Lit(lit_expr) = expr
+                && let Lit::Str(ref module) = lit_expr.lit {
                     let ident = format!("Elixir.{}", module.value());
                     return Some(vec![GleamlerAttr::Module(ident)]);
                 }
-            }
         }
         panic!("Cannot parse module")
     }
