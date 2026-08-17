@@ -23,7 +23,6 @@ use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 /// For this case, the the `.collect()` function of rust iterators is useful, as it can lift
 /// the `Result`s out of the list. (Contains extra type annotations for clarity)
 ///
-/// ```
 /// # use gleamler::{Term, NifResult};
 /// # use gleamler::types::list::ListIterator;
 /// # fn list_iterator_example(list_term: Term) -> NifResult<Vec<i64>> {
@@ -40,14 +39,12 @@ use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 /// ```
 pub struct ListIterator<'a> {
     term: Term<'a>,
-    len: usize,
 }
 
 impl<'a> ListIterator<'a> {
     fn new(term: Term<'a>) -> Option<Self> {
         if term.is_list() {
-            let len = term.list_length().unwrap_or(0);
-            Some(ListIterator { term, len })
+            Some(ListIterator { term })
         } else {
             None
         }
@@ -65,7 +62,6 @@ impl<'a> Iterator for ListIterator<'a> {
         match cell {
             Some((head, tail)) => unsafe {
                 self.term = Term::new(self.term.get_env(), tail);
-                self.len -= 1;
                 Some(Term::new(self.term.get_env(), head))
             },
             None => {
@@ -77,26 +73,18 @@ impl<'a> Iterator for ListIterator<'a> {
             }
         }
     }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.len, Some(self.len))
-    }
 }
-
-impl<'a> ExactSizeIterator for ListIterator<'a> {}
 
 impl<'a> Decoder<'a> for ListIterator<'a> {
+    #[inline]
     fn decode(term: Term<'a>) -> NifResult<Self> {
-        ListIterator::new(term).ok_or(Error::BadArg)
+        match ListIterator::new(term) {
+            Some(iter) => Ok(iter),
+            None => Err(Error::BadArg),
+        }
     }
 }
 
-//impl<'a, T> Encoder for Iterator<Item = T> where T: Encoder {
-//    fn encode<'b>(&self, env: Env<'b>) -> Term<'b> {
-//        let term_arr: Vec<NIF_TERM> =
-//            self.map(|x| x.encode(env).as_c_arg()).collect();
-//    }
-//}
 impl<T> Encoder for Vec<T>
 where
     T: Encoder,
