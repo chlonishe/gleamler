@@ -146,8 +146,8 @@ impl Registration {
                 .trim()
         });
 
-        let name = CString::new(type_name).unwrap();
-        let res = unsafe {
+        let name = CString::new(type_name).map_err(|_| ResourceInitError)?;
+        let res: Option<*const ErlNifResourceType> = unsafe {
             open_resource_type(
                 env.as_c_arg(),
                 name.as_bytes_with_nul(),
