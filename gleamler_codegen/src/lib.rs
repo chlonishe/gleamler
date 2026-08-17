@@ -187,7 +187,9 @@ fn rust_to_gleam(rust: &str) -> String {
     if t.starts_with('&') {
         let inner = t[1..].trim();
         if inner == "str" { return "String".into(); }
-        if inner == "[u8]" { return "BitArray".into(); }
+        if let Some(elem) = inner.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
+            return format!("List({})", rust_to_gleam(elem));
+        }
         return rust_to_gleam(inner);
     }
     match t.as_str() {
@@ -201,9 +203,6 @@ fn rust_to_gleam(rust: &str) -> String {
         _ => {
             if t.starts_with("Vec<") && t.ends_with(">") {
                 let inner = &t[4..t.len()-1];
-                if inner == "u8" {
-                    return "BitArray".into();
-                }
                 format!("List({})", rust_to_gleam(inner))
             } else if t.starts_with("Option<") && t.ends_with(">") {
                 let inner = &t[7..t.len()-1];
@@ -409,5 +408,29 @@ pub fn heavy(n: i64) -> i64 { n }
             split_args("Vec<[u8; 4]>, String"),
             vec!["Vec<[u8; 4]>", "String"]
         );
+    }
+
+    #[test]
+    fn gleam_vec_u8_maps_to_list_int() {
+        let funcs = vec![NifFunc {
+            name: "bytes".into(), alias: None,
+            args: vec![("data".into(), "Vec<u8>".into())],
+            ret: "Vec<u8>".into(), arity: 1, docs: vec![],
+        }];
+        let out = generate_gleam(&funcs);
+        assert!(out.contains("data: List(Int)"));
+        assert!(out.contains("-> List(Int)"));
+        assert!(!out.contains("BitArray"));
+    }
+
+    #[test]
+    fn gleam_slice_maps_to_list() {
+        let funcs = vec![NifFunc {
+            name: "s".into(), alias: None,
+            args: vec![("data".into(), "&[i64]".into())],
+            ret: "nil".into(), arity: 1, docs: vec![],
+        }];
+        let out = generate_gleam(&funcs);
+        assert!(out.contains("data: List(Int)"));
     }
 }
