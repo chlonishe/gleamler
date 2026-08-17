@@ -4,7 +4,7 @@ use quote::{quote, quote_spanned};
 use syn::{self, spanned::Spanned, Field, Ident};
 
 use super::context::Context;
-use super::RustlerAttr;
+use super::GleamlerAttr;
 
 pub fn transcoder_decorator(ast: &syn::DeriveInput, add_exception: bool) -> TokenStream {
     let ctx = Context::from_ast(ast);
@@ -171,7 +171,7 @@ fn get_module(ctx: &Context, add_exception: bool) -> String {
     ctx.attrs
         .iter()
         .find_map(|attr| match attr {
-            RustlerAttr::Module(module) => Some(module.clone()),
+            GleamlerAttr::Module(module) => Some(module.clone()),
             _ => None,
         })
         .expect(expect_message)

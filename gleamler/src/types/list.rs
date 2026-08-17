@@ -24,8 +24,8 @@ use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 /// the `Result`s out of the list. (Contains extra type annotations for clarity)
 ///
 /// ```
-/// # use rustler::{Term, NifResult};
-/// # use rustler::types::list::ListIterator;
+/// # use gleamler::{Term, NifResult};
+/// # use gleamler::types::list::ListIterator;
 /// # fn list_iterator_example(list_term: Term) -> NifResult<Vec<i64>> {
 /// let list_iterator: ListIterator = list_term.decode()?;
 ///

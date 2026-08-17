@@ -8,7 +8,7 @@ use std::thread;
 /// Abstracts away details of thread management for `spawn()`.
 ///
 /// Note: Implementations of `spawn()` must call the closure on a thread that is **not** managed by
-/// the Erlang VM's scheduler. Otherwise, `rustler::thread::spawn()` would try to send a message
+/// the Erlang VM's scheduler. Otherwise, `gleamler::thread::spawn()` would try to send a message
 /// from an `OwnedEnv` on an Erlang thread, which would panic.
 pub trait JobSpawner {
     /// Run the given closure on another thread.

@@ -4,7 +4,7 @@ use quote::{quote, quote_spanned};
 use syn::{self, spanned::Spanned, Field, Ident, Index};
 
 use super::context::Context;
-use super::RustlerAttr;
+use super::GleamlerAttr;
 
 pub fn transcoder_decorator(ast: &syn::DeriveInput) -> TokenStream {
     let ctx = Context::from_ast(ast);
@@ -170,7 +170,7 @@ fn get_tag(ctx: &Context) -> String {
     ctx.attrs
         .iter()
         .find_map(|attr| match attr {
-            RustlerAttr::Tag(tag) => Some(tag.clone()),
+            GleamlerAttr::Tag(tag) => Some(tag.clone()),
             _ => None,
         })
         .expect("NifRecord requires a 'tag' attribute")

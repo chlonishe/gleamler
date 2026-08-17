@@ -1,30 +1,30 @@
-/// Implementation of [Decoder](rustler::Decoder) and [Encoder](rustler::Encoder) traits for
+/// Implementation of [Decoder](gleamler::Decoder) and [Encoder](gleamler::Encoder) traits for
 /// num-bigint.
 ///
 /// ## Examples
 ///
 /// ```rust
-/// use rustler::BigInt; // or num_bigint::BigInt;
+/// use gleamler::BigInt; // or num_bigint::BigInt;
 ///
-/// #[rustler::nif]
+/// #[gleamler::nif]
 /// pub fn pow(base: BigInt, exponent: u32) -> BigInt {
 ///   base.pow(exponent).into()
 /// }
 /// ```
 ///
 /// ```rust
-/// use rustler::{Binary, BigInt};
+/// use gleamler::{Binary, BigInt};
 ///
-/// #[rustler::nif]
+/// #[gleamler::nif]
 /// pub fn binary_to_integer(binary: Binary) -> BigInt {
 ///   BigInt::from_signed_bytes_be(binary.as_slice()).into()
 /// }
 /// ```
 ///
 /// ```rust
-/// use rustler::{Binary, BigInt, Env, NewBinary};
+/// use gleamler::{Binary, BigInt, Env, NewBinary};
 ///
-/// #[rustler::nif]
+/// #[gleamler::nif]
 /// pub fn integer_to_binary<'a>(env: Env<'a>, integer: BigInt) -> Binary<'a> {
 ///   let bytes = integer.to_signed_bytes_be();
 ///   let mut output = NewBinary::new(env, bytes.len());

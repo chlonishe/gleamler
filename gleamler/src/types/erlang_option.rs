@@ -16,7 +16,7 @@ use std::ops::{Deref, DerefMut};
 /// `ErlOption<T>` provides methods to convert to/from `Option<T>`.
 ///
 /// ```rust
-/// use rustler::ErlOption;
+/// use gleamler::ErlOption;
 ///
 /// // Create new `ErlOption<i32>` values via convenient functions.
 /// let _ = ErlOption::some(1); // Wraps `Some(1)`.

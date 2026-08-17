@@ -243,7 +243,7 @@ unsafe impl Send for Atom {}
 /// For example, this code:
 ///
 ///     mod my_atoms {
-///         rustler::atoms! {
+///         gleamler::atoms! {
 ///             jpeg,
 ///         }
 ///     }
@@ -253,7 +253,7 @@ unsafe impl Send for Atom {}
 ///
 /// Multiple atoms can be defined. Each one can have its own doc comment and other attributes.
 ///
-///     rustler::atoms! {
+///     gleamler::atoms! {
 ///         /// The `jpeg` atom.
 ///         jpeg,
 ///
@@ -268,7 +268,7 @@ unsafe impl Send for Atom {}
 /// When you need an atom that's not a legal Rust function name, write `NAME = "ATOM"`, like
 /// this:
 ///
-///     rustler::atoms! {
+///     gleamler::atoms! {
 ///         /// The `mod` atom. The function isn't called `mod` because that's
 ///         /// a Rust keyword.
 ///         mod_atom = "mod",
@@ -294,16 +294,16 @@ macro_rules! atoms {
         ),*$(,)?
     } => {
         #[allow(non_snake_case)]
-        struct RustlerAtoms {
+        struct GleamlerAtoms {
             $( $name : $crate::types::atom::Atom ),*
         }
-        impl RustlerAtoms {
+        impl GleamlerAtoms {
             fn get() -> &'static Self {
                 use std::sync::OnceLock;
-                static RUSTLER_ATOMS: OnceLock<RustlerAtoms> = OnceLock::new();
-                RUSTLER_ATOMS.get_or_init(||
+                static GLEAMLER_ATOMS: OnceLock<GleamlerAtoms> = OnceLock::new();
+                GLEAMLER_ATOMS.get_or_init(||
                     $crate::env::OwnedEnv::new().run(|env| {
-                        RustlerAtoms {
+                        GleamlerAtoms {
                             $( $name: $crate::atoms!(@internal_make_atom(env, $name $( = $str)? )) ),*
                         }
                     })
@@ -313,7 +313,7 @@ macro_rules! atoms {
         $(
             $( #[$attr] )*
             pub fn $name() -> $crate::types::atom::Atom {
-                RustlerAtoms::get().$name
+                GleamlerAtoms::get().$name
             }
         )*
     };
@@ -324,7 +324,7 @@ macro_rules! atoms {
     };
     { @internal_make_atom($env:ident, $name:ident = $str:expr) } => {
         $crate::types::atom::Atom::from_str($env, $str)
-            .expect("rustler::atoms!: bad atom string")
+            .expect("gleamler::atoms!: bad atom string")
     };
 }
 
@@ -345,7 +345,7 @@ atoms! {
     /// The `error` atom, commonly used in error tuples.
     error,
 
-    /// The `badarg` atom, which Rustler sometimes returns to indicate that a function was
+    /// The `badarg` atom, which Gleamler sometimes returns to indicate that a function was
     /// called with incorrect arguments.
     badarg,
 

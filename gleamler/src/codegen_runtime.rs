@@ -12,7 +12,7 @@ pub use inventory;
 // Re-export of resource registration
 pub use crate::resource::Registration as ResourceRegistration;
 
-// Names used by the `rustler::init!` macro or other generated code.
+// Names used by the `gleamler::init!` macro or other generated code.
 pub use crate::wrapper::exception::raise_exception;
 pub use crate::wrapper::{
     c_char, c_int, c_uint, c_void, get_nif_resource_type_init_size, DEF_NIF_ENTRY, DEF_NIF_FUNC,

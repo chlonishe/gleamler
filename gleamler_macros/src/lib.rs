@@ -17,7 +17,7 @@ mod unit_enum;
 mod untagged_enum;
 
 #[derive(Debug)]
-enum RustlerAttr {
+enum GleamlerAttr {
     Encode,
     Decode,
     Module(String),
@@ -242,49 +242,49 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-#[proc_macro_derive(NifStruct, attributes(module, rustler))]
+#[proc_macro_derive(NifStruct, attributes(module, gleamler))]
 pub fn nif_struct(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).unwrap();
     ex_struct::transcoder_decorator(&ast, false).into()
 }
 
-#[proc_macro_derive(NifException, attributes(module, rustler))]
+#[proc_macro_derive(NifException, attributes(module, gleamler))]
 pub fn nif_exception(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).unwrap();
     ex_struct::transcoder_decorator(&ast, true).into()
 }
 
-#[proc_macro_derive(NifMap, attributes(rustler))]
+#[proc_macro_derive(NifMap, attributes(gleamler))]
 pub fn nif_map(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).unwrap();
     map::transcoder_decorator(&ast).into()
 }
 
-#[proc_macro_derive(NifTuple, attributes(rustler))]
+#[proc_macro_derive(NifTuple, attributes(gleamler))]
 pub fn nif_tuple(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).unwrap();
     tuple::transcoder_decorator(&ast).into()
 }
 
-#[proc_macro_derive(NifRecord, attributes(tag, rustler))]
+#[proc_macro_derive(NifRecord, attributes(tag, gleamler))]
 pub fn nif_record(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).unwrap();
     record::transcoder_decorator(&ast).into()
 }
 
-#[proc_macro_derive(NifUnitEnum, attributes(rustler))]
+#[proc_macro_derive(NifUnitEnum, attributes(gleamler))]
 pub fn nif_unit_enum(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).unwrap();
     unit_enum::transcoder_decorator(&ast).into()
 }
 
-#[proc_macro_derive(NifTaggedEnum, attributes(rustler))]
+#[proc_macro_derive(NifTaggedEnum, attributes(gleamler))]
 pub fn nif_tagged_enum(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).unwrap();
     tagged_enum::transcoder_decorator(&ast).into()
 }
 
-#[proc_macro_derive(NifUntaggedEnum, attributes(rustler))]
+#[proc_macro_derive(NifUntaggedEnum, attributes(gleamler))]
 pub fn nif_untagged_enum(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).unwrap();
     untagged_enum::transcoder_decorator(&ast).into()

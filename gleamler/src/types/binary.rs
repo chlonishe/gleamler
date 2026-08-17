@@ -1,6 +1,6 @@
 //! Safe wrappers around Erlang binaries.
 //!
-//! Rustler provides three binary types: [`Binary`], [`NewBinary`] and
+//! Gleamler provides three binary types: [`Binary`], [`NewBinary`] and
 //! [`OwnedBinary`]. All represent a contiguous region `u8`s, and they all use
 //! the Erlang allocator. The primary difference between them is their ownership
 //! semantics.
@@ -26,7 +26,7 @@
 //! Constructing an `OwnedBinary`:
 //!
 //! ```no_run
-//! # use rustler::OwnedBinary;
+//! # use gleamler::OwnedBinary;
 //! {
 //!     let mut bin = OwnedBinary::new(5).expect("allocation failed");
 //!     bin.as_mut_slice().copy_from_slice("hello".as_bytes());
@@ -37,8 +37,8 @@
 //! where each element is exclusive-or'ed with a constant:
 //!
 //! ```no_run
-//! # use rustler::{Env, OwnedBinary, Binary, NifResult, Error};
-//! #[rustler::nif]
+//! # use gleamler::{Env, OwnedBinary, Binary, NifResult, Error};
+//! #[gleamler::nif]
 //! fn xor_example<'a>(env: Env<'a>, bin: Binary<'a>) -> NifResult<Binary<'a>> {
 //!     let mut owned: OwnedBinary = bin.to_owned().ok_or(Error::Term(Box::new("no mem")))?;
 //!     for byte in owned.as_mut_slice() {
@@ -63,8 +63,8 @@
 //! #         if *elem == 0 { *elem = 1 } else { panic!("Not a zero!") }
 //! #     }
 //! # }
-//! # use rustler::{Env, OwnedBinary, Binary, NifResult, Error};
-//! #[rustler::nif]
+//! # use gleamler::{Env, OwnedBinary, Binary, NifResult, Error};
+//! #[gleamler::nif]
 //! fn wrapper_for_some_<'a>(env: Env<'a>) -> NifResult<Binary<'a>> {
 //!     let mut owned = OwnedBinary::new(100).ok_or(Error::Term(Box::new("no mem")))?;
 //!     for byte in owned.as_mut_slice() {

@@ -4,7 +4,7 @@
 //! use from Rust. This module should try to be as non-opinionated as possible, and
 //! should try to stick as close as possible to the original C API.
 //!
-//! Making the APIs nice to use from Rust should be done in the root `rustler` crate.
+//! Making the APIs nice to use from Rust should be done in the root `gleamler` crate.
 #![allow(clippy::upper_case_acronyms, non_camel_case_types)]
 
 pub mod atom;

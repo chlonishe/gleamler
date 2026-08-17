@@ -3,10 +3,10 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{Data, Field, Fields, Ident, Lifetime, Lit, Meta, TypeParam, Variant};
 
-use super::RustlerAttr;
+use super::GleamlerAttr;
 
 pub(crate) struct Context<'a> {
-    pub attrs: Vec<RustlerAttr>,
+    pub attrs: Vec<GleamlerAttr>,
     pub ident: &'a proc_macro2::Ident,
     pub generics: &'a syn::Generics,
     pub lifetimes: Vec<Lifetime>,
@@ -21,12 +21,12 @@ impl<'a> Context<'a> {
         let mut attrs: Vec<_> = ast
             .attrs
             .iter()
-            .flat_map(Context::get_rustler_attrs)
+            .flat_map(Context::get_gleamler_attrs)
             .collect();
 
         if !Context::encode_decode_attr_set(&attrs) {
-            attrs.push(RustlerAttr::Encode);
-            attrs.push(RustlerAttr::Decode);
+            attrs.push(GleamlerAttr::Encode);
+            attrs.push(GleamlerAttr::Decode);
         }
 
         let variants = match ast.data {
@@ -78,7 +78,7 @@ impl<'a> Context<'a> {
 
     pub fn atoms_module_name(&self, span: Span) -> Ident {
         Ident::new(
-            &format!("rustler_atoms_{}", self.ident).to_snake_case(),
+            &format!("gleamler_atoms_{}", self.ident).to_snake_case(),
             span,
         )
     }
@@ -86,13 +86,13 @@ impl<'a> Context<'a> {
     pub fn encode(&self) -> bool {
         self.attrs
             .iter()
-            .any(|attr| matches!(attr, RustlerAttr::Encode))
+            .any(|attr| matches!(attr, GleamlerAttr::Encode))
     }
 
     pub fn decode(&self) -> bool {
         self.attrs
             .iter()
-            .any(|attr| matches!(attr, RustlerAttr::Decode))
+            .any(|attr| matches!(attr, GleamlerAttr::Decode))
     }
 
     pub fn field_atoms(&self) -> Option<Vec<TokenStream>> {
@@ -128,7 +128,7 @@ impl<'a> Context<'a> {
     pub fn escape_ident_with_index(ident_str: &str, index: usize, infix: &str) -> Ident {
         Ident::new(
             &format!(
-                "rustler_{}_field_{}_{}",
+                "gleamler_{}_field_{}_{}",
                 infix,
                 index,
                 Self::remove_raw(ident_str)
@@ -139,7 +139,7 @@ impl<'a> Context<'a> {
 
     pub fn escape_ident(ident_str: &str, infix: &str) -> Ident {
         Ident::new(
-            &format!("rustler_{}_field_{}", infix, Self::remove_raw(ident_str)),
+            &format!("gleamler_{}_field_{}", infix, Self::remove_raw(ident_str)),
             Span::call_site(),
         )
     }
@@ -151,20 +151,20 @@ impl<'a> Context<'a> {
             .expect("split has always at least one element")
     }
 
-    fn encode_decode_attr_set(attrs: &[RustlerAttr]) -> bool {
+    fn encode_decode_attr_set(attrs: &[GleamlerAttr]) -> bool {
         attrs
             .iter()
-            .any(|attr| matches!(attr, RustlerAttr::Encode | RustlerAttr::Decode))
+            .any(|attr| matches!(attr, GleamlerAttr::Encode | GleamlerAttr::Decode))
     }
 
-    fn get_rustler_attrs(attr: &syn::Attribute) -> Vec<RustlerAttr> {
+    fn get_gleamler_attrs(attr: &syn::Attribute) -> Vec<GleamlerAttr> {
         attr.path()
             .segments
             .iter()
             .filter_map(|segment| {
                 let meta = &attr.meta;
                 match segment.ident.to_string().as_ref() {
-                    "rustler" => Some(Context::parse_rustler(meta)),
+                    "gleamler" => Some(Context::parse_gleamler(meta)),
                     "tag" => Context::try_parse_tag(meta),
                     "module" => Context::try_parse_module(meta),
                     _ => None,
@@ -174,48 +174,48 @@ impl<'a> Context<'a> {
             .collect()
     }
 
-    fn parse_rustler(meta: &Meta) -> Vec<RustlerAttr> {
+    fn parse_gleamler(meta: &Meta) -> Vec<GleamlerAttr> {
         if let Meta::List(list) = meta {
-            let mut attrs: Vec<RustlerAttr> = vec![];
+            let mut attrs: Vec<GleamlerAttr> = vec![];
             let _ = list.parse_nested_meta(|nested_meta| {
                 if nested_meta.path.is_ident("encode") {
-                    attrs.push(RustlerAttr::Encode);
+                    attrs.push(GleamlerAttr::Encode);
                     Ok(())
                 } else if nested_meta.path.is_ident("decode") {
-                    attrs.push(RustlerAttr::Decode);
+                    attrs.push(GleamlerAttr::Decode);
                     Ok(())
                 } else {
-                    Err(nested_meta.error("Expected encode and/or decode in rustler attribute"))
+                    Err(nested_meta.error("Expected encode and/or decode in gleamler attribute"))
                 }
             });
 
             return attrs;
         }
 
-        panic!("Expected encode and/or decode in rustler attribute");
+        panic!("Expected encode and/or decode in gleamler attribute");
     }
 
-    fn try_parse_tag(meta: &Meta) -> Option<Vec<RustlerAttr>> {
+    fn try_parse_tag(meta: &Meta) -> Option<Vec<GleamlerAttr>> {
         if let Meta::NameValue(name_value) = meta {
             let expr = &name_value.value;
 
             if let syn::Expr::Lit(lit_expr) = expr {
                 if let Lit::Str(ref tag) = lit_expr.lit {
-                    return Some(vec![RustlerAttr::Tag(tag.value())]);
+                    return Some(vec![GleamlerAttr::Tag(tag.value())]);
                 }
             }
         }
         panic!("Cannot parse tag")
     }
 
-    fn try_parse_module(meta: &Meta) -> Option<Vec<RustlerAttr>> {
+    fn try_parse_module(meta: &Meta) -> Option<Vec<GleamlerAttr>> {
         if let Meta::NameValue(name_value) = meta {
             let expr = &name_value.value;
 
             if let syn::Expr::Lit(lit_expr) = expr {
                 if let Lit::Str(ref module) = lit_expr.lit {
                     let ident = format!("Elixir.{}", module.value());
-                    return Some(vec![RustlerAttr::Module(ident)]);
+                    return Some(vec![GleamlerAttr::Module(ident)]);
                 }
             }
         }

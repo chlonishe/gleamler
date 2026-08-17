@@ -66,7 +66,7 @@ impl<'a> Env<'a> {
     /// from all other `Env` values. The purpose of the argument is to make
     /// it easier to know for sure that the `Env` you're creating has a
     /// unique lifetime (i.e. that you're following the most important safety
-    /// rule of Rustler).
+    /// rule of Gleamler).
     ///
     /// # Unsafe
     /// Don't create multiple `Env`s with the same lifetime.
@@ -99,7 +99,7 @@ impl<'a> Env<'a> {
     ///
     /// *   The current thread is managed by the Erlang VM, and `self` is the
     ///     environment of the calling process (that is, the environment that
-    ///     Rustler passed in to your NIF); *or*
+    ///     Gleamler passed in to your NIF); *or*
     ///
     /// *   The current thread is *not* managed by the Erlang VM.
     ///
@@ -188,9 +188,9 @@ impl<'a> Env<'a> {
 /// Rust code can use an owned environment to build a message and send it to an
 /// Erlang process.
 ///
-///     use rustler::env::OwnedEnv;
-///     use rustler::types::LocalPid;
-///     use rustler::Encoder;
+///     use gleamler::env::OwnedEnv;
+///     use gleamler::types::LocalPid;
+///     use gleamler::Encoder;
 ///
 ///     fn send_string_to_pid(data: &str, pid: &LocalPid) {
 ///         let mut msg_env = OwnedEnv::new();
@@ -287,8 +287,8 @@ impl OwnedEnv {
     /// `.save()` offers a way to do this. For example, maybe you'd like to copy a term from the
     /// caller into an `OwnedEnv`, then use that term on another thread.
     ///
-    ///     # use rustler::{ Env, Term };
-    ///     use rustler::env::OwnedEnv;
+    ///     # use gleamler::{ Env, Term };
+    ///     use gleamler::env::OwnedEnv;
     ///     use std::thread;
     ///
     ///     fn thread_example<'a>(env: Env<'a>, term: Term<'a>) {

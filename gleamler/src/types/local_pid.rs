@@ -69,7 +69,7 @@ impl Env<'_> {
     /// # Panics
     ///
     /// Panics if this environment is process-independent.  (The only way to get such an
-    /// environment is to use `OwnedEnv`.  The `Env` that Rustler passes to NIFs when they're
+    /// environment is to use `OwnedEnv`.  The `Env` that Gleamler passes to NIFs when they're
     /// called is always associated with the calling Erlang process.)
     #[inline]
     pub fn pid(self) -> LocalPid {

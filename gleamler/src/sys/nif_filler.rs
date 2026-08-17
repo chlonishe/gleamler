@@ -10,7 +10,7 @@ mod internal {
     use libloading::os::unix::Library;
 
     const FLAGS: i32 = RTLD_GLOBAL | RTLD_NOLOAD | RTLD_NOW;
-    const BEAM_LOC: &str = "RUSTLER_BEAM_LIBRARY_PATH";
+    const BEAM_LOC: &str = "GLEAMLER_BEAM_LIBRARY_PATH";
 
     pub(crate) struct DlsymNifFiller {
         lib: libloading::Library,

@@ -10,7 +10,7 @@ pub(crate) fn decoder(ctx: &Context, inner: TokenStream) -> TokenStream {
     let (_impl_generics, ty_generics, _where_clause) = generics.split_for_impl();
 
     let mut impl_generics = generics.clone();
-    let decode_lifetime = syn::Lifetime::new("'__rustler_decode_lifetime", Span::call_site());
+    let decode_lifetime = syn::Lifetime::new("'__gleamler_decode_lifetime", Span::call_site());
     let lifetime_def = syn::LifetimeParam::new(decode_lifetime.clone());
     impl_generics
         .params
@@ -93,9 +93,9 @@ pub(crate) fn decoder(ctx: &Context, inner: TokenStream) -> TokenStream {
     let (impl_generics, _, where_clause) = impl_generics.split_for_impl();
 
     quote! {
-        impl #impl_generics ::gleamler::Decoder<'__rustler_decode_lifetime> for #ident #ty_generics #where_clause {
+        impl #impl_generics ::gleamler::Decoder<'__gleamler_decode_lifetime> for #ident #ty_generics #where_clause {
             #[allow(clippy::needless_borrow)]
-            fn decode(term: ::gleamler::Term<'__rustler_decode_lifetime>) -> ::gleamler::NifResult<Self> {
+            fn decode(term: ::gleamler::Term<'__gleamler_decode_lifetime>) -> ::gleamler::NifResult<Self> {
                 #inner
             }
         }
@@ -149,7 +149,7 @@ pub(crate) fn encoder(ctx: &Context, inner: TokenStream) -> TokenStream {
     quote! {
         impl #impl_generics ::gleamler::Encoder for #ident #ty_generics #where_clause {
             #[allow(clippy::needless_borrow)]
-            fn encode<'__rustler__encode_lifetime>(&self, env: ::gleamler::Env<'__rustler__encode_lifetime>) -> ::gleamler::Term<'__rustler__encode_lifetime> {
+            fn encode<'__gleamler__encode_lifetime>(&self, env: ::gleamler::Env<'__gleamler__encode_lifetime>) -> ::gleamler::Term<'__gleamler__encode_lifetime> {
                 #inner
             }
         }

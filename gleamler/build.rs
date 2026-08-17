@@ -1,6 +1,6 @@
 // build.rs
 //
-// Generate the NIF APIs that will be built in `src/rustler_sys_api.rs`.
+// Generate the NIF APIs that will be built in `src/gleamler_sys_api.rs`.
 //
 
 use regex_lite::Regex;
@@ -877,7 +877,7 @@ fn main() {
     let target_pointer_width = match env::var("CARGO_CFG_TARGET_POINTER_WIDTH") {
        Ok(target_pointer_width) => target_pointer_width,
          Err(err) => panic!(
-            "An error occurred while determining the pointer width to compile `rustler_sys` for:\n\n{err:?}\n\nPlease report a bug."
+            "An error occurred while determining the pointer width to compile `gleamler_sys` for:\n\n{err:?}\n\nPlease report a bug."
         )
     };
 
