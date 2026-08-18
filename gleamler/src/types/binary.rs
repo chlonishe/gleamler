@@ -38,7 +38,7 @@
 //!
 //! ```no_run
 //! # use gleamler::{Env, OwnedBinary, Binary, NifResult, Error};
-//! #[gleamler::nif]
+//! #[gleamler::gleam_nif]
 //! fn xor_example<'a>(env: Env<'a>, bin: Binary<'a>) -> NifResult<Binary<'a>> {
 //!     let mut owned: OwnedBinary = bin.to_owned().ok_or(Error::Term(Box::new("no mem")))?;
 //!     for byte in owned.as_mut_slice() {
@@ -64,7 +64,7 @@
 //! #     }
 //! # }
 //! # use gleamler::{Env, OwnedBinary, Binary, NifResult, Error};
-//! #[gleamler::nif]
+//! #[gleamler::gleam_nif]
 //! fn wrapper_for_some_<'a>(env: Env<'a>) -> NifResult<Binary<'a>> {
 //!     let mut owned = OwnedBinary::new(100).ok_or(Error::Term(Box::new("no mem")))?;
 //!     for byte in owned.as_mut_slice() {

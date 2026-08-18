@@ -6,7 +6,7 @@
 /// ```rust
 /// use gleamler::BigInt; // or num_bigint::BigInt;
 ///
-/// #[gleamler::nif]
+/// #[gleamler::gleam_nif]
 /// pub fn pow(base: BigInt, exponent: u32) -> BigInt {
 ///   base.pow(exponent).into()
 /// }
@@ -15,7 +15,7 @@
 /// ```rust
 /// use gleamler::{Binary, BigInt};
 ///
-/// #[gleamler::nif]
+/// #[gleamler::gleam_nif]
 /// pub fn binary_to_integer(binary: Binary) -> BigInt {
 ///   BigInt::from_signed_bytes_be(binary.as_slice()).into()
 /// }
@@ -24,7 +24,7 @@
 /// ```rust
 /// use gleamler::{Binary, BigInt, Env, NewBinary};
 ///
-/// #[gleamler::nif]
+/// #[gleamler::gleam_nif]
 /// pub fn integer_to_binary<'a>(env: Env<'a>, integer: BigInt) -> Binary<'a> {
 ///   let bytes = integer.to_signed_bytes_be();
 ///   let mut output = NewBinary::new(env, bytes.len());
