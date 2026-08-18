@@ -1,6 +1,6 @@
 use syn::{
     parse_file, AngleBracketedGenericArguments, FnArg, GenericArgument, ItemFn, Pat,
-    PathArguments, ReturnType, Type, TypeArray, TypePath, TypeReference, TypeSlice, TypeTuple,
+    PathArguments, ReturnType, Type, TypePath, TypeReference, TypeTuple,
 };
 
 #[derive(Debug)]
@@ -148,7 +148,7 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> String {
         Type::Reference(TypeReference { elem, .. }) => {
             type_to_gleam_ctx(elem, ctx)
         }
-
+        
         Type::Tuple(TypeTuple { elems, .. }) => {
             if elems.is_empty() {
                 "Nil".into()
@@ -158,12 +158,18 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> String {
             }
         }
 
-        Type::Slice(TypeSlice { elem, .. }) => {
-            format!("List({})", type_to_gleam_ctx(elem, ctx))
+        Type::Slice(_) => {
+            panic!(
+                "gleamler_codegen: bare slice type &[T] is not supported in #[gleam_nif] fn '{ctx}'. \
+                Use Binary for byte slices or Vec<T> for lists"
+            );
         }
 
-        Type::Array(TypeArray { elem, .. }) => {
-            format!("List({})", type_to_gleam_ctx(elem, ctx))
+        Type::Array(_) => {
+            panic!(
+                "gleamler_codegen: array type [T; N] is not supported in #[gleam_nif] fn '{ctx}'. \
+                Use Vec<T> instead"
+            );
         }
 
         _ => {
@@ -688,8 +694,6 @@ pub fn heavy(n: i64) -> i64 { n }
     fn type_to_gleam_references() {
         let ty: Type = parse_quote!(&str);
         assert_eq!(type_to_gleam(&ty), "String");
-        let ty: Type = parse_quote!(&[i32]);
-        assert_eq!(type_to_gleam(&ty), "List(Int)");
         let ty: Type = parse_quote!(&String);
         assert_eq!(type_to_gleam(&ty), "String");
         let ty: Type = parse_quote!(&mut Vec<i32>);
@@ -704,11 +708,59 @@ pub fn heavy(n: i64) -> i64 { n }
         assert_eq!(type_to_gleam(&ty), "Foo(T)");
         let ty: Type = parse_quote!(&'a str);
         assert_eq!(type_to_gleam(&ty), "String");
-        let ty: Type = parse_quote!(&'env [u8]);
-        assert_eq!(type_to_gleam(&ty), "List(Int)");
         let ty: Type = parse_quote!(Bar<T, 'env, U>);
         assert_eq!(type_to_gleam(&ty), "Bar(T, U)");
     }
+
+    #[test]
+    #[should_panic(expected = "bare slice type")]
+    fn type_to_gleam_slice_rejected() {
+        let ty: Type = parse_quote!(&[i32]);
+        let _ = type_to_gleam(&ty);
+    }
+
+    #[test]
+    #[should_panic(expected = "array type")]
+    fn type_to_gleam_array_rejected() {
+        let ty: Type = parse_quote!([u8; 4]);
+        let _ = type_to_gleam(&ty);
+    }
+
+    #[test]
+    fn parse_full_pipeline_complex() {
+        let src = r#"
+    #[gleam_nif]
+    pub fn complex(
+        env: Env,
+        items: Vec<Option<i64>>,
+        data: Binary,
+        config: HashMap<String, bool>,
+    ) -> Result<(i64, String), String> {
+        todo!()
+    }
+    "#;
+        let funcs = parse_nif_functions(src);
+        assert_eq!(funcs.len(), 1);
+        let f = &funcs[0];
+        assert_eq!(f.arity, 3);
+        assert_eq!(f.args[0], ("items".into(), "List(option.Option(Int))".into()));
+        assert_eq!(f.args[1], ("data".into(), "BitArray".into()));
+        assert_eq!(f.args[2], ("config".into(), "dict.Dict(String, Bool)".into()));
+        assert_eq!(f.ret, "Result(#(Int, String), String)");
+    }
+
+    #[test]
+    #[should_panic(expected = "bare slice type")]
+    fn parse_nif_with_slice_rejected() {
+        let src = r#"
+    #[gleam_nif]
+    pub fn bad(data: &[u8]) -> i64 {
+        0
+    }
+    "#;
+        let _ = parse_nif_functions(src);
+    }
+
 
     #[test]
     fn type_to_gleam_nested() {
@@ -746,28 +798,5 @@ pub fn heavy(n: i64) -> i64 { n }
         assert_eq!(type_to_gleam(&ty), "dict.Dict(String, Int)");
         let ty: Type = parse_quote!(std::string::String);
         assert_eq!(type_to_gleam(&ty), "String");
-    }
-
-    #[test]
-    fn parse_full_pipeline_complex() {
-        let src = r#"
-#[gleam_nif]
-pub fn complex(
-    env: Env,
-    items: Vec<Option<i64>>,
-    data: &[u8],
-    config: HashMap<String, bool>,
-) -> Result<(i64, String), String> {
-    todo!()
-}
-"#;
-        let funcs = parse_nif_functions(src);
-        assert_eq!(funcs.len(), 1);
-        let f = &funcs[0];
-        assert_eq!(f.arity, 3);
-        assert_eq!(f.args[0], ("items".into(), "List(option.Option(Int))".into()));
-        assert_eq!(f.args[1], ("data".into(), "List(Int)".into()));
-        assert_eq!(f.args[2], ("config".into(), "dict.Dict(String, Bool)".into()));
-        assert_eq!(f.ret, "Result(#(Int, String), String)");
     }
 }
