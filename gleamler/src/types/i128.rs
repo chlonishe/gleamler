@@ -132,7 +132,11 @@ impl<'a> Decoder<'a> for u128 {
             return Err(Error::BadArg);
         }
 
-        if input[3] == 1 {
+        if input.len() < 4 + n {
+            return Err(Error::BadArg);
+        }
+
+        if input[3] != 0 {
             return Err(Error::BadArg);
         }
 
