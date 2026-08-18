@@ -195,12 +195,18 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
                 unsafe extern "C" fn __gleamler_nif_load(
                     env: *mut ::gleamler::sys::ErlNifEnv,
                     _priv_data: *mut *mut ::gleamler::sys::c_void,
-                    _load_info: ::gleamler::sys::ERL_NIF_TERM,
+                    load_info: ::gleamler::sys::ERL_NIF_TERM,
                 ) -> ::gleamler::sys::c_int {
-                    let env = unsafe { ::gleamler::Env::new_init_env(&(), env) };
-                    match ::gleamler::resource::Registration::register_all_collected(env) {
-                        Ok(()) => 0,
-                        Err(_) => 1,
+                    unsafe {
+                        let env = ::gleamler::Env::new_init_env(&(), env);
+                        let load_info = ::gleamler::Term::new(env, load_info);
+                        ::gleamler::codegen_runtime::handle_nif_init_call(
+                            |env, _info| {
+                                ::gleamler::resource::Registration::register_all_collected(env).is_ok()
+                            },
+                            env,
+                            load_info,
+                        )
                     }
                 }
                 __gleamler_nif_load
