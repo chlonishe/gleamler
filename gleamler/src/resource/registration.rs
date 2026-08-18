@@ -139,14 +139,18 @@ impl Registration {
         }
 
         let type_id = (self.get_type_id)();
-        let type_name = self.type_name.unwrap_or_else(|| {
-            let raw = (self.get_type_name)();
-            raw.rsplit("::").next().unwrap_or(raw)
-                .split('<').next().unwrap_or(raw)
-                .trim()
-        });
+        
+        let raw_name = self.type_name.unwrap_or_else(|| (self.get_type_name)());
+        let sanitized_name: String = raw_name
+            .replace("::", "_")
+            .replace('<', "_")
+            .replace('>', "")
+            .replace(", ", "_")
+            .replace(",", "_")
+            .replace(" ", "");
 
-        let name = CString::new(type_name).map_err(|_| ResourceInitError)?;
+        let name = CString::new(sanitized_name).map_err(|_| ResourceInitError)?;
+        
         let res: Option<*const ErlNifResourceType> = unsafe {
             open_resource_type(
                 env.as_c_arg(),
