@@ -29,6 +29,18 @@ fn main() {
         gleam_out
     );
 
+    let mut erl_names = std::collections::BTreeSet::new();
+    
+    for func in &functions {
+        let erl_name = func.alias.clone().unwrap_or_else(|| func.name.clone());
+        if !erl_names.insert(erl_name.clone()) {
+            panic!(
+                "gleamler_codegen: duplicate exported NIF name '{}' (alias collision) in file {:?}",
+                erl_name, source
+            );
+        }
+    }
+    
     let erl_contents = gleamler_codegen::generate_erl(&functions, &erl_module, &lib_name);
     let gleam_contents = gleamler_codegen::generate_gleam(&functions, &erl_module);
 

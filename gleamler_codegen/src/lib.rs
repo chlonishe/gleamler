@@ -34,14 +34,24 @@ fn has_gleam_nif(attrs: &[syn::Attribute]) -> bool {
 fn is_env_type(ty: &Type) -> bool {
     match ty {
         Type::Path(TypePath { path, .. }) => {
-            path.segments.last().is_some_and(|seg| seg.ident == "Env")
+            let segs: Vec<_> = path.segments.iter().map(|s| s.ident.to_string()).collect();
+            match segs.as_slice() {
+                [one] => one == "Env",
+                [krate, last] => last == "Env" && (krate == "gleamler" || krate == "crate"),
+                _ => false,
+            }
         }
         Type::Reference(TypeReference { elem, .. }) => is_env_type(elem),
         _ => false,
     }
 }
 
+#[cfg(test)]
 fn type_to_gleam(ty: &Type) -> String {
+    type_to_gleam_ctx(ty, "<unknown>")
+}
+
+fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> String {
     match ty {
         Type::Path(TypePath { path, .. }) => {
             let segment = match path.segments.last() {
@@ -77,7 +87,7 @@ fn type_to_gleam(ty: &Type) -> String {
                 "String" | "str" => "String".into(),
 
                 "Atom" => panic!(
-                    "gleamler_codegen: bare Atom type is not supported in #[gleam_nif] signatures. \
+                    "gleamler_codegen: bare Atom type is not supported in #[gleam_nif] fn '{ctx}'. \
                     Gleam has no built-in Atom type"
                 ),
 
@@ -85,7 +95,7 @@ fn type_to_gleam(ty: &Type) -> String {
 
                 "Vec" => {
                     if let Some(inner) = generic_args.first() {
-                        format!("List({})", type_to_gleam(inner))
+                        format!("List({})", type_to_gleam_ctx(inner, ctx))
                     } else {
                         "List(Nil)".into()
                     }
@@ -93,18 +103,18 @@ fn type_to_gleam(ty: &Type) -> String {
 
                 "Option" => {
                     if let Some(inner) = generic_args.first() {
-                        format!("option.Option({})", type_to_gleam(inner))
+                        format!("option.Option({})", type_to_gleam_ctx(inner, ctx))
                     } else {
                         "option.Option(Nil)".into()
                     }
                 }
 
                 "Result" => match generic_args.len() {
-                    1 => format!("Result({}, Nil)", type_to_gleam(generic_args[0])),
+                    1 => format!("Result({}, Nil)", type_to_gleam_ctx(generic_args[0], ctx)),
                     2 => format!(
                         "Result({}, {})",
-                        type_to_gleam(generic_args[0]),
-                        type_to_gleam(generic_args[1])
+                        type_to_gleam_ctx(generic_args[0], ctx),
+                        type_to_gleam_ctx(generic_args[1], ctx)
                     ),
                     _ => "Result(Nil, Nil)".into(),
                 },
@@ -113,28 +123,22 @@ fn type_to_gleam(ty: &Type) -> String {
                     if generic_args.len() == 2 {
                         format!(
                             "dict.Dict({}, {})",
-                            type_to_gleam(generic_args[0]),
-                            type_to_gleam(generic_args[1])
+                            type_to_gleam_ctx(generic_args[0], ctx),
+                            type_to_gleam_ctx(generic_args[1], ctx)
                         )
                     } else {
                         "dict.Dict(Nil, Nil)".into()
                     }
                 }
 
-                "ResourceArc" => {
-                    if let Some(inner) = generic_args.first() {
-                        type_to_gleam(inner)
-                    } else {
-                        "Nil".into()
-                    }
-                }
+                "ResourceArc" => "Resource".into(),
 
                 _ => {
                     if generic_args.is_empty() {
                         ident_str
                     } else {
                         let args_str: Vec<_> =
-                            generic_args.iter().map(|t| type_to_gleam(t)).collect();
+                            generic_args.iter().map(|t| type_to_gleam_ctx(t, ctx)).collect();
                         format!("{}({})", ident_str, args_str.join(", "))
                     }
                 }
@@ -142,24 +146,24 @@ fn type_to_gleam(ty: &Type) -> String {
         }
 
         Type::Reference(TypeReference { elem, .. }) => {
-            type_to_gleam(elem)
+            type_to_gleam_ctx(elem, ctx)
         }
 
         Type::Tuple(TypeTuple { elems, .. }) => {
             if elems.is_empty() {
                 "Nil".into()
             } else {
-                let parts: Vec<_> = elems.iter().map(|t| type_to_gleam(t)).collect();
+                let parts: Vec<_> = elems.iter().map(|t| type_to_gleam_ctx(t, ctx)).collect();
                 format!("#({})", parts.join(", "))
             }
         }
 
         Type::Slice(TypeSlice { elem, .. }) => {
-            format!("List({})", type_to_gleam(elem))
+            format!("List({})", type_to_gleam_ctx(elem, ctx))
         }
 
         Type::Array(TypeArray { elem, .. }) => {
-            format!("List({})", type_to_gleam(elem))
+            format!("List({})", type_to_gleam_ctx(elem, ctx))
         }
 
         _ => {
@@ -185,13 +189,13 @@ fn parse_nif_function(func: ItemFn) -> Option<NifFunc> {
                 Pat::Ident(ident) => ident.ident.to_string(),
                 _ => format!("arg{}", idx),
             };
-            let ty = type_to_gleam(&pat_type.ty);
+            let ty = type_to_gleam_ctx(&pat_type.ty, &name);
             args.push((arg_name, ty));
         }
     }
     let ret = match &func.sig.output {
         ReturnType::Default => "Nil".into(),
-        ReturnType::Type(_, ty) => type_to_gleam(ty),
+        ReturnType::Type(_, ty) => type_to_gleam_ctx(ty, &name),
     };
     let alias = func
         .attrs
@@ -309,6 +313,8 @@ const GLEAM_KEYWORDS: &[&str] = &[
 pub fn generate_gleam(funcs: &[NifFunc], erl_module: &str) -> String {
     let mut has_option: bool = false;
     let mut has_dict = false;
+    let mut has_resource = false;
+    
     for f in funcs {
         if f.ret.contains("option.Option")
             || f.args.iter().any(|(_, t)| t.contains("option.Option"))
@@ -318,7 +324,11 @@ pub fn generate_gleam(funcs: &[NifFunc], erl_module: &str) -> String {
         if f.ret.contains("dict.Dict") || f.args.iter().any(|(_, t)| t.contains("dict.Dict")) {
             has_dict = true;
         }
+        if f.ret.contains("Resource") || f.args.iter().any(|(_, t)| t.contains("Resource")) {
+            has_resource = true;
+        }
     }
+    
     let mut out = String::from("// AUTOGENERATED by gleamler_codegen\n// Do not edit\n\n");
     if has_option {
         out.push_str("import gleam/option\n");
@@ -326,6 +336,11 @@ pub fn generate_gleam(funcs: &[NifFunc], erl_module: &str) -> String {
     if has_dict {
         out.push_str("import gleam/dict\n");
     }
+    if has_resource {
+        out.push_str("\npub opaque type Resource {\n  Resource\n}\n");
+    }
+    out.push('\n');
+    
     for f in funcs {
         if !f.docs.is_empty() {
             out.push_str("/// ");
@@ -353,6 +368,7 @@ pub fn generate_gleam(funcs: &[NifFunc], erl_module: &str) -> String {
 
 fn clean_name(n: &str) -> String {
     let name = n.trim_start_matches('_');
+    let name = name.strip_prefix("r#").unwrap_or(name);
     if GLEAM_KEYWORDS.contains(&name) {
         format!("{}_", name)
     } else {
@@ -715,7 +731,7 @@ pub fn heavy(n: i64) -> i64 { n }
     #[test]
     fn type_to_gleam_resource_arc() {
         let ty: Type = parse_quote!(ResourceArc<MyStruct>);
-        assert_eq!(type_to_gleam(&ty), "MyStruct");
+        assert_eq!(type_to_gleam(&ty), "Resource");
     }
 
     #[test]
