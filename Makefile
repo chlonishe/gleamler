@@ -2,15 +2,15 @@
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
-    LIB_EXT = so
+    SRC_LIB = target/release/libgleamler.dylib
 else
-    LIB_EXT = so
+    SRC_LIB = target/release/libgleamler.so
 endif
 
 all: gen
 	cargo build -p gleamler --release
 	mkdir -p priv
-	cp target/release/libgleamler.$(LIB_EXT) priv/gleamler.$(LIB_EXT)
+	cp $(SRC_LIB) priv/gleamler.so
 	gleam build
 
 gen:
