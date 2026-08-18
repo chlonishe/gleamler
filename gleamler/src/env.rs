@@ -107,20 +107,16 @@ impl<'a> Env<'a> {
     /// [enif\_send](https://www.erlang.org/doc/man/erl_nif.html#enif_send).
     #[inline]
     pub fn send(self, pid: &LocalPid, message: impl Encoder) -> Result<(), SendError> {
+        if !is_scheduler_thread() {
+            return Err(SendError);
+        }
         if self.kind == EnvKind::ProcessIndependent {
             return Err(SendError);
         }
-
         let message = message.encode(self);
-        
-        let caller_env = if is_scheduler_thread() {
-            self.as_c_arg()
-        } else {
-            ptr::null_mut()
+        let res = unsafe { 
+            enif_send(self.as_c_arg(), pid.as_c_arg(), ptr::null_mut(), message.as_c_arg()) 
         };
-
-        let res = unsafe { enif_send(caller_env, pid.as_c_arg(), ptr::null_mut(), message.as_c_arg()) };
-
         if res == 1 {
             Ok(())
         } else {
