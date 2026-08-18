@@ -14,16 +14,16 @@ impl Encoder for i128 {
             etf[2] = 16;
             if *self < 0 {
                 etf[3] = 1;
-                let bytes = (-self).to_le_bytes();
+                let bytes = self.unsigned_abs().to_le_bytes();
                 etf[4..].copy_from_slice(&bytes);
             } else {
                 etf[3] = 0;
-                let bytes = self.to_le_bytes();
+                let bytes = (*self as u128).to_le_bytes();
                 etf[4..].copy_from_slice(&bytes);
             }
             match env.binary_to_term(&etf) {
                 Some((term, _)) => term,
-                None => panic!("i128 encode failed: enif_binary_to_term failed (out of memory)"),
+                None => env.error_tuple(atom::i128_encode_failed()),
             }
         }
     }
