@@ -1,8 +1,8 @@
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, quote_spanned};
+use quote::quote;
 use heck::ToSnakeCase;
 use std::collections::HashMap;
-use syn::{self, spanned::Spanned, Field, Fields, FieldsNamed, FieldsUnnamed, Ident, Variant};
+use syn::{self, Field, Fields, FieldsNamed, FieldsUnnamed, Ident, Variant};
 
 use super::context::Context;
 
@@ -233,44 +233,30 @@ fn gen_named_decoder(
     variant_ident: &Ident,
     atom_fn: Ident,
 ) -> TokenStream {
-    let (assignments, field_defs): (Vec<TokenStream>, Vec<TokenStream>) = fields
-        .named
-        .iter()
-        .enumerate()
-        .map(|(index, field)| {
-            let ident = field
-                .ident
-                .as_ref()
-                .expect("Named fields must have an ident.");
-            let atom_fun = Context::field_to_atom_fun(field);
-            let variable = Context::escape_ident_with_index(&ident.to_string(), index, "map");
+    let decoded_fields: Vec<_> = fields.named.iter().enumerate().map(|(i, f)| {
+        let i = i + 1;
+        let ident = f.ident.as_ref().unwrap();
+        let ty = &f.ty;
+        quote! {
+            #ident: <#ty as ::gleamler::Decoder>::decode(tuple[#i])
+                .map_err(|_| ::gleamler::Error::RaiseTerm(
+                    Box::new(format!("Could not decode field '{}' on Enum '{}'",
+                        stringify!(#ident), stringify!(#enum_name)))
+                ))?
+        }
+    }).collect();
 
-            let ident_string = ident.to_string();
-            let enum_name_string = enum_name.to_string();
-
-            let assignment = quote_spanned! { field.span() =>
-                let #variable = try_decode_field(tuple[1], #atom_fun()).map_err(|_|{
-                    ::gleamler::Error::RaiseTerm(Box::new(format!(
-                        "Could not decode field '{}' on Enum '{}'",
-                        #ident_string, #enum_name_string
-                    )))
-                })?;
-            };
-
-            let field_def = quote! {
-                #ident: #variable
-            };
-            (assignment, field_def)
-        })
-        .unzip();
+    let len = fields.named.len();
 
     quote! {
-        if tuple.len() == 2 && name == #atom_fn() {
-            let len = tuple[1].map_size().map_err(|_| ::gleamler::Error::RaiseTerm(Box::new(
-                "The second element of the tuple must be a map"
-            )))?;
-            #(#assignments)*
-            return Ok( #enum_name :: #variant_ident { #(#field_defs),* } )
+        if name == #atom_fn() {
+            if tuple.len() - 1 != #len {
+                return Err(::gleamler::Error::RaiseTerm(Box::new(
+                    format!("The tuple must have {} elements, but it has {}",
+                        #len + 1, tuple.len())
+                )));
+            }
+            return Ok(#enum_name :: #variant_ident { #(#decoded_fields),* })
         }
     }
 }
@@ -302,38 +288,17 @@ fn gen_named_encoder(
     variant_ident: &Ident,
     atom_fn: Ident,
 ) -> TokenStream {
-    let field_decls = fields
-        .named
-        .iter()
-        .map(|field| {
-            let field_ident = &field.ident;
-            quote! {
-                #field_ident,
-            }
-        })
-        .collect::<Vec<_>>();
-    let (keys, values): (Vec<_>, Vec<_>) = fields
-        .named
-        .iter()
-        .map(|field| {
-            let field_ident = field
-                .ident
-                .as_ref()
-                .expect("Named fields must have an ident.");
-            let atom_fun = Context::field_to_atom_fun(field);
-            (
-                quote! { ::gleamler::Encoder::encode(&#atom_fun(), env) },
-                quote! { ::gleamler::Encoder::encode(&#field_ident, env) },
-            )
-        })
-        .unzip();
+    let field_decls: Vec<_> = fields.named.iter().map(|f| {
+        let ident = f.ident.as_ref().unwrap();
+        quote! { #ident }
+    }).collect();
+
     quote! {
-        #enum_name :: #variant_ident{
-            #(#field_decls)*
-        } => {
-            let map = ::gleamler::Term::map_from_term_arrays(env, &[#(#keys),*], &[#(#values),*])
-                .expect("Failed to create map");
-            ::gleamler::types::tuple::make_tuple(env, &[::gleamler::Encoder::encode(&#atom_fn(), env), map])
+        #enum_name :: #variant_ident { #(#field_decls),* } => {
+            ::gleamler::Encoder::encode(
+                &(#atom_fn(), #(#field_decls),*),
+                env,
+            )
         }
     }
 }
