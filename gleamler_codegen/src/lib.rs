@@ -321,7 +321,7 @@ const GLEAM_KEYWORDS: &[&str] = &[
 ];
 
 pub fn generate_gleam(funcs: &[NifFunc], erl_module: &str) -> String {
-    let mut has_option: bool = false;
+    let mut has_option = false;
     let mut has_dict = false;
     let mut has_resource = false;
     
@@ -334,7 +334,7 @@ pub fn generate_gleam(funcs: &[NifFunc], erl_module: &str) -> String {
         if f.ret.contains("dict.Dict") || f.args.iter().any(|(_, t)| t.contains("dict.Dict")) {
             has_dict = true;
         }
-        if f.ret.contains("Resource") || f.args.iter().any(|(_, t)| t.contains("Resource")) {
+        if f.ret.contains("ResourceArc<") || f.args.iter().any(|(_, t)| t.contains("ResourceArc<")) {
             has_resource = true;
         }
     }
