@@ -76,20 +76,28 @@ impl<'a> Decoder<'a> for i128 {
             return Err(Error::BadArg);
         }
 
+        if input.len() < 4 + n {
+            return Err(Error::BadArg);
+        }
+
         let is_pos = input[3] == 0;
 
         let mut res = [0u8; 16];
         res[..n].copy_from_slice(&input[4..4 + n]);
 
-        if is_pos && res[15] >= 0x80 {
-            return Err(Error::BadArg);
-        }
-
         let raw = u128::from_le_bytes(res);
+        
         if is_pos {
+            if raw > i128::MAX as u128 {
+                return Err(Error::BadArg);
+            }
             Ok(raw as i128)
         } else {
-            Ok((raw.wrapping_neg()) as i128)
+            let min_magnitude = (i128::MAX as u128).wrapping_add(1);
+            if raw > min_magnitude {
+                return Err(Error::BadArg);
+            }
+            Ok((raw as i128).wrapping_neg())
         }
     }
 }
