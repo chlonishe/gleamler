@@ -144,15 +144,34 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 struct InitInput {
+    module: Option<syn::LitStr>,
+    load: Option<syn::ExprPath>,
     names: Punctuated<Ident, Token![,]>,
 }
 
 impl syn::parse::Parse for InitInput {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let mut module = None;
+        let mut load = None;
+
+        if input.peek(syn::LitStr) {
+            module = Some(input.parse()?);
+            input.parse::<Token![,]>()?;
+        }
+        if input.peek(Ident) && input.peek2(Token![=]) {
+            let key: Ident = input.parse()?;
+            if key != "load" {
+                return Err(syn::Error::new(key.span(), "expected `load`"));
+            }
+            input.parse::<Token![=]>()?;
+            load = Some(input.parse::<syn::ExprPath>()?);
+            input.parse::<Token![,]>()?;
+        }
+
         let content;
         syn::bracketed!(content in input);
         let names = content.parse_terminated(Ident::parse, Token![,])?;
-        Ok(Self { names })
+        Ok(Self { module, load, names })
     }
 }
 
@@ -175,7 +194,37 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
         }
     }).collect();
 
-        let entry_body = quote! {
+    let module_name = input
+        .module
+        .as_ref()
+        .map(|m| format!("{}\0", m.value()))
+        .unwrap_or_else(|| "gleamler_nif_ffi\0".to_string());
+    let module_name_lit = syn::LitStr::new(&module_name, proc_macro2::Span::call_site());
+
+    let load_body = if let Some(load_path) = &input.load {
+        quote! {
+            let env = ::gleamler::Env::new_init_env(&(), env);
+            let load_info = ::gleamler::Term::new(env, load_info);
+            if !::gleamler::resource::Registration::register_all_collected(env).is_ok() {
+                return 1;
+            }
+            ::gleamler::codegen_runtime::handle_nif_init_call(#load_path, env, load_info)
+        }
+    } else {
+        quote! {
+            let env = ::gleamler::Env::new_init_env(&(), env);
+            let load_info = ::gleamler::Term::new(env, load_info);
+            ::gleamler::codegen_runtime::handle_nif_init_call(
+                |env, _info| {
+                    ::gleamler::resource::Registration::register_all_collected(env).is_ok()
+                },
+                env,
+                load_info,
+            )
+        }
+    };
+
+    let entry_body = quote! {
         use ::gleamler::sys::{ErlNifFunc, ErlNifEntry, NIF_MAJOR_VERSION, NIF_MINOR_VERSION, ERL_NIF_ENTRY_OPTIONS};
         use ::gleamler::codegen_runtime::min_erts;
         use ::gleamler::wrapper::get_nif_resource_type_init_size;
@@ -188,7 +237,7 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
         let entry = Box::new(ErlNifEntry {
             major: NIF_MAJOR_VERSION,
             minor: NIF_MINOR_VERSION,
-            name: b"gleamler_nif_ffi\0".as_ptr() as *const c_char,
+            name: #module_name_lit.as_ptr() as *const c_char,
             num_of_funcs,
             funcs: funcs_ptr,
             load: Some({
@@ -198,15 +247,7 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
                     load_info: ::gleamler::sys::ERL_NIF_TERM,
                 ) -> ::gleamler::sys::c_int {
                     unsafe {
-                        let env = ::gleamler::Env::new_init_env(&(), env);
-                        let load_info = ::gleamler::Term::new(env, load_info);
-                        ::gleamler::codegen_runtime::handle_nif_init_call(
-                            |env, _info| {
-                                ::gleamler::resource::Registration::register_all_collected(env).is_ok()
-                            },
-                            env,
-                            load_info,
-                        )
+                        #load_body
                     }
                 }
                 __gleamler_nif_load
@@ -223,10 +264,37 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
         Box::into_raw(entry) as *const _
     };
 
+    let init_fn_name = {
+        let crate_name = std::env::var("CARGO_CRATE_NAME")
+            .expect("CARGO_CRATE_NAME is not set");
+        syn::Ident::new(&format!("{crate_name}_nif_init"), proc_macro2::Span::call_site())
+    };
+    let primary = std::env::var("GLEAMLER_PRIMARY_NIF_INIT").is_ok()
+        || std::env::var("CARGO_PRIMARY_PACKAGE").is_ok();
+    let maybe_primary = if primary {
+        quote! {
+            #[cfg(not(target_os = "windows"))]
+            #[unsafe(no_mangle)]
+            pub extern "C" fn nif_init() -> *const ::gleamler::sys::ErlNifEntry {
+                #init_fn_name()
+            }
+
+            #[cfg(target_os = "windows")]
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn nif_init(
+                callbacks: *mut ::gleamler::codegen_runtime::DynNifCallbacks,
+            ) -> *const ::gleamler::sys::ErlNifEntry {
+                unsafe { #init_fn_name(callbacks) }
+            }
+        }
+    } else {
+        quote! {}
+    };
+
     let expanded = quote! {
         #[cfg(not(target_os = "windows"))]
         #[unsafe(no_mangle)]
-        pub extern "C" fn nif_init() -> *const ::gleamler::sys::ErlNifEntry {
+        pub extern "C" fn #init_fn_name() -> *const ::gleamler::sys::ErlNifEntry {
             use std::sync::Once;
             static INIT: Once = Once::new();
             INIT.call_once(|| {
@@ -237,12 +305,16 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
 
         #[cfg(target_os = "windows")]
         #[unsafe(no_mangle)]
-        pub unsafe extern "C" fn nif_init(callbacks: *mut ::gleamler::codegen_runtime::DynNifCallbacks) -> *const ::gleamler::sys::ErlNifEntry {
+        pub unsafe extern "C" fn #init_fn_name(
+            callbacks: *mut ::gleamler::codegen_runtime::DynNifCallbacks,
+        ) -> *const ::gleamler::sys::ErlNifEntry {
             unsafe {
                 ::gleamler::codegen_runtime::internal_set_symbols(*callbacks);
             }
             #entry_body
         }
+
+        #maybe_primary
     };
 
     TokenStream::from(expanded)
