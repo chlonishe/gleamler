@@ -45,34 +45,40 @@ impl From<ErlNifTermType> for TermType {
 }
 
 pub fn get_type(term: Term) -> TermType {
-    if cfg!(feature = "nif_version_2_15") {
+    #[cfg(feature = "nif_version_2_15")]
+    {
         term.get_erl_type().into()
-    } else if term.is_atom() {
-        TermType::Atom
-    } else if term.is_binary() {
-        TermType::Binary
-    } else if term.is_fun() {
-        TermType::Fun
-    } else if term.is_list() || term.is_empty_list() {
-        TermType::List
-    } else if term.is_map() {
-        TermType::Map
-    } else if term.is_number() {
-        if term.is_float() {
-            TermType::Float
+    }
+    
+    #[cfg(not(feature = "nif_version_2_15"))]
+    {
+        if term.is_atom() {
+            TermType::Atom
+        } else if term.is_binary() {
+            TermType::Binary
+        } else if term.is_fun() {
+            TermType::Fun
+        } else if term.is_list() || term.is_empty_list() {
+            TermType::List
+        } else if term.is_map() {
+            TermType::Map
+        } else if term.is_number() {
+            if term.is_float() {
+                TermType::Float
+            } else {
+                TermType::Integer
+            }
+        } else if term.is_pid() {
+            TermType::Pid
+        } else if term.is_port() {
+            TermType::Port
+        } else if term.is_ref() {
+            TermType::Ref
+        } else if term.is_tuple() {
+            TermType::Tuple
         } else {
-            TermType::Integer
+            TermType::Unknown
         }
-    } else if term.is_pid() {
-        TermType::Pid
-    } else if term.is_port() {
-        TermType::Port
-    } else if term.is_ref() {
-        TermType::Ref
-    } else if term.is_tuple() {
-        TermType::Tuple
-    } else {
-        TermType::Unknown
     }
 }
 
