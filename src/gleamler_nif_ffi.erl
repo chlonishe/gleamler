@@ -12,35 +12,35 @@ init() ->
         ok -> ok;
         Error -> io:format("[Gleamler NIF] Load error: ~p~n", [Error]), Error
     end.
-add(_A, _B) -> exit(nif_library_not_loaded).
-divide(_A, _B) -> exit(nif_library_not_loaded).
-double_list(_A) -> exit(nif_library_not_loaded).
-echo_i128(_A) -> exit(nif_library_not_loaded).
-echo_u128(_A) -> exit(nif_library_not_loaded).
-factorial(_A) -> exit(nif_library_not_loaded).
-fib(_A) -> exit(nif_library_not_loaded).
-greet(_A) -> exit(nif_library_not_loaded).
-is_positive(_A) -> exit(nif_library_not_loaded).
-make_pair(_A, _B) -> exit(nif_library_not_loaded).
-mul(_A, _B) -> exit(nif_library_not_loaded).
-stress_add_wrap(_A, _B) -> exit(nif_library_not_loaded).
-stress_dirty_cpu(_A) -> exit(nif_library_not_loaded).
-stress_dirty_io(_A) -> exit(nif_library_not_loaded).
-stress_float_div(_A, _B) -> exit(nif_library_not_loaded).
-stress_float_is_special(_A) -> exit(nif_library_not_loaded).
+add(_Arg0, _Arg1) -> exit(nif_library_not_loaded).
+divide(_Arg0, _Arg1) -> exit(nif_library_not_loaded).
+double_list(_Arg0) -> exit(nif_library_not_loaded).
+echo_i128(_Arg0) -> exit(nif_library_not_loaded).
+echo_u128(_Arg0) -> exit(nif_library_not_loaded).
+factorial(_Arg0) -> exit(nif_library_not_loaded).
+fib(_Arg0) -> exit(nif_library_not_loaded).
+greet(_Arg0) -> exit(nif_library_not_loaded).
+is_positive(_Arg0) -> exit(nif_library_not_loaded).
+make_pair(_Arg0, _Arg1) -> exit(nif_library_not_loaded).
+mul(_Arg0, _Arg1) -> exit(nif_library_not_loaded).
+stress_add_wrap(_Arg0, _Arg1) -> exit(nif_library_not_loaded).
+stress_dirty_cpu(_Arg0) -> exit(nif_library_not_loaded).
+stress_dirty_io(_Arg0) -> exit(nif_library_not_loaded).
+stress_float_div(_Arg0, _Arg1) -> exit(nif_library_not_loaded).
+stress_float_is_special(_Arg0) -> exit(nif_library_not_loaded).
 stress_i128_max() -> exit(nif_library_not_loaded).
 stress_i128_min() -> exit(nif_library_not_loaded).
 stress_i64_max() -> exit(nif_library_not_loaded).
-stress_maybe_div(_A, _B) -> exit(nif_library_not_loaded).
-stress_mul_wrap(_A, _B) -> exit(nif_library_not_loaded).
+stress_maybe_div(_Arg0, _Arg1) -> exit(nif_library_not_loaded).
+stress_mul_wrap(_Arg0, _Arg1) -> exit(nif_library_not_loaded).
 stress_now_ms() -> exit(nif_library_not_loaded).
-stress_panic(_A) -> exit(nif_library_not_loaded).
-stress_repeat_string(_A, _B) -> exit(nif_library_not_loaded).
-stress_reverse_list(_A) -> exit(nif_library_not_loaded).
-stress_safe_sqrt(_A) -> exit(nif_library_not_loaded).
-stress_string_len(_A) -> exit(nif_library_not_loaded).
-stress_sum_list(_A) -> exit(nif_library_not_loaded).
-stress_tuple_swap(_A, _B) -> exit(nif_library_not_loaded).
+stress_panic(_Arg0) -> exit(nif_library_not_loaded).
+stress_repeat_string(_Arg0, _Arg1) -> exit(nif_library_not_loaded).
+stress_reverse_list(_Arg0) -> exit(nif_library_not_loaded).
+stress_safe_sqrt(_Arg0) -> exit(nif_library_not_loaded).
+stress_string_len(_Arg0) -> exit(nif_library_not_loaded).
+stress_sum_list(_Arg0) -> exit(nif_library_not_loaded).
+stress_tuple_swap(_Arg0, _Arg1) -> exit(nif_library_not_loaded).
 stress_u128_max() -> exit(nif_library_not_loaded).
 stress_u64_max() -> exit(nif_library_not_loaded).
-sub(_A, _B) -> exit(nif_library_not_loaded).
+sub(_Arg0, _Arg1) -> exit(nif_library_not_loaded).

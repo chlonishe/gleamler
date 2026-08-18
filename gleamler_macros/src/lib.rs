@@ -72,7 +72,8 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
                 let arg_type = &pat_type.ty;
 
                 let type_str = quote!(#arg_type).to_string().replace(' ', "");
-                let type_base = type_str.split('<').next().unwrap_or(&type_str).to_string();
+                
+                let type_base = type_str.trim_start_matches('&').split('<').next().unwrap_or(&type_str);
                 let is_env = type_base == "Env" || type_base.ends_with("::Env");
                 
                 if is_env {
