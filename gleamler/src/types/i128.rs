@@ -12,18 +12,19 @@ impl Encoder for i128 {
             let mut etf = [0u8; 4 + 16];
             etf[0] = EXTERNAL_TERM_FORMAT_VERSION;
             etf[1] = SMALL_BIG_EXT;
-            etf[2] = 16; // length in bytes
+            etf[2] = 16;
             if *self < 0 {
                 etf[3] = 1;
-                let abs = (*self as u128).wrapping_neg();
-                etf[4..].copy_from_slice(&abs.to_le_bytes());
+                let bytes = (-self).to_le_bytes();
+                etf[4..].copy_from_slice(&bytes);
             } else {
                 etf[3] = 0;
-                etf[4..].copy_from_slice(&(*self as u128).to_le_bytes());
+                let bytes = self.to_le_bytes();
+                etf[4..].copy_from_slice(&bytes);
             }
             match env.binary_to_term(&etf) {
                 Some((term, _)) => term,
-                None => env.error_tuple(atom::i128_encode_failed()),
+                None => panic!("i128 encode failed: enif_binary_to_term failed (out of memory)"),
             }
         }
     }
@@ -37,11 +38,11 @@ impl Encoder for u128 {
             let mut etf = [0u8; 4 + 16];
             etf[0] = EXTERNAL_TERM_FORMAT_VERSION;
             etf[1] = SMALL_BIG_EXT;
-            etf[2] = 16; // length in bytes
+            etf[2] = 16;
             etf[4..].copy_from_slice(&self.to_le_bytes());
             match env.binary_to_term(&etf) {
                 Some((term, _)) => term,
-                None => env.error_tuple(atom::u128_encode_failed()),
+                None => panic!("u128 encode failed: enif_binary_to_term failed (out of memory)"),
             }
         }
     }

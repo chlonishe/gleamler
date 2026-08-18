@@ -38,7 +38,7 @@ impl Encoder for str {
         } else {
             let mut bin = match OwnedBinary::new(str_len) {
                 Some(bin) => bin,
-                None => return atom::oom().to_term(env),
+                None => panic!("string encode failed: enif_alloc_binary({str_len}) failed (out of memory)"),
             };
             bin.as_mut_slice()
                 .write_all(self.as_bytes())
