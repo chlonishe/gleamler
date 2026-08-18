@@ -1,10 +1,12 @@
 import gleam/int
 import gleam/io
 import gleam/string
-import gleam/option
 import gleam/list
-
+import gleam/option
 import gleamler_nif
+
+@external(erlang, "gleamler_stress_ffi", "rescue_panic")
+fn rescue_panic() -> Result(Int, String)
 
 fn assert_eq(a: a, b: a, msg: String) {
   case a == b {
@@ -77,9 +79,23 @@ pub fn run() {
   assert_eq(gleamler_nif.rust_stress_tuple_swap(42, "hello"), #("hello", 42), "tuple swap")
   io.println("PASS")
 
-  section("Panic recovery")
-  io.println("Uncomment rust_stress_panic in source to test VM survival.")
-  io.println("SKIP")
+    section("Panic recovery")
+  assert_eq(
+    rescue_panic(),
+    Error("nif_panicked"),
+    "panicking NIF raises nif_panicked",
+  )
+  assert_eq(
+    gleamler_nif.rust_add(2, 3),
+    5,
+    "VM alive after NIF panic",
+  )
+  assert_eq(
+    gleamler_nif.rust_greet("again"),
+    "Hello, again!",
+    "NIFs callable after panic",
+  )
+  io.println("PASS")
 
   section("Dirty CPU stress")
   let start = gleamler_nif.rust_stress_now_ms()
