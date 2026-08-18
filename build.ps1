@@ -57,7 +57,7 @@ if ($IsWindows -or $env:OS -eq "Windows_NT") {
     Copy-Item $dllPath priv/gleamler.dll -Force
 } else {
     $ext = if (& uname -s | Select-String -Pattern "Darwin") { "dylib" } else { "so" }
-    Copy-Item target/release/libgleamler.$ext priv/gleamler.$ext -Force
+    Copy-Item target/release/libgleamler.$ext priv/gleamler.so -Force
 }
 
 Write-Host "==> Building Gleam..." -ForegroundColor Cyan

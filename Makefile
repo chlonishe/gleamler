@@ -2,7 +2,7 @@
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
-    LIB_EXT = dylib
+    LIB_EXT = so
 else
     LIB_EXT = so
 endif
