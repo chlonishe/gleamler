@@ -7,7 +7,6 @@ use syn::punctuated::Punctuated;
 
 mod context;
 mod encode_decode_templates;
-mod ex_struct;
 mod map;
 mod record;
 mod resource_impl;
@@ -20,7 +19,6 @@ mod untagged_enum;
 enum GleamlerAttr {
     Encode,
     Decode,
-    Module(String),
     Tag(String),
 }
 
@@ -320,18 +318,6 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
-#[proc_macro_derive(NifStruct, attributes(module, gleamler))]
-pub fn nif_struct(input: TokenStream) -> TokenStream {
-    let ast = syn::parse(input).unwrap();
-    ex_struct::transcoder_decorator(&ast, false).into()
-}
-
-#[proc_macro_derive(NifException, attributes(module, gleamler))]
-pub fn nif_exception(input: TokenStream) -> TokenStream {
-    let ast = syn::parse(input).unwrap();
-    ex_struct::transcoder_decorator(&ast, true).into()
-}
-
 #[proc_macro_derive(NifMap, attributes(gleamler))]
 pub fn nif_map(input: TokenStream) -> TokenStream {
     let ast = syn::parse(input).unwrap();
@@ -380,4 +366,3 @@ pub fn resource_impl(args: TokenStream, item: TokenStream) -> TokenStream {
 
     resource_impl::transcoder_decorator(attributes, input).into()
 }
-// ;)      

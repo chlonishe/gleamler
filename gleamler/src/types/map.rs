@@ -3,7 +3,6 @@
 use super::atom;
 use crate::wrapper::map;
 use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
-use std::ops::RangeInclusive;
 
 #[inline]
 pub fn map_new(env: Env) -> Term {
@@ -14,9 +13,9 @@ pub fn map_new(env: Env) -> Term {
 impl<'a> Term<'a> {
     /// Constructs a new, empty map term.
     ///
-    /// ### Elixir equivalent
-    /// ```elixir
-    /// %{}
+    /// ### Erlang equivalent
+    /// ```erlang
+    /// #{}
     /// ```
     #[inline]
     pub fn map_new(env: Env<'a>) -> Term<'a> {
@@ -25,11 +24,9 @@ impl<'a> Term<'a> {
 
     /// Construct a new map from two vectors
     ///
-    /// ### Elixir equivalent
-    /// ```elixir
-    /// keys = ["foo", "bar"]
-    /// values = [1, 2]
-    /// Enum.zip(keys, values) |> Map.new()
+    /// ### Erlang equivalent
+    /// ```erlang
+    /// maps:from_list(lists:zip(Keys, Values))
     /// ```
     #[inline]
     pub fn map_from_arrays(
@@ -79,9 +76,9 @@ impl<'a> Term<'a> {
     /// receives only one vector with the pairs
     /// of `(key, value)`.
     ///
-    /// ### Elixir equivalent
-    /// ```elixir
-    /// Map.new([{"foo", 1}, {"bar", 2}])
+    /// ### Erlang equivalent
+    /// ```erlang
+    /// maps:from_list([{<<"foo">>, 1}, {<<"bar">>, 2}])
     /// ```
     #[inline]
     pub fn map_from_pairs(
@@ -104,9 +101,9 @@ impl<'a> Term<'a> {
     /// Returns Err(Error::BadArg) if the term is not a map or if
     /// key doesn't exist in the map.
     ///
-    /// ### Elixir equivalent
-    /// ```elixir
-    /// Map.get(self_term, key)
+    /// ### Erlang equivalent
+    /// ```erlang
+    /// maps:get(Key, Map)
     /// ```
     #[inline]
     pub fn map_get(self, key: impl Encoder) -> NifResult<Term<'a>> {
@@ -123,9 +120,9 @@ impl<'a> Term<'a> {
     ///
     /// Returns Err(Error::BadArg) if the term is not a map.
     ///
-    /// ### Elixir equivalent
-    /// ```elixir
-    /// map_size(self_term)
+    /// ### Erlang equivalent
+    /// ```erlang
+    /// map_size(Map)
     /// ```
     #[inline]
     pub fn map_size(self) -> NifResult<usize> {
@@ -138,9 +135,9 @@ impl<'a> Term<'a> {
     ///
     /// Returns Err(Error::BadArg) if the term is not a map.
     ///
-    /// ### Elixir equivalent
-    /// ```elixir
-    /// Map.put(self_term, key, value)
+    /// ### Erlang equivalent
+    /// ```erlang
+    /// maps:put(Key, Value, Map)
     /// ```
     #[inline]
     pub fn map_put(self, key: impl Encoder, value: impl Encoder) -> NifResult<Term<'a>> {
@@ -164,9 +161,9 @@ impl<'a> Term<'a> {
     ///
     /// Returns Err(Error::BadArg) if the term is not a map.
     ///
-    /// ### Elixir equivalent
-    /// ```elixir
-    /// Map.delete(self_term, key)
+    /// ### Erlang equivalent
+    /// ```erlang
+    /// maps:remove(Key, Map)
     /// ```
     #[inline]
     pub fn map_remove(self, key: impl Encoder) -> NifResult<Term<'a>> {
@@ -346,30 +343,5 @@ impl<'a> Decoder<'a> for MapIterator<'a> {
             Some(iter) => Ok(iter),
             None => Err(Error::BadArg),
         }
-    }
-}
-
-impl<'a, T> Decoder<'a> for RangeInclusive<T>
-where
-    T: Decoder<'a>,
-{
-    fn decode(term: Term<'a>) -> NifResult<Self> {
-        let name = term.map_get(atom::__struct__())?;
-
-        match name.atom_to_string()?.as_ref() {
-            "Elixir.Range" => (),
-            _ => return Err(Error::BadArg),
-        }
-
-        let first = term.map_get(atom::first())?.decode::<T>()?;
-        let last = term.map_get(atom::last())?.decode::<T>()?;
-        if let Ok(step) = term.map_get(atom::step()) {
-            match step.decode::<i64>()? {
-                1 => (),
-                _ => return Err(Error::BadArg),
-            }
-        }
-
-        Ok(first..=last)
     }
 }

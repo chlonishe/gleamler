@@ -90,13 +90,6 @@ impl Atom {
         Self::existing_from_encoded_bytes(env, bytes, ErlNifCharEncoding::ERL_NIF_LATIN1)
     }
 
-    /// Return the atom whose text representation is Latin1 `bytes`, like `erlang:binary_to_existing_atom/1`,
-    /// if atom with given text representation exists.
-    #[deprecated(since = "0.38.0", note = "Use existing_from_(utf8_)bytes")]
-    pub fn try_from_bytes(env: Env, bytes: &[u8]) -> NifResult<Option<Self>> {
-        Self::existing_from_bytes(env, bytes).map(Some)
-    }
-
     /// Return the atom whose text representation is UTF8 `bytes`, like `erlang:binary_to_existing_atom/2`,
     /// if atom with given text representation exists.
     ///
@@ -160,14 +153,6 @@ impl Atom {
     pub fn existing_from_str(env: Env, string: &str) -> NifResult<Self> {
         Self::existing_from_utf8_bytes(env, string.as_bytes())
     }
-
-    /// Return the atom whose text representation is the given `string`.
-    ///
-    /// Deprecated in favor of [`Atom::from_str_existing`].
-    #[deprecated(since = "0.38.0", note = "Use existing_from_str")]
-    pub fn try_from_str(env: Env, string: &str) -> NifResult<Option<Self>> {
-        Self::existing_from_str(env, string).map(Some)
-    }
 }
 
 impl fmt::Debug for Atom {
@@ -205,10 +190,6 @@ impl Term<'_> {
     pub fn atom_to_string(&self) -> NifResult<String> {
         unsafe { atom::get_atom(self.get_env().as_c_arg(), self.as_c_arg()) }
     }
-}
-
-pub fn is_truthy(term: Term) -> bool {
-    !((term.as_c_arg() == false_().as_c_arg()) || (term.as_c_arg() == nil().as_c_arg()))
 }
 
 pub(in crate::types) fn decode_bool(term: Term) -> NifResult<bool> {
@@ -360,18 +341,6 @@ atoms! {
     /// If you're looking to convert between Erlang terms and Rust `bool`
     /// values, use `Encoder` and `Decoder` instead.
     true_ = "true",
-
-    /// The `__struct__` atom used by Elixir.
-    __struct__,
-
-    /// The `first` atom used by `Elixir.Range`.
-    first,
-
-    /// The `last` atom used by `Elixir.Range`.
-    last,
-
-    /// The `step` atom used by `Elixir.Range` vor Elixir >= v1.12
-    step,
 
     some,
 

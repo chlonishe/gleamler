@@ -29,7 +29,7 @@ if (-not $needsGen) {
 
 if ($needsGen) {
     Write-Host "==> Generating FFI stubs..." -ForegroundColor Cyan
-    cargo run -p gleamler_codegen -- gleamler/src/lib.rs $erlOut $gleamOut
+    cargo run -p gleamler_codegen -- gleamler/src/nifs.rs $erlOut $gleamOut
 }
 
 Write-Host "==> Building Rust NIF..." -ForegroundColor Cyan

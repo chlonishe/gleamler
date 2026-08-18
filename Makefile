@@ -14,7 +14,7 @@ all: gen
 	gleam build
 
 gen:
-	cargo run -p gleamler_codegen -- gleamler/src/lib.rs src/gleamler_nif_ffi.erl src/gleamler_nif.gleam
+	cargo run -p gleamler_codegen -- gleamler/src/nifs.rs src/gleamler_nif_ffi.erl src/gleamler_nif.gleam
 
 test: all
 	gleam test

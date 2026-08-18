@@ -37,10 +37,6 @@ pub use self::reference::Reference;
 pub mod i128;
 pub mod path;
 
-pub mod truthy;
-
-pub mod elixir_struct;
-
 pub mod erlang_option;
 pub use self::erlang_option::ErlOption;
 

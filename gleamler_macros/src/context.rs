@@ -166,7 +166,6 @@ impl<'a> Context<'a> {
                 match segment.ident.to_string().as_ref() {
                     "gleamler" => Some(Context::parse_gleamler(meta)),
                     "tag" => Context::try_parse_tag(meta),
-                    "module" => Context::try_parse_module(meta),
                     _ => None,
                 }
             })
@@ -205,18 +204,5 @@ impl<'a> Context<'a> {
                 }
         }
         panic!("Cannot parse tag")
-    }
-
-    fn try_parse_module(meta: &Meta) -> Option<Vec<GleamlerAttr>> {
-        if let Meta::NameValue(name_value) = meta {
-            let expr = &name_value.value;
-
-            if let syn::Expr::Lit(lit_expr) = expr
-                && let Lit::Str(ref module) = lit_expr.lit {
-                    let ident = format!("Elixir.{}", module.value());
-                    return Some(vec![GleamlerAttr::Module(ident)]);
-                }
-        }
-        panic!("Cannot parse module")
     }
 }
