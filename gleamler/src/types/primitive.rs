@@ -41,7 +41,7 @@ macro_rules! impl_number_decoder {
                 if erl_get!($decode_fun, term, res) == 0 {
                     return Err(Error::BadArg);
                 }
-                Ok(res as $dec_type)
+                <$dec_type>::try_from(res).map_err(|_| Error::BadArg)
             }
         }
     };
