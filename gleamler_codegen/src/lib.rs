@@ -257,7 +257,7 @@ fn parse_nif_function(func: ItemFn) -> Option<NifFunc> {
     })
 }
 
-pub fn generate_erl(funcs: &[NifFunc]) -> String {
+pub fn generate_erl(funcs: &[NifFunc], erl_module: &str, lib_name: &str) -> String {
     let exports: Vec<_> = funcs
         .iter()
         .map(|f| {
@@ -280,7 +280,7 @@ pub fn generate_erl(funcs: &[NifFunc]) -> String {
         })
         .collect();
     format!(
-        r#"-module(gleamler_nif_ffi).
+        r#"-module({erl_module}).
 -export([{}]).
 -on_load(init/0).
 init() ->
@@ -288,7 +288,7 @@ init() ->
         non_existing -> {{ok, Cwd}} = file:get_cwd(), filename:join(Cwd, "priv");
         BeamPath -> filename:join([filename:dirname(BeamPath), "..", "priv"])
     end,
-    LibName = "gleamler",
+    LibName = "{lib_name}",
     Path = filename:join(PrivDir, LibName),
     case erlang:load_nif(Path, 0) of
         ok -> ok;
@@ -306,8 +306,8 @@ const GLEAM_KEYWORDS: &[&str] = &[
     "panic", "pub", "test", "todo", "type", "use",
 ];
 
-pub fn generate_gleam(funcs: &[NifFunc]) -> String {
-    let mut has_option = false;
+pub fn generate_gleam(funcs: &[NifFunc], erl_module: &str) -> String {
+    let mut has_option: bool = false;
     let mut has_dict = false;
     for f in funcs {
         if f.ret.contains("option.Option")
@@ -341,7 +341,7 @@ pub fn generate_gleam(funcs: &[NifFunc]) -> String {
             .collect();
         let ret = &f.ret;
         out.push_str(&format!(
-            "@external(erlang, \"gleamler_nif_ffi\", \"{}\")\npub fn {}({}) -> {}\n",
+            "@external(erlang, \"{erl_module}\", \"{}\")\npub fn {}({}) -> {}\n",
             erl_name,
             gleam_name,
             args.join(", "),
@@ -364,6 +364,9 @@ fn clean_name(n: &str) -> String {
 mod tests {
     use super::*;
     use syn::parse_quote;
+
+    const DEFAULT_ERL_MODULE: &str = "gleamler_nif_ffi";
+    const DEFAULT_LIB_NAME: &str = "gleamler";
 
     #[test]
     fn parse_empty_file() {
@@ -427,10 +430,26 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 2,
             docs: vec![],
         }];
-        let out = generate_erl(&funcs);
+        let out = generate_erl(&funcs, DEFAULT_ERL_MODULE, DEFAULT_LIB_NAME);
         assert!(out.contains("-export([add/2])."));
         assert!(out.contains("add(_Arg0, _Arg1) -> exit(nif_library_not_loaded)."));
         assert!(out.contains("-module(gleamler_nif_ffi)."));
+    }
+
+    #[test]
+    fn erl_output_custom_module_and_lib() {
+        let funcs = vec![NifFunc {
+            name: "hello".into(),
+            alias: None,
+            args: vec![],
+            ret: "String".into(),
+            arity: 0,
+            docs: vec![],
+        }];
+        let out = generate_erl(&funcs, "my_custom_ffi", "my_lib");
+        assert!(out.contains("-module(my_custom_ffi)."));
+        assert!(out.contains("LibName = \"my_lib\","));
+        assert!(out.contains("hello() -> exit(nif_library_not_loaded)."));
     }
 
     #[test]
@@ -443,9 +462,23 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 1,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs);
+        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
         assert!(out.contains(r#"@external(erlang, "gleamler_nif_ffi", "greet")"#));
         assert!(out.contains("pub fn rust_greet(name: String) -> String"));
+    }
+
+    #[test]
+    fn gleam_output_custom_erl_module() {
+        let funcs = vec![NifFunc {
+            name: "ping".into(),
+            alias: None,
+            args: vec![],
+            ret: "Nil".into(),
+            arity: 0,
+            docs: vec![],
+        }];
+        let out = generate_gleam(&funcs, "other_ffi_module");
+        assert!(out.contains(r#"@external(erlang, "other_ffi_module", "ping")"#));
     }
 
     #[test]
@@ -461,7 +494,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 2,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs);
+        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
         assert!(out.contains("import gleam/option"));
         assert!(out.contains("items: List(Int)"));
         assert!(out.contains("flag: option.Option(Bool)"));
@@ -478,7 +511,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 2,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs);
+        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
         assert!(out.contains("#(Int, String)"));
     }
 
@@ -492,7 +525,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 1,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs);
+        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
         assert!(out.contains("dict.Dict(String, Int)"));
     }
 
@@ -506,7 +539,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 1,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs);
+        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
         assert!(out.contains("data: List(Int)"));
         assert!(out.contains("-> List(Int)"));
         assert!(!out.contains("BitArray"));
@@ -522,7 +555,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 1,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs);
+        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
         assert!(out.contains("data: List(Int)"));
     }
 
@@ -539,7 +572,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 2,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs);
+        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
         assert!(out.contains("s: String"));
         assert!(out.contains("b: List(Int)"));
     }
@@ -554,7 +587,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 1,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs);
+        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
         assert!(out.contains("b: BitArray"));
         assert!(out.contains("-> BitArray"));
     }
@@ -572,7 +605,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 2,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs);
+        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
         assert!(out.contains("x: Foo(T)"));
         assert!(out.contains("y: Bar(T, U)"));
     }
@@ -587,7 +620,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 0,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs);
+        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
         assert!(out.contains("#(dict.Dict(String, Int), Bool)"));
     }
 
