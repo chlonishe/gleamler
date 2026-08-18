@@ -68,7 +68,7 @@ impl<'a> Env<'a> {
     /// unique lifetime (i.e. that you're following the most important safety
     /// rule of Gleamler).
     ///
-    /// # Unsafe
+    /// # Safety
     /// Don't create multiple `Env`s with the same lifetime.
     #[inline]
     pub unsafe fn new<T>(_lifetime_marker: &'a T, env: NIF_ENV) -> Env<'a> {
@@ -177,6 +177,7 @@ impl<'a> Env<'a> {
 
     /// Like `binary_to_term`, but can only be called on valid
     /// and trusted data.
+    /// # Safety
     pub unsafe fn binary_to_term_trusted(self, data: &[u8]) -> Option<(Term<'a>, usize)> {
         unsafe { crate::wrapper::env::binary_to_term(self.as_c_arg(), data, false) }
             .map(|(term, size)| (unsafe { Term::new(self, term) }, size))

@@ -1,6 +1,5 @@
 //! Utilities used to access and create Erlang maps.
 
-use super::atom;
 use crate::wrapper::map;
 use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 

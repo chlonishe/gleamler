@@ -52,6 +52,7 @@ pub trait Resource: Sized + Send + Sync + 'static {
     #[allow(unused)]
     fn down<'a>(&'a self, env: Env<'a>, pid: LocalPid, monitor: Monitor) {}
 
+    /// # Safety
     #[cfg(feature = "nif_version_2_16")]
     #[allow(unused)]
     unsafe fn dyncall<'a>(&'a self, env: Env<'a>, call_data: *mut crate::sys::c_void) {}

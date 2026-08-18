@@ -1,6 +1,5 @@
 use super::binary::{Binary, NewBinary, OwnedBinary};
 use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
-use crate::types::atom;
 
 impl<'a> Decoder<'a> for String {
     #[inline]

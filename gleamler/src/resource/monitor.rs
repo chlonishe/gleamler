@@ -10,6 +10,7 @@ pub struct Monitor {
 }
 
 impl Monitor {
+    /// # Safety
     pub unsafe fn new(inner: ErlNifMonitor) -> Self {
         Self { inner }
     }

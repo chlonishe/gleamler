@@ -2,6 +2,7 @@
 // Do not edit
 
 import gleam/option
+
 @external(erlang, "gleamler_nif_ffi", "add")
 pub fn rust_add(a: Int, b: Int) -> Int
 @external(erlang, "gleamler_nif_ffi", "sub")

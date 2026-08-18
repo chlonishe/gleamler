@@ -22,6 +22,7 @@ pub use crate::wrapper::{
 pub use crate::sys::{internal_set_symbols, internal_write_symbols, DynNifCallbacks};
 
 
+/// # Safety
 pub unsafe trait NifReturnable {
     unsafe fn into_returned(self, env: Env) -> NifReturned;
 }

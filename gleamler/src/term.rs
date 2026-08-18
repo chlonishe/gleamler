@@ -26,7 +26,7 @@ impl Debug for Term<'_> {
 impl<'a> Term<'a> {
     /// Create a `Term` from a raw `NIF_TERM`.
     ///
-    /// # Unsafe
+    /// # Safety
     /// The caller must ensure that `env` is the environment that `inner` belongs to,
     /// unless `inner` is an atom term.
     #[inline]

@@ -178,6 +178,7 @@ impl<'a> Env<'a> {
         resource.demonitor(Some(*self), mon)
     }
 
+    /// # Safety
     #[cfg(feature = "nif_version_2_16")]
     pub unsafe fn dynamic_resource_call(
         self,

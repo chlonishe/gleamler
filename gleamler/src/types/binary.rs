@@ -107,6 +107,7 @@ use std::{
 pub struct OwnedBinary(ErlNifBinary);
 
 impl OwnedBinary {
+    /// # Safety
     pub unsafe fn from_raw(inner: ErlNifBinary) -> OwnedBinary {
         OwnedBinary(inner)
     }
