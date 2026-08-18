@@ -38,10 +38,10 @@ fn has_gleam_nif(attrs: &[syn::Attribute]) -> bool {
 fn is_env_type(ty: &Type) -> bool {
     match ty {
         Type::Path(TypePath { path, .. }) => {
-            let segs: Vec<_> = path.segments.iter().map(|s| s.ident.to_string()).collect();
-            match segs.as_slice() {
+            let segments: Vec<_> = path.segments.iter().map(|s| s.ident.to_string()).collect();
+            match segments.as_slice() {
                 [one] => one == "Env",
-                [krate, last] => last == "Env" && (krate == "gleamler" || krate == "crate"),
+                [.., last] => last == &"Env",
                 _ => false,
             }
         }
