@@ -28,7 +28,11 @@ pub fn parse_nif_functions(source: &str) -> Vec<NifFunc> {
 }
 
 fn has_gleam_nif(attrs: &[syn::Attribute]) -> bool {
-    attrs.iter().any(|a| a.path().is_ident("gleam_nif"))
+    attrs.iter().any(|a| {
+        let path = a.path();
+        path.is_ident("gleam_nif") 
+            || path.segments.last().is_some_and(|seg| seg.ident == "gleam_nif")
+    })
 }
 
 fn is_env_type(ty: &Type) -> bool {
