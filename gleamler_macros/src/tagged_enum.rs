@@ -116,27 +116,10 @@ fn gen_decoder(ctx: &Context, variants: &[&Variant], atoms_module_name: &Ident) 
         })
         .collect();
 
-    super::encode_decode_templates::decoder(
+   super::encode_decode_templates::decoder(
         ctx,
         quote! {
             use #atoms_module_name::*;
-
-            fn try_decode_field<'a, T>(
-                term: ::gleamler::Term<'a>,
-                field: ::gleamler::Atom,
-            ) -> ::gleamler::NifResult<T>
-            where
-                T: ::gleamler::Decoder<'a>,
-            {
-                use ::gleamler::Encoder;
-                match ::gleamler::Decoder::decode(term.map_get(&field)?) {
-                    Err(_) => Err(::gleamler::Error::RaiseTerm(Box::new(format!(
-                        "Could not decode field :{:?} on %{{}}",
-                        field
-                    )))),
-                    Ok(value) => Ok(value),
-                }
-            }
 
             if let Ok(unit) = ::gleamler::Atom::from_term(term) {
                 #(#unit_decoders)*
