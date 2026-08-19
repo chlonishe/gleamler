@@ -334,7 +334,9 @@ pub fn generate_gleam(funcs: &[NifFunc], erl_module: &str) -> String {
         if f.ret.contains("dict.Dict") || f.args.iter().any(|(_, t)| t.contains("dict.Dict")) {
             has_dict = true;
         }
-        if f.ret.contains("ResourceArc<") || f.args.iter().any(|(_, t)| t.contains("ResourceArc<")) {
+        if gleam_type_mentions(&f.ret, "Resource")
+            || f.args.iter().any(|(_, t)| gleam_type_mentions(t, "Resource"))
+        {
             has_resource = true;
         }
     }
@@ -384,6 +386,12 @@ fn clean_name(n: &str) -> String {
     } else {
         name.to_string()
     }
+}
+
+fn gleam_type_mentions(gleam_ty: &str, name: &str) -> bool {
+    gleam_ty
+        .split(|c: char| !c.is_alphanumeric() && c != '_')
+        .any(|word| word == name)
 }
 
 #[cfg(test)]
