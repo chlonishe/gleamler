@@ -1,7 +1,8 @@
 use syn::{
     parse_file, AngleBracketedGenericArguments, FnArg, GenericArgument, ItemFn, Pat,
-    PathArguments, ReturnType, Type, TypePath, TypeReference, TypeTuple,
+    PathArguments, ReturnType, Type, TypePath, TypeReference, TypeTuple, Item
 };
+use proc_macro2::{Delimiter, TokenTree};
 
 #[derive(Debug)]
 pub struct NifFunc {
@@ -25,6 +26,27 @@ pub fn parse_nif_functions(source: &str) -> Vec<NifFunc> {
         }
     }
     functions
+}
+
+pub fn parse_init_nifs_list(source: &str) -> Vec<String> {
+    let Ok(file) = parse_file(source) else { return Vec::new() };
+    for item in file.items {
+        let Item::Macro(m) = item else { continue };
+        if !m.mac.path.is_ident("init_nifs") { continue }
+        for tt in m.mac.tokens.clone() {
+            let TokenTree::Group(g) = tt else { continue };
+            if g.delimiter() != Delimiter::Bracket { continue }
+            return g
+                .stream()
+                .into_iter()
+                .filter_map(|t| match t {
+                    TokenTree::Ident(id) => Some(id.to_string()),
+                    _ => None,
+                })
+                .collect();
+        }
+    }
+    Vec::new()
 }
 
 fn has_gleam_nif(attrs: &[syn::Attribute]) -> bool {

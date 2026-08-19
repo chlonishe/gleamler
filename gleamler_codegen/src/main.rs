@@ -28,6 +28,26 @@ fn main() {
         erl_out,
         gleam_out
     );
+    
+    let registered = gleamler_codegen::parse_init_nifs_list(&source);
+    if !registered.is_empty() {
+        for f in &functions {
+            if !registered.contains(&f.name) {
+                eprintln!(
+                    "warning: #[gleam_nif] fn `{}` is not listed in init_nifs! — \
+                     its stubs will exit(nif_library_not_loaded) at runtime",
+                    f.name
+                );
+            }
+        }
+        let declared: std::collections::BTreeSet<_> =
+            functions.iter().map(|f| f.name.as_str()).collect();
+        for name in &registered {
+            if !declared.contains(name.as_str()) {
+                eprintln!("warning: `{name}` is listed in init_nifs! but has no #[gleam_nif] function");
+            }
+        }
+    }
 
     let mut erl_names = std::collections::BTreeSet::new();
     
