@@ -23,7 +23,7 @@ impl Encoder for i128 {
             }
             match env.binary_to_term(&etf) {
                 Some((term, _)) => term,
-                None => env.error_tuple(atom::i128_encode_failed()),
+                None => panic!("i128 encode failed: enif_binary_to_term failed (out of memory)"),
             }
         }
     }
