@@ -129,13 +129,10 @@ where
                 Ok(res) => NifReturnable::into_returned(res, env),
                 Err(err) => NifReturnable::into_returned(err, env),
             },
-            Err(err) => match err.downcast::<NifReturned>() {
-                Ok(ty) => NifReturned::Term(ty.apply(env)),
-                Err(_) => {
-                    let term = atom::nif_panicked().as_c_arg();
-                    NifReturned::Raise(term)
-                }
-            },
+            Err(_) => {
+                let term = atom::nif_panicked().as_c_arg();
+                NifReturned::Raise(term)
+            }
         }
     }
 }
