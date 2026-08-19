@@ -24,6 +24,7 @@ mod nif;
 mod tests;
 
 pub mod nifs;
+pub mod types;
 
 pub use crate::alloc::EnifAllocator;
 pub use crate::dynamic::TermType;
@@ -38,9 +39,6 @@ pub use crate::types::{
     Atom, Binary, Decoder, Encoder, ErlOption, ListIterator, LocalPid, MapIterator, NewBinary,
     OwnedBinary, Reference,
 };
-
-#[macro_use]
-pub mod types;
 
 pub type NifResult<T> = Result<T, Error>;
 
