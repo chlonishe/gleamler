@@ -133,8 +133,7 @@ impl<'a> Term<'a> {
     /// Returns a new empty list.
     #[inline]
     pub fn list_new_empty(env: Env<'a>) -> Term<'a> {
-        let list: &[u8] = &[];
-        list.encode(env)
+        unsafe { Term::new(env, crate::wrapper::list::make_list(env.as_c_arg(), &[])) }
     }
 
     /// Returns an iterator over a list term.
