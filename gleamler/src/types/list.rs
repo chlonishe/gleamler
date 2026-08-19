@@ -128,17 +128,6 @@ where
     }
 }
 
-impl<T> Encoder for &[T]
-where
-    T: Encoder,
-{
-    #[inline]
-    fn encode<'b>(&self, env: Env<'b>) -> Term<'b> {
-        let term_array: Vec<NIF_TERM> = self.iter().map(|x| x.encode(env).as_c_arg()).collect();
-        unsafe { Term::new(env, list::make_list(env.as_c_arg(), &term_array)) }
-    }
-}
-
 /// ## List terms
 impl<'a> Term<'a> {
     /// Returns a new empty list.
