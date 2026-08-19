@@ -33,7 +33,7 @@ pub use crate::error::Error;
 pub use crate::nif::Nif;
 pub use crate::r#return::Return;
 pub use crate::resource::{Monitor, Resource, ResourceArc, ResourceInitError};
-pub use crate::schedule::SchedulerFlags;
+pub use crate::schedule::{consume_timeslice, SchedulerFlags};
 pub use crate::term::Term;
 pub use crate::thread::{spawn, JobSpawner, ThreadSpawner};
 pub use crate::types::{
