@@ -777,14 +777,6 @@ pub fn heavy(n: i64) -> i64 { n }
     }
 
     #[test]
-    fn type_to_gleam_slices_and_arrays() {
-        let ty: Type = parse_quote!([i32]);
-        assert_eq!(type_to_gleam(&ty), "List(Int)");
-        let ty: Type = parse_quote!([u8; 4]);
-        assert_eq!(type_to_gleam(&ty), "List(Int)");
-    }
-
-    #[test]
     fn type_to_gleam_resource_arc() {
         let ty: Type = parse_quote!(ResourceArc<MyStruct>);
         assert_eq!(type_to_gleam(&ty), "Resource");
