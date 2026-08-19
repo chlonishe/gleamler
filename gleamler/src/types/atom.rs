@@ -283,7 +283,7 @@ macro_rules! atoms {
                 use std::sync::OnceLock;
                 static GLEAMLER_ATOMS: OnceLock<GleamlerAtoms> = OnceLock::new();
                 GLEAMLER_ATOMS.get_or_init(||
-                    $crate::env::OwnedEnv::new().run(|env| {
+                    $crate::OwnedEnv::new().run(|env| {
                         GleamlerAtoms {
                             $( $name: $crate::atoms!(@internal_make_atom(env, $name $( = $str)? )) ),*
                         }
