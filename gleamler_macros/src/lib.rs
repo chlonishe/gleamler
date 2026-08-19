@@ -149,7 +149,7 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         #[doc(hidden)]
         #[allow(non_upper_case_globals)]
-        pub const #nif_const_name: ::gleamler::nif::Nif = ::gleamler::nif::Nif {
+        pub const #nif_const_name: ::gleamler::Nif = ::gleamler::Nif {
             name: #export_name_lit.as_ptr()
                 as *const ::gleamler::codegen_runtime::c_char,
             arity: #arity,
