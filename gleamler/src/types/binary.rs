@@ -154,17 +154,13 @@ impl OwnedBinary {
     /// Memory outside the range of the original binary will not be initialized. If
     /// uninitialized memory is undesirable, set it manually.
     pub fn realloc_or_copy(&mut self, size: usize) {
-        if !self.realloc(size) {
-            let mut new = OwnedBinary::new(size).unwrap();
-            if let Ok(num_written) = new.as_mut_slice().write(self.as_slice()) {
-                if !(num_written == self.len() || num_written == new.len()) {
-                    panic!("Could not copy binary");
-                }
-                ::std::mem::swap(&mut self.0, &mut new.0);
-            } else {
-                panic!("Could not copy binary");
-            }
+        if self.realloc(size) {
+            return;
         }
+        let mut new = OwnedBinary::new(size).expect("allocation failed");
+        let len = std::cmp::min(self.len(), size);
+        new.as_mut_slice()[..len].copy_from_slice(&self.as_slice()[..len]);
+        std::mem::swap(&mut self.0, &mut new.0);
     }
 
     /// Extracts a slice containing the entire binary.
