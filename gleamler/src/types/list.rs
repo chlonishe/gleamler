@@ -159,11 +159,11 @@ impl<'a> Term<'a> {
 
     /// Returns the length of a list term.
     ///
-    /// Returns None if the term is not a list.
+    /// Returns an error if the term is not a list.
     ///
-    /// ### Elixir equivalent
-    /// ```elixir
-    /// length(self_term)
+    /// ### Gleam equivalent
+    /// ```gleam
+    /// list.length(self_term)
     /// ```
     #[inline]
     pub fn list_length(self) -> NifResult<usize> {
@@ -174,12 +174,14 @@ impl<'a> Term<'a> {
     /// Unpacks a single cell at the head of a list term,
     /// and returns the result as a tuple of (head, tail).
     ///
-    /// Returns None if the term is not a list.
+    /// Returns an error if the term is not a list.
     ///
-    /// ### Elixir equivalent
-    /// ```elixir
-    /// [head, tail] = self_term
-    /// {head, tail}
+    /// ### Gleam equivalent
+    /// ```gleam
+    /// case self_term {
+    ///   [head, ..tail] -> #(head, tail)
+    ///   _ -> panic
+    /// }
     /// ```
     #[inline]
     pub fn list_get_cell(self) -> NifResult<(Term<'a>, Term<'a>)> {

@@ -14,8 +14,9 @@ pub enum Error {
     Atom(&'static str),
     RaiseAtom(&'static str),
     RaiseTerm(Box<dyn Encoder>),
-    /// Encodes an arbitrary Boxed Encoder and returns `{:error, term}` from
-    /// the NIF. Very useful for returning descriptive, context-full errors.
+    /// Encodes an arbitrary Boxed Encoder and returns it as `{error, term}`
+    /// (`Error(term)` in Gleam) from the NIF. Very useful for returning
+    /// descriptive, context-full errors.
     Term(Box<dyn Encoder>),
 }
 

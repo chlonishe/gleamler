@@ -90,7 +90,7 @@ fn gen_decoder(ctx: &Context, fields: &[&Field], atoms_module_name: &Ident) -> T
                 use gleamler::Encoder;
                 match ::gleamler::Decoder::decode(term.map_get(&field)?) {
                     Err(_) => Err(::gleamler::Error::RaiseTerm(Box::new(format!(
-                        "Could not decode field :{:?} on %{{}}",
+                        "Could not decode field {:?} of map",
                         field
                     )))),
                     Ok(value) => Ok(value),

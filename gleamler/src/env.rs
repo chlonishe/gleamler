@@ -24,7 +24,8 @@ pub(crate) enum EnvKind {
 /// On each NIF call, a Env is passed in. The Env is used for most operations that involve
 /// communicating with the BEAM, like decoding and encoding terms.
 ///
-/// There is no way to allocate a Env at the moment, but this may be possible in the future.
+/// A NIF environment. To allocate a process-independent environment,
+/// see [`OwnedEnv`].
 #[derive(Clone, Copy)]
 pub struct Env<'a> {
     pub(crate) kind: EnvKind,

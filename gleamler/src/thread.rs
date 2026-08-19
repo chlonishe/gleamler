@@ -73,7 +73,8 @@ where
 
 /// Check if the currently running thread is managed by the ERTS.
 ///
-/// This is relevant for (e.g.) `enif_send` or `enif_monitor_process` as
+/// This is relevant for (e.g.) `enif_send` or `enif_monitor_process`, as
+/// some NIF API functions may only be called from scheduler threads.
 pub fn is_scheduler_thread() -> bool {
     unsafe { enif_thread_type() > 0 }
 }
