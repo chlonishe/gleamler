@@ -64,31 +64,51 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut nif_arg_idx: usize = 0;
 
     for arg in &input_fn.sig.inputs {
-        if let FnArg::Typed(pat_type) = arg
-            && let Pat::Ident(PatIdent { ident, .. }) = &*pat_type.pat {
-                let arg_ident = ident;
-                let arg_type = &pat_type.ty;
-
-                let type_str = quote!(#arg_type).to_string().replace(' ', "");
-                
-                let type_base = type_str.trim_start_matches('&').split('<').next().unwrap_or(&type_str);
-                let is_env = type_base == "Env" || type_base.ends_with("::Env");
-                
-                if is_env {
-                    args_names.push(arg_ident.clone());
-                    args_decoding.push(quote! { let #arg_ident = env; });
-                    continue;
-                }
-
-                args_names.push(arg_ident.clone());
-                args_decoding.push(quote! {
-                    let #arg_ident: #arg_type = match args[#nif_arg_idx].decode() {
-                        Ok(v) => v,
-                        Err(_) => return Err(::gleamler::Error::BadArg),
-                    };
-                });
-                nif_arg_idx += 1;
+        let pat_type = match arg {
+            FnArg::Typed(pat_type) => pat_type,
+            FnArg::Receiver(rec) => {
+                return syn::Error::new_spanned(
+                    rec,
+                    "gleam_nif: methods with a `self` receiver are not supported",
+                )
+                .to_compile_error()
+                .into();
             }
+        };
+        let ident = match &*pat_type.pat {
+            Pat::Ident(PatIdent { ident, .. }) => ident,
+            other => {
+                return syn::Error::new_spanned(
+                    other,
+                    "gleam_nif: argument patterns are not supported; \
+                     give the argument a plain name and destructure it in the function body",
+                )
+                .to_compile_error()
+                .into();
+            }
+        };
+
+        let arg_ident = ident;
+        let arg_type = &pat_type.ty;
+
+        let type_str = quote!(#arg_type).to_string().replace(' ', "");
+        let type_base = type_str.trim_start_matches('&').split('<').next().unwrap_or(&type_str);
+        let is_env = type_base == "Env" || type_base.ends_with("::Env");
+
+        if is_env {
+            args_names.push(arg_ident.clone());
+            args_decoding.push(quote! { let #arg_ident = env; });
+            continue;
+        }
+
+        args_names.push(arg_ident.clone());
+        args_decoding.push(quote! {
+            let #arg_ident: #arg_type = match args[#nif_arg_idx].decode() {
+                Ok(v) => v,
+                Err(_) => return Err(::gleamler::Error::BadArg),
+            };
+        });
+        nif_arg_idx += 1;
     }
 
     let arity = nif_arg_idx as u32;
