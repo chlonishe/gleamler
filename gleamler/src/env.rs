@@ -187,7 +187,7 @@ impl<'a> Env<'a> {
 /// Rust code can use an owned environment to build a message and send it to an
 /// Erlang process.
 ///
-///     use gleamler::env::OwnedEnv;
+///     use gleamler::OwnedEnv;
 ///     use gleamler::types::LocalPid;
 ///     use gleamler::Encoder;
 ///
@@ -287,7 +287,7 @@ impl OwnedEnv {
     /// caller into an `OwnedEnv`, then use that term on another thread.
     ///
     ///     # use gleamler::{ Env, Term };
-    ///     use gleamler::env::OwnedEnv;
+    ///     use gleamler::OwnedEnv;
     ///     use std::thread;
     ///
     ///     fn thread_example<'a>(env: Env<'a>, term: Term<'a>) {
