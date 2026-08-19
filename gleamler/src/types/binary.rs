@@ -371,15 +371,16 @@ impl<'a> Binary<'a> {
         }
 
         let mut binary = unsafe { binary.assume_init() };
+        let size = binary.size;
 
-        // Create a new binary term to own the data
-        let term = unsafe { Term::new(env, enif_make_binary(env.as_c_arg(), &mut binary)) };
+        let mut owned = OwnedBinary::new(size).ok_or(Error::BadArg)?;
+        if size > 0 {
+            let slice = unsafe { ::std::slice::from_raw_parts(binary.data, size) };
+            owned.as_mut_slice().copy_from_slice(slice);
+        }
+        unsafe { enif_release_binary(&mut binary) };
 
-        Ok(Binary {
-            buf: binary.data,
-            size: binary.size,
-            term,
-        })
+        Ok(owned.release(env))
     }
 
     /// Returns an Erlang term representation of `self`.
