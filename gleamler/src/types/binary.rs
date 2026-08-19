@@ -94,7 +94,6 @@ use crate::{
 use std::{
     borrow::{Borrow, BorrowMut},
     hash::{Hash, Hasher},
-    io::Write,
     mem::MaybeUninit,
     ops::{Deref, DerefMut},
 };
