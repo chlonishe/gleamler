@@ -37,14 +37,10 @@ fn has_gleam_nif(attrs: &[syn::Attribute]) -> bool {
 
 fn is_env_type(ty: &Type) -> bool {
     match ty {
-        Type::Path(TypePath { path, .. }) => {
-            let segments: Vec<_> = path.segments.iter().map(|s| s.ident.to_string()).collect();
-            match segments.as_slice() {
-                [one] => one == "Env",
-                [.., last] => last == &"Env",
-                _ => false,
-            }
-        }
+        Type::Path(TypePath { path, .. }) => path
+            .segments
+            .last()
+            .is_some_and(|seg| seg.ident == "Env"),
         Type::Reference(TypeReference { elem, .. }) => is_env_type(elem),
         _ => false,
     }
