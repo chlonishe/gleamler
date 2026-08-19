@@ -14,7 +14,7 @@ pub struct NifFunc {
 }
 
 pub fn parse_nif_functions(source: &str) -> Vec<NifFunc> {
-    let file = parse_file(source).expect("failed to parse lib.rs");
+    let file = parse_file(source).expect("failed to parse NIF source file");
     let mut functions = Vec::new();
     for item in file.items {
         if let syn::Item::Fn(func) = item
