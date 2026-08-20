@@ -108,8 +108,7 @@ impl Decoder<'_> for f64 {
     fn decode(term: Term) -> NifResult<f64> {
         let mut res: f64 = Default::default();
         if erl_get!(enif_get_double, term, res) == 0 {
-            let res_fallback: i64 = term.decode()?;
-            return Ok(res_fallback as f64);
+            return Err(Error::BadArg);
         }
         Ok(res)
     }
