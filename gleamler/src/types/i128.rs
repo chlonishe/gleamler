@@ -57,8 +57,8 @@ impl<'a> Decoder<'a> for i128 {
             return Ok(int as i128);
         }
 
-        let input = term.to_binary();
-        let input = input.as_slice();
+        let binary = term.to_binary();
+        let input = binary.as_slice();
         if input.len() < 4 {
             return Err(Error::BadArg);
         }
@@ -112,8 +112,8 @@ impl<'a> Decoder<'a> for u128 {
             return Ok(int as u128);
         }
 
-        let input = term.to_binary();
-        let input = input.as_slice();
+        let binary = term.to_binary();
+        let input = binary.as_slice();
 
         if input.len() < 4 {
             return Err(Error::BadArg);

@@ -132,7 +132,8 @@ fn encode_big_integer(big_int: &BigInt) -> Vec<u8> {
 
 impl<'a> Decoder<'a> for BigInt {
     fn decode(term: Term<'a>) -> NifResult<Self> {
-        decode_big_integer(term.to_binary().as_slice())
+        let binary = term.to_binary();
+        decode_big_integer(binary.as_slice())
     }
 }
 
