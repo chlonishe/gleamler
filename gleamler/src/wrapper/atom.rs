@@ -96,7 +96,9 @@ pub unsafe fn get_atom(env: NIF_ENV, term: NIF_TERM) -> Result<String, Error> {
         len + 1,
         ErlNifCharEncoding::ERL_NIF_UTF8,
     ) };
-    assert!(nbytes as c_uint == len + 1);
+    if nbytes <= 0 || nbytes as c_uint != len + 1 {
+        return Err(Error::BadArg);
+    }
 
     // This relies on Erlang guaranteeing valid UTF-8 for ERL_NIF_UTF8 reads.
     unsafe { bytes.set_len(len as usize) }; // drop the null byte
@@ -124,7 +126,9 @@ pub unsafe fn get_atom(env: NIF_ENV, term: NIF_TERM) -> Result<String, Error> {
         len + 1,
         ErlNifCharEncoding::ERL_NIF_LATIN1,
     );
-    assert!(nbytes as c_uint == len + 1);
+    if nbytes <= 0 || nbytes as c_uint != len + 1 {
+        return Err(Error::BadArg);
+    }
 
     // This is safe unless the VM is lying to us.
     unsafe { bytes.set_len(len as usize) }; // drop the null byte
