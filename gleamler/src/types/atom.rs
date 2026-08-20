@@ -63,7 +63,7 @@ impl Atom {
         #[cfg(not(feature = "nif_version_2_17"))]
         {
             let string = std::str::from_utf8(bytes).map_err(|_| Error::BadArg)?;
-            let mut latin1 = Vec::with_capacity(string.len());
+            let mut latin1 = Vec::with_capacity(string.chars().count());
             for c in string.chars() {
                 if (c as u32) >= 256 {
                     return Err(Error::BadArg);
