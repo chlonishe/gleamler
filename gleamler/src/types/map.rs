@@ -33,16 +33,16 @@ impl<'a> Term<'a> {
         keys: &[impl Encoder],
         values: &[impl Encoder],
     ) -> NifResult<Term<'a>> {
-        if keys.len() == values.len() {
-            let keys: Vec<_> = keys.iter().map(|k| k.encode(env).as_c_arg()).collect();
-            let values: Vec<_> = values.iter().map(|v| v.encode(env).as_c_arg()).collect();
-
-            unsafe {
-                map::make_map_from_arrays(env.as_c_arg(), &keys, &values)
-                    .map_or_else(|| Err(Error::BadArg), |map| Ok(Term::new(env, map)))
-            }
-        } else {
-            Err(Error::BadArg)
+        if keys.len() != values.len() { return Err(Error::BadArg); }
+        let mut k = Vec::with_capacity(keys.len());
+        let mut v = Vec::with_capacity(values.len());
+        for i in 0..keys.len() {
+            k.push(keys[i].encode(env).as_c_arg());
+            v.push(values[i].encode(env).as_c_arg());
+        }
+        unsafe {
+            map::make_map_from_arrays(env.as_c_arg(), &k, &v)
+                .map_or_else(|| Err(Error::BadArg), |map| Ok(Term::new(env, map)))
         }
     }
 
@@ -84,11 +84,12 @@ impl<'a> Term<'a> {
         env: Env<'a>,
         pairs: &[(impl Encoder, impl Encoder)],
     ) -> NifResult<Term<'a>> {
-        let (keys, values): (Vec<_>, Vec<_>) = pairs
-            .iter()
-            .map(|(k, v)| (k.encode(env).as_c_arg(), v.encode(env).as_c_arg()))
-            .unzip();
-
+        let mut keys = Vec::with_capacity(pairs.len());
+        let mut values = Vec::with_capacity(pairs.len());
+        for (k, v) in pairs {
+            keys.push(k.encode(env).as_c_arg());
+            values.push(v.encode(env).as_c_arg());
+        }
         unsafe {
             map::make_map_from_arrays(env.as_c_arg(), &keys, &values)
                 .map_or_else(|| Err(Error::BadArg), |map| Ok(Term::new(env, map)))
