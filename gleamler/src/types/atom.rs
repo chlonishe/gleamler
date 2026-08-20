@@ -40,6 +40,10 @@ impl Atom {
     /// `Error::BadArg` if atom creation fails.
     ///
     /// This function uses Latin-1 encoding for compatibility.
+    #[deprecated(
+        since = "0.2.0",
+        note = "OTP 26+ uses UTF-8 atoms; use from_utf8_bytes or from_str"
+    )]
     pub fn from_bytes(env: Env, bytes: &[u8]) -> NifResult<Self> {
         Self::from_encoded_bytes(env, bytes, ErlNifCharEncoding::ERL_NIF_LATIN1)
     }
@@ -86,6 +90,10 @@ impl Atom {
     /// # Errors
     /// `Error::BadArg` if the bytes are incorrectly encoded, the array is too long (255 bytes before
     /// NIF 2.17, 255 characters later), or the atom does not exist.
+    #[deprecated(
+        since = "0.2.0",
+        note = "OTP 26+ uses UTF-8 atoms; use existing_from_utf8_bytes or existing_from_str"
+    )]
     pub fn existing_from_bytes(env: Env, bytes: &[u8]) -> NifResult<Self> {
         Self::existing_from_encoded_bytes(env, bytes, ErlNifCharEncoding::ERL_NIF_LATIN1)
     }
