@@ -272,6 +272,8 @@ impl OwnedEnv {
     #[allow(clippy::arc_with_non_send_sync)] // Likely false negative, see https://github.com/rust-lang/rust-clippy/issues/11382
     pub fn clear(&mut self) {
         let c_env = *self.env;
+        // Replace the Arc to invalidate all Weak references held by SavedTerm.
+        // The ErlNifEnv itself is not freed; enif_clear_env resets its contents.
         self.env = Arc::new(c_env);
         unsafe {
             enif_clear_env(c_env);
