@@ -180,10 +180,7 @@ where
             keys.push(k.encode(env).as_c_arg());
             values.push(v.encode(env).as_c_arg());
         }
-        Term::map_from_term_arrays(env, 
-            unsafe { std::slice::from_raw_parts(keys.as_ptr() as *const Term, keys.len()) },
-            unsafe { std::slice::from_raw_parts(values.as_ptr() as *const Term, values.len()) },
-        ).unwrap()
+        Term::map_from_raw_arrays(env, &keys, &values).unwrap()
     }
 }
 

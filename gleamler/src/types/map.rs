@@ -1,6 +1,6 @@
 //! Utilities used to access and create Erlang maps.
 
-use crate::wrapper::map;
+use crate::wrapper::{ map, NIF_TERM };
 use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 
 #[inline]
@@ -46,6 +46,21 @@ impl<'a> Term<'a> {
         }
     }
 
+    pub fn map_from_raw_arrays(
+        env: Env<'a>,
+        keys: &[NIF_TERM],
+        values: &[NIF_TERM],
+    ) -> NifResult<Term<'a>> {
+        if keys.len() == values.len() {
+            unsafe {
+                map::make_map_from_arrays(env.as_c_arg(), keys, values)
+                    .map_or_else(|| Err(Error::BadArg), |m| Ok(Term::new(env, m)))
+            }
+        } else {
+            Err(Error::BadArg)
+        }
+    }
+
     /// Construct a new map from two vectors of terms.
     ///
     /// It is identical to map_from_arrays, but requires the keys and values to
@@ -59,11 +74,7 @@ impl<'a> Term<'a> {
         if keys.len() == values.len() {
             let keys: Vec<_> = keys.iter().map(|k| k.as_c_arg()).collect();
             let values: Vec<_> = values.iter().map(|v| v.as_c_arg()).collect();
-
-            unsafe {
-                map::make_map_from_arrays(env.as_c_arg(), &keys, &values)
-                    .map_or_else(|| Err(Error::BadArg), |map| Ok(Term::new(env, map)))
-            }
+            Self::map_from_raw_arrays(env, &keys, &values)
         } else {
             Err(Error::BadArg)
         }
