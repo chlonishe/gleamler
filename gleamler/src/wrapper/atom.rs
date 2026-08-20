@@ -13,12 +13,11 @@ pub unsafe fn make_atom(
     name: &[u8],
     _encoding: ErlNifCharEncoding,
 ) -> Result<NIF_TERM, Error> {
-    let res = enif_make_atom_len(env, name.as_ptr() as *const c_char, name.len());
-    if res != 0 {
-        Ok(res)
-    } else {
-        Err(Error::BadArg)
+    if name.len() > 255 {
+        return Err(Error::BadArg);
     }
+    let res = enif_make_atom_len(env, name.as_ptr() as *const c_char, name.len());
+    Ok(res)
 }
 
 #[cfg(feature = "nif_version_2_17")]
