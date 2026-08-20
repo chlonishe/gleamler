@@ -39,9 +39,7 @@ impl Encoder for str {
                 Some(bin) => bin,
                 None => panic!("string encode failed: enif_alloc_binary({str_len}) failed (out of memory)"),
             };
-            bin.as_mut_slice()
-                .write_all(self.as_bytes())
-                .expect("memory copy of string failed");
+            bin.as_mut_slice().copy_from_slice(self.as_bytes());
             bin.release(env).to_term(env)
         }
     }
