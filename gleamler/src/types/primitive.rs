@@ -36,7 +36,6 @@ macro_rules! impl_number_decoder {
         impl<'a> Decoder<'a> for $dec_type {
             #[inline]
             fn decode(term: Term) -> NifResult<$dec_type> {
-                #![allow(unused_unsafe)]
                 let mut res: $nif_type = Default::default();
                 if erl_get!($decode_fun, term, res) == 0 {
                     return Err(Error::BadArg);
