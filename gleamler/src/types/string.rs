@@ -1,4 +1,4 @@
-use super::binary::{Binary, NewBinary, OwnedBinary};
+use super::binary::{Binary, OwnedBinary};
 use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 
 impl<'a> Decoder<'a> for String {
@@ -28,18 +28,10 @@ impl Encoder for &str {
 impl Encoder for str {
     fn encode<'b>(&self, env: Env<'b>) -> Term<'b> {
         let str_len = self.len();
-        if str_len <= 64 {
-            let mut bin = NewBinary::new(env, str_len);
-            bin.as_mut_slice().copy_from_slice(self.as_bytes());
-            bin.into()
-        } else {
-            let mut bin = match OwnedBinary::new(str_len) {
-                Some(bin) => bin,
-                None => panic!("string encode failed: enif_alloc_binary({str_len}) failed (out of memory)"),
-            };
-            bin.as_mut_slice().copy_from_slice(self.as_bytes());
-            bin.release(env).to_term(env)
-        }
+        let mut bin = OwnedBinary::new(str_len)
+            .unwrap_or_else(|| panic!("string encode failed: enif_alloc_binary({str_len}) failed (out of memory)"));
+        bin.as_mut_slice().copy_from_slice(self.as_bytes());
+        bin.release(env).to_term(env)
     }
 }
 
