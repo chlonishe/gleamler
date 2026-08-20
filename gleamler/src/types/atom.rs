@@ -151,6 +151,9 @@ impl Atom {
     /// # Errors
     /// `Error::BadArg` if atom creation fails.
     pub fn from_str(env: Env, string: &str) -> NifResult<Self> {
+        if string.is_ascii() {
+            return Self::from_encoded_bytes(env, string.as_bytes(), ErlNifCharEncoding::ERL_NIF_LATIN1);
+        }
         Self::from_utf8_bytes(env, string.as_bytes())
     }
 
@@ -159,6 +162,9 @@ impl Atom {
     /// # Errors
     /// `Error::BadArg` if atom lookup fails.
     pub fn existing_from_str(env: Env, string: &str) -> NifResult<Self> {
+        if string.is_ascii() {
+            return Self::existing_from_encoded_bytes(env, string.as_bytes(), ErlNifCharEncoding::ERL_NIF_LATIN1);
+        }
         Self::existing_from_utf8_bytes(env, string.as_bytes())
     }
 }
