@@ -3,13 +3,19 @@ use std::path::{Path, PathBuf};
 
 impl Encoder for Path {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        self.as_os_str().to_string_lossy().encode(env)
+        match self.to_str() {
+            Some(s) => s.encode(env),
+            None => self.as_os_str().to_string_lossy().encode(env),
+        }
     }
 }
 
 impl Encoder for PathBuf {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        self.as_os_str().to_string_lossy().encode(env)
+        match self.to_str() {
+            Some(s) => s.encode(env),
+            None => self.as_os_str().to_string_lossy().encode(env),
+        }
     }
 }
 
