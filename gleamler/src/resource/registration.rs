@@ -145,9 +145,8 @@ impl Registration {
             .replace("::", "_")
             .replace('<', "_")
             .replace('>', "")
-            .replace(", ", "_")
-            .replace(",", "_")
-            .replace(" ", "");
+            .replace(" ", "")
+            .replace(",", "_");
 
         let name = CString::new(sanitized_name).map_err(|_| ResourceInitError)?;
         
