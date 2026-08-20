@@ -52,6 +52,5 @@ macro_rules! term_map {
             &[$($crate::Encoder::encode(&$key, $env)),*],
             &[$($crate::Encoder::encode(&$value, $env)),*],
         )
-        .expect("failed to create map")
     }};
 }
