@@ -274,7 +274,6 @@ macro_rules! atoms {
             $name:ident $( = $str:expr )?
         ),*$(,)?
     } => {
-        #[allow(non_snake_case)]
         struct GleamlerAtoms {
             $( $name : $crate::types::atom::Atom ),*
         }

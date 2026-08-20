@@ -1,19 +1,11 @@
-#![allow(clippy::missing_safety_doc)]
-#![allow(clippy::upper_case_acronyms)]
-
 pub use std::ffi::{c_char, c_double, c_int, c_long, c_uchar, c_uint, c_ulong, c_void};
 
 use std::os;
 
-#[allow(non_camel_case_types)]
 pub type size_t = usize;
 
-//use std::mem::size_of;
-
-#[allow(non_camel_case_types)]
 pub type ERL_NIF_UINT = size_t;
 
-#[allow(non_camel_case_types)]
 pub type ERL_NIF_TERM = ERL_NIF_UINT;
 
 //#[derive(Debug, Copy, Clone)]
@@ -22,7 +14,6 @@ pub type ERL_NIF_TERM = ERL_NIF_UINT;
 
 /// See [ErlNifEnv](http://www.erlang.org/doc/man/erl_nif.html#ErlNifEnv) in the Erlang docs.
 #[derive(Debug)]
-#[allow(missing_copy_implementations)]
 #[repr(C)]
 pub struct ErlNifEnv {
     dummy: *mut c_void, // block automatic Send and Sync traits.  Ref https://doc.rust-lang.org/beta/nomicon/send-and-sync.html
@@ -91,7 +82,6 @@ pub struct ErlNifEntry {
 pub const ERL_NIF_DIRTY_NIF_OPTION: c_uint = 1;
 
 /// See [ErlNifBinary](http://www.erlang.org/doc/man/erl_nif.html#ErlNifBinary) in the Erlang docs.
-#[allow(missing_copy_implementations)]
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub struct ErlNifBinary {
@@ -108,18 +98,15 @@ pub type ErlNifEvent = os::windows::raw::HANDLE;
 pub type ErlNifEvent = os::unix::io::RawFd;
 
 /// See [ErlNifResourceType](http://www.erlang.org/doc/man/erl_nif.html#ErlNifResourceType) in the Erlang docs.
-#[allow(missing_copy_implementations)]
 #[repr(C)]
 pub struct ErlNifResourceType {
     dummy: c_int,
 }
 
 /// See [ErlNifResourceDtor](http://www.erlang.org/doc/man/erl_nif.html#ErlNifResourceDtor) in the Erlang docs.
-#[allow(missing_copy_implementations)]
 pub type ErlNifResourceDtor = unsafe extern "C" fn(env: *mut ErlNifEnv, obj: *mut c_void) -> ();
 
 /// See [ErlNifResourceStop](http://www.erlang.org/doc/man/erl_nif.html#ErlNifResourceStop) in the Erlang docs.
-#[allow(missing_copy_implementations)]
 pub type ErlNifResourceStop = unsafe extern "C" fn(
     env: *mut ErlNifEnv,
     obj: *mut c_void,
@@ -128,7 +115,6 @@ pub type ErlNifResourceStop = unsafe extern "C" fn(
 ) -> ();
 
 /// See [ErlNifResourceDown](http://www.erlang.org/doc/man/erl_nif.html#ErlNifResourceDown) in the Erlang docs.
-#[allow(missing_copy_implementations)]
 pub type ErlNifResourceDown = unsafe extern "C" fn(
     env: *mut ErlNifEnv,
     obj: *mut c_void,
@@ -164,7 +150,6 @@ pub struct ErlNifResourceTypeInit {
 
 /// See [ErlNifSelectFlags](http://erlang.org/doc/man/erl_nif.html#ErlNifSelectFlags) in the Erlang docs.
 pub type ErlNifSelectFlags = c_int;
-#[allow(clippy::identity_op)]
 pub const ERL_NIF_SELECT_READ: ErlNifSelectFlags = 1 << 0;
 pub const ERL_NIF_SELECT_WRITE: ErlNifSelectFlags = 1 << 1;
 pub const ERL_NIF_SELECT_STOP: ErlNifSelectFlags = 1 << 2;
@@ -208,7 +193,6 @@ pub struct ErlNifPid {
 }
 
 /// See [ErlNifSysInfo](http://www.erlang.org/doc/man/erl_nif.html#ErlNifSysInfo) in the Erlang docs.
-#[allow(missing_copy_implementations)]
 #[repr(C)]
 pub struct ErlNifSysInfo {
     pub driver_major_version: c_int,
@@ -237,7 +221,6 @@ pub const ERL_NIF_DIRTY_JOB_CPU_BOUND: ErlNifDirtyTaskFlags = 1;
 pub const ERL_NIF_DIRTY_JOB_IO_BOUND: ErlNifDirtyTaskFlags = 2;
 
 /// See [ErlNifMapIterator](http://www.erlang.org/doc/man/erl_nif.html#ErlNifMapIterator) in the Erlang docs.
-#[allow(missing_copy_implementations)]
 #[repr(C)]
 pub struct ErlNifMapIterator {
     map: ERL_NIF_TERM,
@@ -276,9 +259,9 @@ pub enum ErlNifTimeUnit {
 
 /// See [ErlNifUniqueInteger](http://erlang.org/doc/man/erl_nif.html#ErlNifUniqueInteger) in the Erlang docs.
 pub type ErlNifUniqueInteger = c_int;
-#[allow(clippy::identity_op)]
+
 pub const ERL_NIF_UNIQUE_POSITIVE: ErlNifUniqueInteger = 1 << 0;
-#[allow(clippy::identity_op)]
+
 pub const ERL_NIF_UNIQUE_MONOTONIC: ErlNifUniqueInteger = 1 << 1;
 // ref https://github.com/erlang/otp/blob/maint/erts/emulator/beam/erl_nif.h#L203
 // FIXME: Should actually be C enum, but repr(C) enums in Rust can't be used as bitfields.

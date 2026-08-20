@@ -299,7 +299,6 @@ impl<'a> Binary<'a> {
     /// # Errors
     ///
     /// If allocation fails, an error will be returned.
-    #[allow(clippy::wrong_self_convention)]
     #[inline]
     pub fn to_owned(&self) -> Option<OwnedBinary> {
         OwnedBinary::from_unowned(self)
@@ -377,7 +376,6 @@ impl<'a> Binary<'a> {
     }
 
     /// Returns an Erlang term representation of `self`.
-    #[allow(clippy::wrong_self_convention)]
     #[inline]
     pub fn to_term<'b>(&self, env: Env<'b>) -> Term<'b> {
         self.term.in_env(env)
@@ -419,7 +417,6 @@ impl<'a> Binary<'a> {
     ///
     /// If `offset + length` is out of bounds, this call results in *undefined behavior*. The
     /// caller has to ensure that `offset + length < self.len()`.
-    #[allow(unused_unsafe)]
     #[inline]
     pub unsafe fn make_subbinary_unchecked(&self, offset: usize, length: usize) -> Binary<'a> {
         let raw_term = unsafe {

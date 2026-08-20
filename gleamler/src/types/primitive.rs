@@ -4,7 +4,6 @@ use std::convert::TryFrom;
 
 macro_rules! erl_make {
     ($self:expr, $env:ident, $encode_fun:ident, $type:ty) => {
-        #[allow(clippy::cast_lossless)]
         unsafe {
             Term::new(
                 $env,
@@ -107,7 +106,6 @@ impl_number_encoder!(f32, f64, enif_make_double);
 // Manual Decoder impls for floats so they can fall back to decoding from integer terms
 impl Decoder<'_> for f64 {
     fn decode(term: Term) -> NifResult<f64> {
-        #![allow(unused_unsafe)]
         let mut res: f64 = Default::default();
         if erl_get!(enif_get_double, term, res) == 0 {
             let res_fallback: i64 = term.decode()?;
