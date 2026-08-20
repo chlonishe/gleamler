@@ -59,7 +59,7 @@ where
                     } else if let Some(&s) = err.downcast_ref::<&'static str>() {
                         s.encode(env)
                     } else {
-                        Atom::from_bytes(env, b"nif_panic")
+                        Atom::from_str(env, "nif_panic")
                             .ok()
                             .unwrap()
                             .to_term(env)
