@@ -174,8 +174,16 @@ where
     V: Encoder,
 {
     fn encode<'c>(&self, env: Env<'c>) -> Term<'c> {
-        let (keys, values): (Vec<_>, Vec<_>) = self.iter().unzip();
-        Term::map_from_arrays(env, &keys, &values).unwrap()
+        let mut keys = Vec::with_capacity(self.len());
+        let mut values = Vec::with_capacity(self.len());
+        for (k, v) in self {
+            keys.push(k.encode(env).as_c_arg());
+            values.push(v.encode(env).as_c_arg());
+        }
+        Term::map_from_term_arrays(env, 
+            unsafe { std::slice::from_raw_parts(keys.as_ptr() as *const Term, keys.len()) },
+            unsafe { std::slice::from_raw_parts(values.as_ptr() as *const Term, values.len()) },
+        ).unwrap()
     }
 }
 
