@@ -407,9 +407,17 @@ fn clean_name(n: &str) -> String {
 }
 
 fn gleam_type_mentions(gleam_ty: &str, name: &str) -> bool {
-    gleam_ty
-        .split(|c: char| !c.is_alphanumeric() && c != '_')
-        .any(|word| word == name)
+    let mut chars = gleam_ty.chars().peekable();
+    let mut buf = String::new();
+    while let Some(c) = chars.next() {
+        if c.is_alphanumeric() || c == '_' {
+            buf.push(c);
+        } else {
+            if buf == name { return true; }
+            buf.clear();
+        }
+    }
+    buf == name
 }
 
 #[cfg(test)]
