@@ -19,8 +19,6 @@ impl<'a> Decoder<'a> for &'a str {
     }
 }
 
-use std::io::Write;
-
 impl Encoder for &str {
     fn encode<'b>(&self, env: Env<'b>) -> Term<'b> {
         (*self).encode(env)
