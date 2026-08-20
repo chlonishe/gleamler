@@ -187,7 +187,7 @@ impl Encoder for () {
 
 impl<'a> Decoder<'a> for () {
     fn decode(term: Term<'a>) -> NifResult<Self> {
-        if term.is_empty_list() || term == atom::nil().to_term(term.get_env()) {
+        if term == atom::nil().to_term(term.get_env()) {
             Ok(())
         } else {
             Err(Error::BadArg)
