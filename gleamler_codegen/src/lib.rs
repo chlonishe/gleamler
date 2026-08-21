@@ -110,7 +110,7 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> String {
 
                 "Atom" => panic!(
                     "gleamler_codegen: bare Atom type is not supported in #[gleam_nif] fn '{ctx}'. \
-                    Gleam has no built-in Atom type"
+                    Gleam has no built-in Atom type — use String instead"
                 ),
 
                 "Binary" | "OwnedBinary" | "NewBinary" => "BitArray".into(),
@@ -183,14 +183,14 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> String {
         Type::Slice(_) => {
             panic!(
                 "gleamler_codegen: bare slice type &[T] is not supported in #[gleam_nif] fn '{ctx}'. \
-                Use Binary for byte slices or Vec<T> for lists"
+                Hint: use Binary for raw bytes, Vec<T> for lists, or String for text"
             );
         }
 
         Type::Array(_) => {
             panic!(
                 "gleamler_codegen: array type [T; N] is not supported in #[gleam_nif] fn '{ctx}'. \
-                Use Vec<T> instead"
+                Hint: use Vec<T> instead"
             );
         }
 
