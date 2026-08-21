@@ -6,6 +6,13 @@ use crate::sys::{c_void, enif_alloc, enif_free};
 /// memory usage to be tracked by the BEAM.
 pub struct EnifAllocator;
 
+// On x86_64 BEAM's enif_alloc aligns to max_align_t (16 bytes),
+// so we can safely route SIMD-friendly layouts (up to __m128) through it.
+// On other architectures we stay conservative and stick to pointer alignment
+#[cfg(target_arch = "x86_64")]
+const ENIF_MAX_ALIGN: usize = std::mem::align_of::<std::arch::x86_64::__m128>();
+
+#[cfg(not(target_arch = "x86_64"))]
 const ENIF_MAX_ALIGN: usize = std::mem::align_of::<usize>();
 
 unsafe impl GlobalAlloc for EnifAllocator {
