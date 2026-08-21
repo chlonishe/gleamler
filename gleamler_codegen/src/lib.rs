@@ -407,7 +407,7 @@ fn clean_name(n: &str) -> String {
 }
 
 fn gleam_type_mentions(gleam_ty: &str, name: &str) -> bool {
-    let chars = gleam_ty.chars().peekable();
+    let chars = gleam_ty.chars();
     let mut buf = String::new();
     for c in chars {
         if c.is_alphanumeric() || c == '_' {
