@@ -179,7 +179,7 @@ unsafe extern "C" fn resource_destructor<T>(_env: *mut ErlNifEnv, handle: *mut c
 where
     T: Resource,
 {
-    let env = unsafe { Env::new_internal(&_env, _env, EnvKind::Callback) };
+    let env = unsafe { Env::new_internal(&_env, _env, EnvKind::Callback, 0) };
     let aligned = unsafe { align_alloced_mem_for_struct::<T>(handle) };
     // Destructor takes ownership, thus the resource object will be dropped after the function has
     // run.
@@ -195,7 +195,7 @@ unsafe extern "C" fn resource_down<T: Resource>(
     pid: *const ErlNifPid,
     mon: *const ErlNifMonitor,
 ) {
-    let env = unsafe { Env::new_internal(&env, env, EnvKind::Callback) };
+    let env = unsafe { Env::new_internal(&env, env, EnvKind::Callback, 0) };
     let aligned = unsafe { align_alloced_mem_for_struct::<T>(obj) };
     let res = unsafe { &*(aligned as *const T) };
     let pid = unsafe { LocalPid::from_c_arg(*pid) };
@@ -210,7 +210,7 @@ unsafe extern "C" fn resource_dyncall<T: Resource>(
     obj: *mut c_void,
     call_data: *mut c_void,
 ) {
-    let env = unsafe { Env::new_internal(&env, env, EnvKind::Callback) };
+    let env = unsafe { Env::new_internal(&env, env, EnvKind::Callback, 0) };
     let aligned = unsafe { align_alloced_mem_for_struct::<T>(obj) };
     let res = unsafe { &*(aligned as *const T) };
 

@@ -31,6 +31,7 @@ pub struct Env<'a> {
     pub(crate) kind: EnvKind,
     env: NIF_ENV,
     id: EnvId<'a>,
+    generation: u64,
 }
 
 /// Two environments are equal if they're the same `NIF_ENV` value.
@@ -54,11 +55,13 @@ impl<'a> Env<'a> {
         _lifetime_marker: &'a T,
         env: NIF_ENV,
         kind: EnvKind,
+        generation: u64,
     ) -> Env<'a> {
         Env {
             kind,
             env,
             id: PhantomData,
+            generation,
         }
     }
 
@@ -73,13 +76,13 @@ impl<'a> Env<'a> {
     /// Don't create multiple `Env`s with the same lifetime.
     #[inline]
     pub unsafe fn new<T>(_lifetime_marker: &'a T, env: NIF_ENV) -> Env<'a> {
-        unsafe { Self::new_internal(_lifetime_marker, env, EnvKind::ProcessBound) }
+        unsafe { Self::new_internal(_lifetime_marker, env, EnvKind::ProcessBound, 0) }
     }
 
     #[doc(hidden)]
     #[inline]
     pub unsafe fn new_init_env<T>(_lifetime_marker: &'a T, env: NIF_ENV) -> Env<'a> {
-        unsafe { Self::new_internal(_lifetime_marker, env, EnvKind::Init) }
+        unsafe { Self::new_internal(_lifetime_marker, env, EnvKind::Init, 0) }
     }
 
     pub fn as_c_arg(self) -> NIF_ENV {
@@ -179,6 +182,10 @@ impl<'a> Env<'a> {
         unsafe { crate::wrapper::env::binary_to_term(self.as_c_arg(), data, false) }
             .map(|(term, size)| (unsafe { Term::new(self, term) }, size))
     }
+
+    pub(crate) fn generation(self) -> u64 {
+        self.generation
+    }
 }
 
 /// A process-independent environment, a place where Erlang terms can be created outside of a NIF
@@ -200,6 +207,7 @@ impl<'a> Env<'a> {
 /// for building terms.
 pub struct OwnedEnv {
     env: Arc<NIF_ENV>,
+    generation: u64,
 }
 
 unsafe impl Send for OwnedEnv {}
@@ -210,6 +218,7 @@ impl OwnedEnv {
     pub fn new() -> OwnedEnv {
         OwnedEnv {
             env: Arc::new(unsafe { enif_alloc_env() }),
+            generation: 0,
         }
     }
 
@@ -218,7 +227,7 @@ impl OwnedEnv {
     where
         F: FnOnce(Env<'a>) -> R,
     {
-        let env = unsafe { Env::new_internal(&(), *self.env, EnvKind::ProcessIndependent) };
+        let env = unsafe { Env::new_internal(&(), *self.env, EnvKind::ProcessIndependent, self.generation) };
         closure(env)
     }
 
@@ -274,10 +283,9 @@ impl OwnedEnv {
         let c_env = *self.env;
         // Replace the Arc to invalidate all Weak references held by SavedTerm.
         // The ErlNifEnv itself is not freed; enif_clear_env resets its contents.
+        self.generation += 1;
         self.env = Arc::new(c_env);
-        unsafe {
-            enif_clear_env(c_env);
-        }
+        unsafe { enif_clear_env(c_env); }
     }
 
     /// Save a term for use in a later call to `.run()` or `.send()`.
@@ -312,6 +320,7 @@ impl OwnedEnv {
         SavedTerm {
             term: self.run(|env| term.encode(env).as_c_arg()),
             env_generation: Arc::downgrade(&self.env),
+            generation: self.generation,
         }
     }
 }
@@ -331,6 +340,7 @@ impl Drop for OwnedEnv {
 #[derive(Clone)]
 pub struct SavedTerm {
     env_generation: Weak<NIF_ENV>,
+    generation: u64,
     term: NIF_TERM,
 }
 
@@ -348,9 +358,12 @@ impl SavedTerm {
         // Check that the saved term is still valid.
         match self.env_generation.upgrade() {
             None => panic!("term is from a cleared or dropped OwnedEnv"),
-            Some(ref env_arc) if **env_arc == env.as_c_arg() => unsafe {
-                Term::new(env, self.term)
-            },
+            Some(ref env_arc) if **env_arc == env.as_c_arg() => {
+                if env.generation() != self.generation {
+                    panic!("term is from a cleared OwnedEnv");
+                }
+                unsafe { Term::new(env, self.term) }
+            }
             _ => panic!("can't load SavedTerm into a different environment"),
         }
     }
