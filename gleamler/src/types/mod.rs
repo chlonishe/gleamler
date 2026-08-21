@@ -180,7 +180,8 @@ where
             keys.push(k.encode(env).as_c_arg());
             values.push(v.encode(env).as_c_arg());
         }
-        Term::map_from_raw_arrays(env, &keys, &values).unwrap()
+        Term::map_from_raw_arrays(env, &keys, &values)
+            .expect("enif_make_map_from_arrays failed (OOM or duplicate keys)")
     }
 }
 
