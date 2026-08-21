@@ -127,7 +127,10 @@ where
 {
     pub fn monitor(&self, caller_env: Option<Env>, pid: &LocalPid) -> Option<Monitor> {
         if !T::IMPLEMENTS_DOWN {
-            return None;
+            panic!(
+                "cannot monitor a resource of type `{}` because it does not set `IMPLEMENTS_DOWN = true`",
+                std::any::type_name::<T>()
+            );
         }
 
         let env = maybe_env(caller_env);
@@ -143,7 +146,10 @@ where
 
     pub fn demonitor(&self, caller_env: Option<Env>, mon: &Monitor) -> bool {
         if !T::IMPLEMENTS_DOWN {
-            return false;
+            panic!(
+                "cannot demonitor a resource of type `{}` because it does not set `IMPLEMENTS_DOWN = true`",
+                std::any::type_name::<T>()
+            );
         }
 
         let env = maybe_env(caller_env);
