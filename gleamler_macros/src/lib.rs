@@ -63,6 +63,18 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut args_names = Vec::new();
     let mut nif_arg_idx: usize = 0;
 
+    fn is_env_type(ty: &syn::Type) -> bool {
+            match ty {
+                syn::Type::Path(type_path) => {
+                    type_path.path.segments.last()
+                        .map(|seg| seg.ident == "Env")
+                        .unwrap_or(false)
+                }
+                syn::Type::Reference(type_ref) => is_env_type(&type_ref.elem),
+                _ => false,
+            }
+    }
+
     for arg in &input_fn.sig.inputs {
         let pat_type = match arg {
             FnArg::Typed(pat_type) => pat_type,
@@ -91,9 +103,7 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
         let arg_ident = ident;
         let arg_type = &pat_type.ty;
 
-        let type_str = quote!(#arg_type).to_string().replace(' ', "");
-        let type_base = type_str.trim_start_matches('&').split('<').next().unwrap_or(&type_str);
-        let is_env = type_base == "Env" || type_base.ends_with("::Env");
+        let is_env = is_env_type(&pat_type.ty);
 
         if is_env {
             args_names.push(arg_ident.clone());
