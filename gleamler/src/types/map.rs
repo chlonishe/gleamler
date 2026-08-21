@@ -322,9 +322,8 @@ impl<'a> Iterator for MapIterator<'a> {
         if self.remaining == 0 {
             return None;
         }
-        self.forward.next().map(|item| {
+        self.forward.next().inspect(|_| {
             self.remaining -= 1;
-            item
         })
     }
 }
@@ -334,9 +333,8 @@ impl DoubleEndedIterator for MapIterator<'_> {
         if self.remaining == 0 {
             return None;
         }
-        self.reverse.next().map(|item| {
+        self.reverse.next().inspect(|_| {
             self.remaining -= 1;
-            item
         })
     }
 }
