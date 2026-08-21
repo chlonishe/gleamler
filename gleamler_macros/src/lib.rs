@@ -184,7 +184,9 @@ impl syn::parse::Parse for InitInput {
 
         if input.peek(syn::LitStr) {
             module = Some(input.parse()?);
-            input.parse::<Token![,]>()?;
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            }
         }
         if input.peek(Ident) && input.peek2(Token![=]) {
             let key: Ident = input.parse()?;
@@ -193,12 +195,19 @@ impl syn::parse::Parse for InitInput {
             }
             input.parse::<Token![=]>()?;
             load = Some(input.parse::<syn::ExprPath>()?);
-            input.parse::<Token![,]>()?;
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            }
         }
 
-        let content;
-        syn::bracketed!(content in input);
-        let names = content.parse_terminated(Ident::parse, Token![,])?;
+        let names = if input.peek(syn::token::Bracket) {
+            let content;
+            syn::bracketed!(content in input);
+            content.parse_terminated(Ident::parse, Token![,])?
+        } else {
+            Punctuated::new()
+        };
+
         Ok(Self { module, load, names })
     }
 }
@@ -207,20 +216,41 @@ impl syn::parse::Parse for InitInput {
 pub fn init_nifs(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as InitInput);
 
-    let nif_consts: Vec<_> = input.names.iter().map(|name| {
-        syn::Ident::new(&format!("__GLEAMLER_NIF_{}", name), name.span())
-    }).collect();
+    let (funcs_static, num_of_funcs) = if input.names.is_empty() {
+        (
+            quote! {
+                let funcs: &'static [::gleamler::sys::ErlNifFunc] =
+                    ::gleamler::nifs::__generated_registry::NIFS;
+                let funcs_ptr = funcs.as_ptr();
+                let num_of_funcs = funcs.len() as i32;
+            },
+            quote! { num_of_funcs },
+        )
+    } else {
+        let nif_consts: Vec<_> = input.names.iter().map(|name| {
+            syn::Ident::new(&format!("__GLEAMLER_NIF_{}", name), name.span())
+        }).collect();
 
-    let funcs: Vec<_> = nif_consts.iter().map(|const_name| {
-        quote! {
-            ::gleamler::sys::ErlNifFunc {
-                name: #const_name.name,
-                arity: #const_name.arity,
-                flags: #const_name.flags,
-                function: #const_name.raw_func,
+        let funcs: Vec<_> = nif_consts.iter().map(|const_name| {
+            quote! {
+                ::gleamler::sys::ErlNifFunc {
+                    name: #const_name.name,
+                    arity: #const_name.arity,
+                    flags: #const_name.flags,
+                    function: #const_name.raw_func,
+                }
             }
-        }
-    }).collect();
+        }).collect();
+
+        (
+            quote! {
+                let funcs: &'static [_] = Box::leak(vec![#(#funcs),*].into_boxed_slice());
+                let funcs_ptr = funcs.as_ptr();
+                let num_of_funcs = funcs.len() as i32;
+            },
+            quote! { num_of_funcs },
+        )
+    };
 
     let module_name = input
         .module
@@ -258,15 +288,13 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
         use ::gleamler::wrapper::get_nif_resource_type_init_size;
         use std::ffi::c_char;
 
-        let funcs: &'static [_] = Box::leak(vec![#(#funcs),*].into_boxed_slice());
-        let funcs_ptr = funcs.as_ptr();
-        let num_of_funcs = funcs.len() as i32;
+        #funcs_static
 
         let entry = Box::new(ErlNifEntry {
             major: NIF_MAJOR_VERSION,
             minor: NIF_MINOR_VERSION,
             name: #module_name_lit.as_ptr() as *const c_char,
-            num_of_funcs,
+            num_of_funcs: #num_of_funcs,
             funcs: funcs_ptr,
             load: Some({
                 unsafe extern "C" fn __gleamler_nif_load(

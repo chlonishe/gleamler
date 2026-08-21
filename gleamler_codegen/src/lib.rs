@@ -1,6 +1,6 @@
 use syn::{
     parse_file, AngleBracketedGenericArguments, FnArg, GenericArgument, ItemFn, Pat,
-    PathArguments, ReturnType, Type, TypePath, TypeReference, TypeTuple, Item
+    PathArguments, ReturnType, Type, TypePath, TypeReference, TypeTuple, Item, TypeArray, TypeSlice
 };
 use proc_macro2::{Delimiter, TokenTree};
 
@@ -180,18 +180,12 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> String {
             }
         }
 
-        Type::Slice(_) => {
-            panic!(
-                "gleamler_codegen: bare slice type &[T] is not supported in #[gleam_nif] fn '{ctx}'. \
-                Hint: use Binary for raw bytes, Vec<T> for lists, or String for text"
-            );
+        Type::Slice(TypeSlice { elem, .. }) => {
+            format!("List({})", type_to_gleam_ctx(elem, ctx))
         }
 
-        Type::Array(_) => {
-            panic!(
-                "gleamler_codegen: array type [T; N] is not supported in #[gleam_nif] fn '{ctx}'. \
-                Hint: use Vec<T> instead"
-            );
+        Type::Array(TypeArray { elem, .. }) => {
+            format!("List({})", type_to_gleam_ctx(elem, ctx))
         }
 
         _ => {
@@ -751,17 +745,19 @@ pub fn heavy(n: i64) -> i64 { n }
     }
 
     #[test]
-    #[should_panic(expected = "bare slice type")]
-    fn type_to_gleam_slice_rejected() {
+    fn type_to_gleam_slice() {
         let ty: Type = parse_quote!(&[i32]);
-        let _ = type_to_gleam(&ty);
+        assert_eq!(type_to_gleam(&ty), "List(Int)");
+        let ty: Type = parse_quote!(&[u8]);
+        assert_eq!(type_to_gleam(&ty), "List(Int)");
     }
 
     #[test]
-    #[should_panic(expected = "array type")]
-    fn type_to_gleam_array_rejected() {
+    fn type_to_gleam_array() {
         let ty: Type = parse_quote!([u8; 4]);
-        let _ = type_to_gleam(&ty);
+        assert_eq!(type_to_gleam(&ty), "List(Int)");
+        let ty: Type = parse_quote!([String; 10]);
+        assert_eq!(type_to_gleam(&ty), "List(String)");
     }
 
     #[test]
@@ -788,15 +784,16 @@ pub fn heavy(n: i64) -> i64 { n }
     }
 
     #[test]
-    #[should_panic(expected = "bare slice type")]
-    fn parse_nif_with_slice_rejected() {
+    fn parse_nif_with_slice_accepted() {
         let src = r#"
     #[gleam_nif]
     pub fn bad(data: &[u8]) -> i64 {
         0
     }
     "#;
-        let _ = parse_nif_functions(src);
+        let funcs = parse_nif_functions(src);
+        assert_eq!(funcs.len(), 1);
+        assert_eq!(funcs[0].args[0].1, "List(Int)");
     }
 
 

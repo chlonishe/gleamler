@@ -144,12 +144,10 @@ pub fn stress_float_is_special(n: f64) -> String {
     else { "normal".to_string() }
 }
 
-init_nifs!([
-    add, sub, greet, double_list, is_positive, divide, make_pair, factorial, fib,
-    echo_i128, echo_u128, mul,
-    stress_i128_min, stress_i128_max, stress_u128_max, stress_i64_max, stress_u64_max,
-    stress_add_wrap, stress_mul_wrap, stress_repeat_string, stress_string_len,
-    stress_sum_list, stress_reverse_list, stress_panic, stress_dirty_cpu, stress_dirty_io,
-    stress_float_div, stress_float_is_special, stress_tuple_swap,
-    stress_maybe_div, stress_safe_sqrt, stress_now_ms,
-]);
+
+#[doc(hidden)]
+pub mod __generated_registry {
+    include!(concat!(env!("OUT_DIR"), "/nif_registry.rs"));
+}
+
+init_nifs!();

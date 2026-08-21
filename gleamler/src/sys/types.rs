@@ -39,6 +39,9 @@ pub struct ErlNifFunc {
     pub flags: c_uint,
 }
 
+unsafe impl Sync for ErlNifFunc {}
+unsafe impl Send for ErlNifFunc {}
+
 // #[allow(missing_copy_implementations)]
 #[doc(hidden)]
 #[derive(Debug)]

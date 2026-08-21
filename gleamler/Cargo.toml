@@ -26,3 +26,4 @@ num-bigint = { version = "0.4", optional = true }
 
 [build-dependencies]
 regex-lite = "0.1"
+gleamler_codegen = { path = "../gleamler_codegen" }

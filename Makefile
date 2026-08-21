@@ -1,4 +1,4 @@
-.PHONY: all gen test clean
+.PHONY: all test clean
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
@@ -7,14 +7,11 @@ else
     SRC_LIB = target/release/libgleamler.so
 endif
 
-all: gen
+all:
 	cargo build -p gleamler --release
 	mkdir -p priv
 	cp $(SRC_LIB) priv/gleamler.so
 	gleam build
-
-gen:
-	cargo run -p gleamler_codegen -- gleamler/src/nifs.rs src/gleamler_nif_ffi.erl src/gleamler_nif.gleam
 
 test: all
 	gleam test

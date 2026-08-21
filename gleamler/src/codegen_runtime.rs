@@ -21,6 +21,13 @@ pub use crate::wrapper::{
 
 pub use crate::sys::{internal_set_symbols, internal_write_symbols, DynNifCallbacks};
 
+/// Auto-registration entry for `#[gleam_nif]` functions.
+pub struct NifRegistration {
+    pub nif: &'static crate::Nif,
+}
+
+unsafe impl Send for NifRegistration {}
+unsafe impl Sync for NifRegistration {}
 
 /// # Safety
 pub unsafe trait NifReturnable {
@@ -117,7 +124,7 @@ pub unsafe fn handle_nif_init_call<'a>(
 }
 
 pub fn handle_nif_result<T>(
-    result: std::thread::Result<Result<T, crate::error::Error>>,
+    result: std::thread::Result<T>,
     env: Env,
 ) -> NifReturned
 where
@@ -125,10 +132,7 @@ where
 {
     unsafe {
         match result {
-            Ok(res) => match res {
-                Ok(res) => NifReturnable::into_returned(res, env),
-                Err(err) => NifReturnable::into_returned(err, env),
-            },
+            Ok(res) => NifReturnable::into_returned(res, env),
             Err(_) => {
                 let term = atom::nif_panicked().as_c_arg();
                 NifReturned::Raise(term)
