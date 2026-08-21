@@ -49,10 +49,21 @@ fn main() {
         }
     }
 
+    const RESERVED_ERL_NAMES: &[&str] = &["init", "module_info", "record_info"];
+    
     let mut erl_names = std::collections::BTreeSet::new();
     
     for func in &functions {
         let erl_name = func.alias.clone().unwrap_or_else(|| func.name.clone());
+        
+        if RESERVED_ERL_NAMES.contains(&erl_name.as_str()) {
+            panic!(
+                "gleamler_codegen: NIF name '{}' conflicts with a reserved Erlang function name \
+                 in module '{}' (names like init, module_info cannot be used as NIF aliases)",
+                erl_name, erl_module
+            );
+        }
+        
         if !erl_names.insert(erl_name.clone()) {
             panic!(
                 "gleamler_codegen: duplicate exported NIF name '{}' (alias collision) in file {:?}",
