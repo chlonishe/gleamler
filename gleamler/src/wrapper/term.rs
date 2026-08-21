@@ -7,7 +7,7 @@ pub fn fmt(term: NIF_TERM, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
     let mut bytes: Vec<u8> = Vec::with_capacity(SIZE);
 
     let mut n = 0;
-    
+
     // enif_snprintf occasionally underestimates the required size for deeply nested
     // terms (especially long lists). We retry with exponential buffer growth.
     // The hard limit of 10 iterations is a safety net against pathological cases
@@ -41,6 +41,7 @@ pub fn fmt(term: NIF_TERM, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         }
     }
 
+    assert!(n > 0, "enif_snprintf failed to format Erlang term after 10 retries");
     unsafe {
         bytes.set_len(n);
     }
