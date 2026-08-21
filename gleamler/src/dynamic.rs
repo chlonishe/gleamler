@@ -62,12 +62,10 @@ pub fn get_type(term: Term) -> TermType {
             TermType::List
         } else if term.is_map() {
             TermType::Map
+        } else if term.is_float() {
+            TermType::Float
         } else if term.is_number() {
-            if term.is_float() {
-                TermType::Float
-            } else {
-                TermType::Integer
-            }
+            TermType::Integer
         } else if term.is_pid() {
             TermType::Pid
         } else if term.is_port() {
