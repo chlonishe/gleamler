@@ -214,7 +214,6 @@ struct SimpleMapIterator<'a> {
     map: Term<'a>,
     entry: map::MapIteratorEntry,
     iter: Option<map::ErlNifMapIterator>,
-    last_key: Option<Term<'a>>,
     done: bool,
 }
 
@@ -264,7 +263,6 @@ impl<'a> SimpleMapIterator<'a> {
                         }
                     }
                     let key = Term::new(env, key);
-                    self.last_key = Some(key);
                     Some((key, Term::new(env, value)))
                 }
                 None => {
@@ -289,26 +287,27 @@ impl Drop for SimpleMapIterator<'_> {
 pub struct MapIterator<'a> {
     forward: SimpleMapIterator<'a>,
     reverse: SimpleMapIterator<'a>,
+    remaining: usize,
 }
 
 impl<'a> MapIterator<'a> {
-    pub fn new(map: Term<'a>) -> Option<MapIterator<'a>> {
+        pub fn new(map: Term<'a>) -> Option<MapIterator<'a>> {
         if map.is_map() {
+            let size = map.map_size().ok()?;
             Some(MapIterator {
                 forward: SimpleMapIterator {
                     map,
                     entry: map::MapIteratorEntry::First,
                     iter: None,
-                    last_key: None,
                     done: false,
                 },
                 reverse: SimpleMapIterator {
                     map,
                     entry: map::MapIteratorEntry::Last,
                     iter: None,
-                    last_key: None,
                     done: false,
                 },
+                remaining: size,
             })
         } else {
             None
@@ -320,30 +319,24 @@ impl<'a> Iterator for MapIterator<'a> {
     type Item = (Term<'a>, Term<'a>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.forward.next().and_then(|(key, value)| {
-            if self.reverse.last_key.is_some_and(|k| {
-                unsafe { crate::sys::enif_compare(k.as_c_arg(), key.as_c_arg()) == 0 }
-            }) {
-                self.forward.done = true;
-                self.reverse.done = true;
-                return None;
-            }
-            Some((key, value))
+        if self.remaining == 0 {
+            return None;
+        }
+        self.forward.next().map(|item| {
+            self.remaining -= 1;
+            item
         })
     }
 }
 
 impl DoubleEndedIterator for MapIterator<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        self.reverse.next().and_then(|(key, value)| {
-            if self.forward.last_key.is_some_and(|k| {
-                unsafe { crate::sys::enif_compare(k.as_c_arg(), key.as_c_arg()) == 0 }
-            }) {
-                self.forward.done = true;
-                self.reverse.done = true;
-                return None;
-            }
-            Some((key, value))
+        if self.remaining == 0 {
+            return None;
+        }
+        self.reverse.next().map(|item| {
+            self.remaining -= 1;
+            item
         })
     }
 }
