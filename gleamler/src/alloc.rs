@@ -2,17 +2,13 @@ use std::alloc::{GlobalAlloc, Layout, System};
 
 use crate::sys::{c_void, enif_alloc, enif_free};
 
-/// Allocator implementation that forwards all allocation calls to Erlang's allocator. Allows the
-/// memory usage to be tracked by the BEAM.
+/// Allocator implementation that forwards all allocation calls to Erlang's allocator.
 pub struct EnifAllocator;
 
-// On x86_64 BEAM's enif_alloc aligns to max_align_t (16 bytes),
-// so we can safely route SIMD-friendly layouts (up to __m128) through it.
-// On other architectures we stay conservative and stick to pointer alignment
-#[cfg(target_arch = "x86_64")]
-const ENIF_MAX_ALIGN: usize = std::mem::align_of::<std::arch::x86_64::__m128>();
-
-#[cfg(not(target_arch = "x86_64"))]
+// OTP's enif_alloc guarantees alignment suitable for any C variable, which formally means
+// max_align_t. On Unix x86_64 this is 16 bytes, but on Windows x64 max_align_t is only 8.
+// To avoid UB on layouts with >8 byte alignment, we conservatively route everything above
+// pointer alignment through the system allocator
 const ENIF_MAX_ALIGN: usize = std::mem::align_of::<usize>();
 
 unsafe impl GlobalAlloc for EnifAllocator {
