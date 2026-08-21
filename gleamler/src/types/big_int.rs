@@ -143,7 +143,7 @@ impl Encoder for BigInt {
         let binary = encode_big_integer(self);
         match env.binary_to_term(&binary) {
             Some((term, _)) => term,
-            None => unsafe { Term::new(env, crate::wrapper::exception::raise_badarg(env.as_c_arg())) },
+            None => atom::badarg().to_term(env),
         }
     }
 }

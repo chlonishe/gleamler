@@ -1,4 +1,5 @@
 use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
+use crate::types::atom;
 
 const EXTERNAL_TERM_FORMAT_VERSION: u8 = 131;
 const SMALL_BIG_EXT: u8 = 110;
@@ -23,7 +24,7 @@ impl Encoder for i128 {
             }
             match env.binary_to_term(&etf) {
                 Some((term, _)) => term,
-                None => unsafe { Term::new(env, crate::wrapper::exception::raise_badarg(env.as_c_arg())) },
+                None => atom::badarg().to_term(env),
             }
         }
     }
@@ -41,7 +42,7 @@ impl Encoder for u128 {
             etf[4..].copy_from_slice(&self.to_le_bytes());
             match env.binary_to_term(&etf) {
                 Some((term, _)) => term,
-                None => unsafe { Term::new(env, crate::wrapper::exception::raise_badarg(env.as_c_arg())) },
+                None => atom::badarg().to_term(env),
             }
         }
     }
