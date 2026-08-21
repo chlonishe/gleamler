@@ -23,7 +23,7 @@ impl Encoder for i128 {
             }
             match env.binary_to_term(&etf) {
                 Some((term, _)) => term,
-                None => panic!("i128 encode failed: enif_binary_to_term failed (out of memory)"),
+                None => unsafe { Term::new(env, crate::wrapper::exception::raise_badarg(env.as_c_arg())) },
             }
         }
     }
@@ -41,7 +41,7 @@ impl Encoder for u128 {
             etf[4..].copy_from_slice(&self.to_le_bytes());
             match env.binary_to_term(&etf) {
                 Some((term, _)) => term,
-                None => panic!("u128 encode failed: enif_binary_to_term failed (out of memory)"),
+                None => unsafe { Term::new(env, crate::wrapper::exception::raise_badarg(env.as_c_arg())) },
             }
         }
     }

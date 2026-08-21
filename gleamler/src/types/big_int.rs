@@ -143,7 +143,7 @@ impl Encoder for BigInt {
         let binary = encode_big_integer(self);
         match env.binary_to_term(&binary) {
             Some((term, _)) => term,
-            None => panic!("big_int encode failed: enif_binary_to_term failed (out of memory)"),
+            None => unsafe { Term::new(env, crate::wrapper::exception::raise_badarg(env.as_c_arg())) },
         }
     }
 }
