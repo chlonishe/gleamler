@@ -148,6 +148,13 @@ impl Registration {
             .replace(" ", "")
             .replace(",", "_");
 
+        if sanitized_name.is_empty()
+            || !sanitized_name.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+            || sanitized_name.chars().any(|c| !c.is_ascii_alphanumeric() && c != '_')
+        {
+            return Err(ResourceInitError);
+        }
+
         let name = CString::new(sanitized_name).map_err(|_| ResourceInitError)?;
         
         let res: Option<*const ErlNifResourceType> = unsafe {
