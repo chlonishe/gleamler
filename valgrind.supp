@@ -1,0 +1,22 @@
+{
+   dlopen-reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:_dl_open
+   ...
+}
+{
+   libloading-init-reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   obj:*/libdl-*.so
+   ...
+}
+{
+   rustc-runtime-reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   obj:*/libstd-*.so
+   ...
+}
