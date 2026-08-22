@@ -4,11 +4,10 @@ use std::ptr;
 
 use crate::sys::{
     c_void, enif_alloc_resource, enif_demonitor_process, enif_keep_resource, enif_make_resource,
-    enif_make_resource_binary, enif_monitor_process, enif_release_resource, ErlNifEnv,
+    enif_make_resource_binary, enif_monitor_process, enif_release_resource,
 };
 
-use crate::thread::is_scheduler_thread;
-use crate::{Binary, Decoder, Encoder, Env, Error, LocalPid, Monitor, NifResult, OwnedEnv, Term};
+use crate::{Binary, Decoder, Encoder, Env, Error, LocalPid, Monitor, NifResult, Term};
 
 use super::traits::{Resource, ResourceExt};
 use super::util::{align_alloced_mem_for_struct, get_alloc_size_struct};
@@ -119,13 +118,13 @@ where
     fn inner(&self) -> &T {
         unsafe { &*self.inner }
     }
-}
 
-impl<T> ResourceArc<T>
-where
-    T: Resource,
-{
-    pub fn monitor(&self, caller_env: Option<Env>, pid: &LocalPid) -> Option<Monitor> {
+    /// Start monitoring a process from a process-bound environment.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `env` is not a process-bound environment (e.g. an `OwnedEnv`)
+    pub fn monitor(&self, env: Env, pid: &LocalPid) -> Option<Monitor> {
         if !T::IMPLEMENTS_DOWN {
             panic!(
                 "cannot monitor a resource of type `{}` because it does not set `IMPLEMENTS_DOWN = true`",
@@ -133,10 +132,13 @@ where
             );
         }
 
-        let env = maybe_env(caller_env);
+        // This panics if `env` is process-independent, which is exactly what we want:
+        // enif_monitor_process requires a process-bound env
+        env.pid();
+
         let mut mon = MaybeUninit::uninit();
         let res =
-            unsafe { enif_monitor_process(env, self.raw, pid.as_c_arg(), mon.as_mut_ptr()) == 0 };
+            unsafe { enif_monitor_process(env.as_c_arg(), self.raw, pid.as_c_arg(), mon.as_mut_ptr()) == 0 };
         if res {
             Some(unsafe { Monitor::new(mon.assume_init()) })
         } else {
@@ -144,7 +146,12 @@ where
         }
     }
 
-    pub fn demonitor(&self, caller_env: Option<Env>, mon: &Monitor) -> bool {
+    /// Stop monitoring a process from a process-bound environment
+    ///
+    /// # Panics
+    ///
+    /// Panics if `env` is not a process-bound environment (e.g. an `OwnedEnv`)
+    pub fn demonitor(&self, env: Env, mon: &Monitor) -> bool {
         if !T::IMPLEMENTS_DOWN {
             panic!(
                 "cannot demonitor a resource of type `{}` because it does not set `IMPLEMENTS_DOWN = true`",
@@ -152,22 +159,9 @@ where
             );
         }
 
-        let env = maybe_env(caller_env);
-        unsafe { enif_demonitor_process(env, self.raw, mon.as_c_arg()) == 0 }
-    }
-}
+        env.pid();
 
-impl OwnedEnv {
-    pub fn monitor<T: Resource>(
-        &self,
-        resource: &ResourceArc<T>,
-        pid: &LocalPid,
-    ) -> Option<Monitor> {
-        resource.monitor(None, pid)
-    }
-
-    pub fn demonitor<T: Resource>(&self, resource: &ResourceArc<T>, mon: &Monitor) -> bool {
-        resource.demonitor(None, mon)
+        unsafe { enif_demonitor_process(env.as_c_arg(), self.raw, mon.as_c_arg()) == 0 }
     }
 }
 
@@ -177,11 +171,11 @@ impl<'a> Env<'a> {
         resource: &ResourceArc<T>,
         pid: &LocalPid,
     ) -> Option<Monitor> {
-        resource.monitor(Some(*self), pid)
+        resource.monitor(*self, pid)
     }
 
     pub fn demonitor<T: Resource>(&self, resource: &ResourceArc<T>, mon: &Monitor) -> bool {
-        resource.demonitor(Some(*self), mon)
+        resource.demonitor(*self, mon)
     }
 
     /// # Safety
@@ -272,20 +266,5 @@ where
 {
     fn decode(term: Term<'a>) -> NifResult<Self> {
         ResourceArc::from_term(term)
-    }
-}
-
-fn maybe_env(env: Option<Env>) -> *mut ErlNifEnv {
-    if is_scheduler_thread() {
-        let env = env.expect("Env required when calling from a scheduler thread");
-        // Panic if `env` is not the environment of the calling process.
-        env.pid();
-        env.as_c_arg()
-    } else {
-        assert!(
-            env.is_none(),
-            "Env provided when not calling from a scheduler thread"
-        );
-        ptr::null_mut()
     }
 }
