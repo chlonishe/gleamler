@@ -1,18 +1,41 @@
 {
-   dlopen-reachable
+   rust-dlopen-thread-info-reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:std::sys::pal::unix::stack_overflow::thread_info::set_current_info
+   ...
+}
+
+{
+   rust-dlopen-btree-node-reachable
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:*alloc*
+   ...
+   fun:*BTreeMap*
+   ...
+}
+
+{
+   libloading-dlopen-possibly-lost
+   Memcheck:Leak
+   match-leak-kinds: possibly-lost
+   fun:malloc
+   obj:*/libdl-*.so
+   ...
+}
+
+{
+   libloading-dlopen-reachable
    Memcheck:Leak
    match-leak-kinds: reachable
    fun:_dl_open
    ...
 }
-{
-   libloading-init-reachable
-   Memcheck:Leak
-   match-leak-kinds: reachable
-   fun:malloc
-   obj:*/libdl-*.so
-   ...
-}
+
 {
    rustc-runtime-reachable
    Memcheck:Leak
