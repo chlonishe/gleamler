@@ -20,7 +20,7 @@ pub unsafe fn get_map_value(env: NIF_ENV, map: NIF_TERM, key: NIF_TERM) -> Optio
     if success != 1 {
         return None;
     }
-    Some(unsafe { result.assume_init()})
+    Some(unsafe { result.assume_init() })
 }
 
 pub unsafe fn get_map_size(env: NIF_ENV, map: NIF_TERM) -> Option<usize> {
@@ -89,15 +89,17 @@ pub unsafe fn map_iterator_create(
     entry: MapIteratorEntry,
 ) -> Option<ErlNifMapIterator> {
     let mut iter = MaybeUninit::uninit();
-    let success = unsafe { enif_map_iterator_create(
-        env,
-        map,
-        iter.as_mut_ptr(),
-        match entry {
-            MapIteratorEntry::First => ErlNifMapIteratorEntry::ERL_NIF_MAP_ITERATOR_HEAD,
-            MapIteratorEntry::Last => ErlNifMapIteratorEntry::ERL_NIF_MAP_ITERATOR_TAIL,
-        },
-    ) };
+    let success = unsafe {
+        enif_map_iterator_create(
+            env,
+            map,
+            iter.as_mut_ptr(),
+            match entry {
+                MapIteratorEntry::First => ErlNifMapIteratorEntry::ERL_NIF_MAP_ITERATOR_HEAD,
+                MapIteratorEntry::Last => ErlNifMapIteratorEntry::ERL_NIF_MAP_ITERATOR_TAIL,
+            },
+        )
+    };
     if success == 0 {
         None
     } else {
@@ -118,7 +120,7 @@ pub unsafe fn map_iterator_get_pair(
     if unsafe { enif_map_iterator_get_pair(env, iter, key.as_mut_ptr(), value.as_mut_ptr()) } == 0 {
         None
     } else {
-        Some((unsafe {key.assume_init()}, unsafe{ value.assume_init() }))
+        Some((unsafe { key.assume_init() }, unsafe { value.assume_init() }))
     }
 }
 
@@ -143,13 +145,15 @@ pub unsafe fn make_map_from_arrays(
         "make_map_from_arrays: keys and values must have the same length"
     );
     let mut map = MaybeUninit::uninit();
-    if unsafe { enif_make_map_from_arrays(
-        env,
-        keys.as_ptr(),
-        values.as_ptr(),
-        keys.len(),
-        map.as_mut_ptr(),
-    ) } == 0
+    if unsafe {
+        enif_make_map_from_arrays(
+            env,
+            keys.as_ptr(),
+            values.as_ptr(),
+            keys.len(),
+            map.as_mut_ptr(),
+        )
+    } == 0
     {
         return None;
     }

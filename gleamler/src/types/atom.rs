@@ -1,6 +1,6 @@
 use crate::sys::ErlNifCharEncoding;
-use crate::wrapper::atom;
 use crate::wrapper::NIF_TERM;
+use crate::wrapper::atom;
 use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -160,7 +160,11 @@ impl Atom {
     /// `Error::BadArg` if atom lookup fails.
     pub fn existing_from_str(env: Env, string: &str) -> NifResult<Self> {
         if string.is_ascii() {
-            return Self::existing_from_encoded_bytes(env, string.as_bytes(), ErlNifCharEncoding::ERL_NIF_LATIN1);
+            return Self::existing_from_encoded_bytes(
+                env,
+                string.as_bytes(),
+                ErlNifCharEncoding::ERL_NIF_LATIN1,
+            );
         }
         Self::existing_from_utf8_bytes(env, string.as_bytes())
     }
@@ -219,7 +223,7 @@ pub(in crate::types) fn decode_bool(term: Term) -> NifResult<bool> {
 
 impl Hash for Atom {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        use crate::sys::{enif_hash, ErlNifHash};
+        use crate::sys::{ErlNifHash, enif_hash};
         let hash =
             unsafe { enif_hash(ErlNifHash::ERL_NIF_INTERNAL_HASH, self.as_c_arg(), 0) as u32 };
         state.write_u32(hash);

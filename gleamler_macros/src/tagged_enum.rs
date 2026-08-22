@@ -1,6 +1,6 @@
+use heck::ToSnakeCase;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use heck::ToSnakeCase;
 use std::collections::HashMap;
 use syn::{self, Field, Fields, FieldsNamed, FieldsUnnamed, Ident, Variant};
 
@@ -116,7 +116,7 @@ fn gen_decoder(ctx: &Context, variants: &[&Variant], atoms_module_name: &Ident) 
         })
         .collect();
 
-   super::encode_decode_templates::decoder(
+    super::encode_decode_templates::decoder(
         ctx,
         quote! {
             use #atoms_module_name::*;
@@ -216,18 +216,23 @@ fn gen_named_decoder(
     variant_ident: &Ident,
     atom_fn: Ident,
 ) -> TokenStream {
-    let decoded_fields: Vec<_> = fields.named.iter().enumerate().map(|(i, f)| {
-        let i = i + 1;
-        let ident = f.ident.as_ref().unwrap();
-        let ty = &f.ty;
-        quote! {
-            #ident: <#ty as ::gleamler::Decoder>::decode(tuple[#i])
-                .map_err(|_| ::gleamler::Error::RaiseTerm(
-                    Box::new(format!("Could not decode field '{}' on Enum '{}'",
-                        stringify!(#ident), stringify!(#enum_name)))
-                ))?
-        }
-    }).collect();
+    let decoded_fields: Vec<_> = fields
+        .named
+        .iter()
+        .enumerate()
+        .map(|(i, f)| {
+            let i = i + 1;
+            let ident = f.ident.as_ref().unwrap();
+            let ty = &f.ty;
+            quote! {
+                #ident: <#ty as ::gleamler::Decoder>::decode(tuple[#i])
+                    .map_err(|_| ::gleamler::Error::RaiseTerm(
+                        Box::new(format!("Could not decode field '{}' on Enum '{}'",
+                            stringify!(#ident), stringify!(#enum_name)))
+                    ))?
+            }
+        })
+        .collect();
 
     let len = fields.named.len();
 
@@ -271,10 +276,14 @@ fn gen_named_encoder(
     variant_ident: &Ident,
     atom_fn: Ident,
 ) -> TokenStream {
-    let field_decls: Vec<_> = fields.named.iter().map(|f| {
-        let ident = f.ident.as_ref().unwrap();
-        quote! { #ident }
-    }).collect();
+    let field_decls: Vec<_> = fields
+        .named
+        .iter()
+        .map(|f| {
+            let ident = f.ident.as_ref().unwrap();
+            quote! { #ident }
+        })
+        .collect();
 
     quote! {
         #enum_name :: #variant_ident { #(#field_decls),* } => {

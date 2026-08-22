@@ -1,7 +1,7 @@
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use std::collections::HashSet;
-use syn::{meta::ParseNestedMeta, LitBool, LitStr};
+use syn::{LitBool, LitStr, meta::ParseNestedMeta};
 
 pub struct Attributes {
     register: bool,
@@ -64,10 +64,13 @@ pub fn transcoder_decorator(attrs: Attributes, mut input: syn::ItemImpl) -> Toke
 
     if attrs.register {
         let fallback_fn = syn::Ident::new(
-            &format!("__gleamler_fallback_reg_{}", type_path.path.segments.last().unwrap().ident),
+            &format!(
+                "__gleamler_fallback_reg_{}",
+                type_path.path.segments.last().unwrap().ident
+            ),
             Span::call_site(),
         );
-        
+
         let submit = if let Some(name) = attrs.name {
             quote!(
                 ::gleamler::codegen_runtime::inventory::submit!(

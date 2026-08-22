@@ -28,8 +28,9 @@ impl Encoder for &str {
 impl Encoder for str {
     fn encode<'b>(&self, env: Env<'b>) -> Term<'b> {
         let str_len = self.len();
-        let mut bin = OwnedBinary::new(str_len)
-            .unwrap_or_else(|| panic!("string encode failed: enif_alloc_binary({str_len}) failed (out of memory)"));
+        let mut bin = OwnedBinary::new(str_len).unwrap_or_else(|| {
+            panic!("string encode failed: enif_alloc_binary({str_len}) failed (out of memory)")
+        });
         bin.as_mut_slice().copy_from_slice(self.as_bytes());
         bin.release(env).to_term(env)
     }

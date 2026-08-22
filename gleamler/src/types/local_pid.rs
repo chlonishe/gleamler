@@ -1,5 +1,5 @@
 use crate::sys::{enif_compare_pids, enif_is_process_alive, enif_self};
-use crate::wrapper::{pid, ErlNifPid};
+use crate::wrapper::{ErlNifPid, pid};
 use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 use std::cmp::Ordering;
 use std::mem::MaybeUninit;

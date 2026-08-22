@@ -118,14 +118,15 @@ impl<'a> Env<'a> {
             return Err(SendError);
         }
         let message = message.encode(self);
-        let res = unsafe { 
-            enif_send(self.as_c_arg(), pid.as_c_arg(), ptr::null_mut(), message.as_c_arg()) 
+        let res = unsafe {
+            enif_send(
+                self.as_c_arg(),
+                pid.as_c_arg(),
+                ptr::null_mut(),
+                message.as_c_arg(),
+            )
         };
-        if res == 1 {
-            Ok(())
-        } else {
-            Err(SendError)
-        }
+        if res == 1 { Ok(()) } else { Err(SendError) }
     }
 
     /// Attempts to find the PID of a process registered by `name_or_pid`
@@ -227,7 +228,9 @@ impl OwnedEnv {
     where
         F: FnOnce(Env<'a>) -> R,
     {
-        let env = unsafe { Env::new_internal(&(), *self.env, EnvKind::ProcessIndependent, self.generation) };
+        let env = unsafe {
+            Env::new_internal(&(), *self.env, EnvKind::ProcessIndependent, self.generation)
+        };
         closure(env)
     }
 
@@ -263,11 +266,7 @@ impl OwnedEnv {
 
         self.clear();
 
-        if res == 1 {
-            Ok(())
-        } else {
-            Err(SendError)
-        }
+        if res == 1 { Ok(()) } else { Err(SendError) }
     }
 
     /// Free all terms in this environment and clear it for reuse.
@@ -285,7 +284,9 @@ impl OwnedEnv {
         // The ErlNifEnv itself is not freed; enif_clear_env resets its contents.
         self.generation += 1;
         self.env = Arc::new(c_env);
-        unsafe { enif_clear_env(c_env); }
+        unsafe {
+            enif_clear_env(c_env);
+        }
     }
 
     /// Save a term for use in a later call to `.run()` or `.send()`.

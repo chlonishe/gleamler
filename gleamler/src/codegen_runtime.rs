@@ -18,11 +18,11 @@ pub use crate::resource::Registration as ResourceRegistration;
 // Names used by the `gleamler::init!` macro or other generated code.
 pub use crate::wrapper::exception::raise_exception;
 pub use crate::wrapper::{
-    c_char, c_int, c_uint, c_void, get_nif_resource_type_init_size, DEF_NIF_ENTRY, DEF_NIF_FUNC,
-    NIF_ENV, NIF_MAJOR_VERSION, NIF_MINOR_VERSION, NIF_TERM,
+    DEF_NIF_ENTRY, DEF_NIF_FUNC, NIF_ENV, NIF_MAJOR_VERSION, NIF_MINOR_VERSION, NIF_TERM, c_char,
+    c_int, c_uint, c_void, get_nif_resource_type_init_size,
 };
 
-pub use crate::sys::{internal_set_symbols, internal_write_symbols, DynNifCallbacks};
+pub use crate::sys::{DynNifCallbacks, internal_set_symbols, internal_write_symbols};
 
 /// Auto-registration entry for `#[gleam_nif]` functions.
 pub struct NifRegistration {
@@ -86,23 +86,27 @@ impl NifReturned {
     pub unsafe fn apply(self, env: Env) -> NIF_TERM {
         match self {
             NifReturned::Term(inner) => inner,
-            NifReturned::BadArg => unsafe { crate::wrapper::exception::raise_badarg(env.as_c_arg()) },
-            NifReturned::Raise(inner) => {
-                unsafe { crate::wrapper::exception::raise_exception(env.as_c_arg(), inner) }
-            }
+            NifReturned::BadArg => unsafe {
+                crate::wrapper::exception::raise_badarg(env.as_c_arg())
+            },
+            NifReturned::Raise(inner) => unsafe {
+                crate::wrapper::exception::raise_exception(env.as_c_arg(), inner)
+            },
             NifReturned::Reschedule {
                 fun_name,
                 flags,
                 fun,
                 args,
-            } => unsafe { crate::sys::enif_schedule_nif(
-                env.as_c_arg(),
-                fun_name.as_ptr() as *const c_char,
-                flags as i32,
-                fun,
-                args.len() as i32,
-                args.as_ptr(),
-            ) },
+            } => unsafe {
+                crate::sys::enif_schedule_nif(
+                    env.as_c_arg(),
+                    fun_name.as_ptr() as *const c_char,
+                    flags as i32,
+                    fun,
+                    args.len() as i32,
+                    args.as_ptr(),
+                )
+            },
         }
     }
 }
@@ -126,10 +130,7 @@ pub unsafe fn handle_nif_init_call<'a>(
     std::panic::catch_unwind(|| function(env, load_info)).map_or(1, |x| i32::from(!x))
 }
 
-pub fn handle_nif_result<T>(
-    result: std::thread::Result<T>,
-    env: Env,
-) -> NifReturned
+pub fn handle_nif_result<T>(result: std::thread::Result<T>, env: Env) -> NifReturned
 where
     T: NifReturnable,
 {

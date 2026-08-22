@@ -1,7 +1,7 @@
+use heck::ToSnakeCase;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
-use heck::ToSnakeCase;
-use syn::{self, spanned::Spanned, Fields, Ident, Variant};
+use syn::{self, Fields, Ident, Variant, spanned::Spanned};
 
 use super::context::Context;
 

@@ -1,6 +1,6 @@
 use crate::codegen_runtime::{NifReturnable, NifReturned};
 use crate::types::atom;
-use crate::{types, Encoder, Env};
+use crate::{Encoder, Env, types};
 use std::fmt;
 
 /// Represents usual errors that can happen in a nif. This enables you
@@ -24,18 +24,14 @@ unsafe impl NifReturnable for crate::error::Error {
     unsafe fn into_returned(self, env: Env) -> NifReturned {
         match self {
             Error::BadArg => NifReturned::BadArg,
-            Error::Atom(atom_str) => {
-                match types::atom::Atom::from_str(env, atom_str) {
-                    Ok(atom) => NifReturned::Term(atom.to_term(env).as_c_arg()),
-                    Err(_) => NifReturned::BadArg,
-                }
-            }
-            Error::RaiseAtom(atom_str) => {
-                match types::atom::Atom::from_str(env, atom_str) {
-                    Ok(atom) => NifReturned::Raise(atom.as_c_arg()),
-                    Err(_) => NifReturned::BadArg,
-                }
-            }
+            Error::Atom(atom_str) => match types::atom::Atom::from_str(env, atom_str) {
+                Ok(atom) => NifReturned::Term(atom.to_term(env).as_c_arg()),
+                Err(_) => NifReturned::BadArg,
+            },
+            Error::RaiseAtom(atom_str) => match types::atom::Atom::from_str(env, atom_str) {
+                Ok(atom) => NifReturned::Raise(atom.as_c_arg()),
+                Err(_) => NifReturned::BadArg,
+            },
             Error::RaiseTerm(ref term_unencoded) => {
                 let term = term_unencoded.encode(env);
                 NifReturned::Raise(term.as_c_arg())

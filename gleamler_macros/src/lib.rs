@@ -2,8 +2,8 @@
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, FnArg, ItemFn, Pat, PatIdent, Ident, Token};
 use syn::punctuated::Punctuated;
+use syn::{FnArg, Ident, ItemFn, Pat, PatIdent, Token, parse_macro_input};
 
 mod context;
 mod encode_decode_templates;
@@ -39,14 +39,26 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
             .expect("gleam_nif attributes must be comma-separated meta items, e.g. dirty_cpu, alias = \"name\"");
         for meta in metas {
             if meta.path().is_ident("dirty_cpu") {
-                nif_flags = quote!(::gleamler::schedule::SchedulerFlags::DirtyCpu as ::gleamler::codegen_runtime::c_uint);
+                nif_flags = quote!(
+                    ::gleamler::schedule::SchedulerFlags::DirtyCpu
+                        as ::gleamler::codegen_runtime::c_uint
+                );
             } else if meta.path().is_ident("dirty_io") {
-                nif_flags = quote!(::gleamler::schedule::SchedulerFlags::DirtyIo as ::gleamler::codegen_runtime::c_uint);
+                nif_flags = quote!(
+                    ::gleamler::schedule::SchedulerFlags::DirtyIo
+                        as ::gleamler::codegen_runtime::c_uint
+                );
             } else if meta.path().is_ident("alias") {
-                let expr: syn::Expr = meta.require_name_value()
+                let expr: syn::Expr = meta
+                    .require_name_value()
                     .expect("alias must be a name-value pair: alias = \"name\"")
-                    .value.clone();
-                if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(lit_str), .. }) = expr {
+                    .value
+                    .clone();
+                if let syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(lit_str),
+                    ..
+                }) = expr
+                {
                     alias = Some(lit_str);
                 } else {
                     panic!("alias value must be a string literal");
@@ -57,22 +69,26 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     }
 
-    let export_name = alias.as_ref().map(|s| s.value()).unwrap_or_else(|| fn_name.to_string());
+    let export_name = alias
+        .as_ref()
+        .map(|s| s.value())
+        .unwrap_or_else(|| fn_name.to_string());
     let export_name_lit = syn::LitStr::new(&format!("{}\0", export_name), fn_name.span());
     let mut args_decoding = Vec::new();
     let mut args_names = Vec::new();
     let mut nif_arg_idx: usize = 0;
 
     fn is_env_type(ty: &syn::Type) -> bool {
-            match ty {
-                syn::Type::Path(type_path) => {
-                    type_path.path.segments.last()
-                        .map(|seg| seg.ident == "Env")
-                        .unwrap_or(false)
-                }
-                syn::Type::Reference(type_ref) => is_env_type(&type_ref.elem),
-                _ => false,
-            }
+        match ty {
+            syn::Type::Path(type_path) => type_path
+                .path
+                .segments
+                .last()
+                .map(|seg| seg.ident == "Env")
+                .unwrap_or(false),
+            syn::Type::Reference(type_ref) => is_env_type(&type_ref.elem),
+            _ => false,
+        }
     }
 
     for arg in &input_fn.sig.inputs {
@@ -208,7 +224,11 @@ impl syn::parse::Parse for InitInput {
             Punctuated::new()
         };
 
-        Ok(Self { module, load, names })
+        Ok(Self {
+            module,
+            load,
+            names,
+        })
     }
 }
 
@@ -227,20 +247,25 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
             quote! { num_of_funcs },
         )
     } else {
-        let nif_consts: Vec<_> = input.names.iter().map(|name| {
-            syn::Ident::new(&format!("__GLEAMLER_NIF_{}", name), name.span())
-        }).collect();
+        let nif_consts: Vec<_> = input
+            .names
+            .iter()
+            .map(|name| syn::Ident::new(&format!("__GLEAMLER_NIF_{}", name), name.span()))
+            .collect();
 
-        let funcs: Vec<_> = nif_consts.iter().map(|const_name| {
-            quote! {
-                ::gleamler::sys::ErlNifFunc {
-                    name: #const_name.name,
-                    arity: #const_name.arity,
-                    flags: #const_name.flags,
-                    function: #const_name.raw_func,
+        let funcs: Vec<_> = nif_consts
+            .iter()
+            .map(|const_name| {
+                quote! {
+                    ::gleamler::sys::ErlNifFunc {
+                        name: #const_name.name,
+                        arity: #const_name.arity,
+                        flags: #const_name.flags,
+                        function: #const_name.raw_func,
+                    }
                 }
-            }
-        }).collect();
+            })
+            .collect();
 
         (
             quote! {
@@ -321,9 +346,11 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
     };
 
     let init_fn_name = {
-        let crate_name = std::env::var("CARGO_CRATE_NAME")
-            .expect("CARGO_CRATE_NAME is not set");
-        syn::Ident::new(&format!("{crate_name}_nif_init"), proc_macro2::Span::call_site())
+        let crate_name = std::env::var("CARGO_CRATE_NAME").expect("CARGO_CRATE_NAME is not set");
+        syn::Ident::new(
+            &format!("{crate_name}_nif_init"),
+            proc_macro2::Span::call_site(),
+        )
     };
     let primary = std::env::var("GLEAMLER_PRIMARY_NIF_INIT").is_ok()
         || std::env::var("CARGO_PRIMARY_PACKAGE").is_ok();

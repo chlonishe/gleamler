@@ -1,6 +1,6 @@
 //! Utilities used to access and create Erlang maps.
 
-use crate::wrapper::{ map, NIF_TERM };
+use crate::wrapper::{NIF_TERM, map};
 use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 
 #[inline]
@@ -33,7 +33,9 @@ impl<'a> Term<'a> {
         keys: &[impl Encoder],
         values: &[impl Encoder],
     ) -> NifResult<Term<'a>> {
-        if keys.len() != values.len() { return Err(Error::BadArg); }
+        if keys.len() != values.len() {
+            return Err(Error::BadArg);
+        }
         let mut k = Vec::with_capacity(keys.len());
         let mut v = Vec::with_capacity(values.len());
         for i in 0..keys.len() {
@@ -291,7 +293,7 @@ pub struct MapIterator<'a> {
 }
 
 impl<'a> MapIterator<'a> {
-        pub fn new(map: Term<'a>) -> Option<MapIterator<'a>> {
+    pub fn new(map: Term<'a>) -> Option<MapIterator<'a>> {
         if map.is_map() {
             let size = map.map_size().ok()?;
             Some(MapIterator {

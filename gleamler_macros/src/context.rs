@@ -199,9 +199,10 @@ impl<'a> Context<'a> {
             let expr = &name_value.value;
 
             if let syn::Expr::Lit(lit_expr) = expr
-                && let Lit::Str(ref tag) = lit_expr.lit {
-                    return Some(vec![GleamlerAttr::Tag(tag.value())]);
-                }
+                && let Lit::Str(ref tag) = lit_expr.lit
+            {
+                return Some(vec![GleamlerAttr::Tag(tag.value())]);
+            }
         }
         panic!("Cannot parse tag")
     }

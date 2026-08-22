@@ -1,11 +1,11 @@
+use crate::Error;
+use crate::sys::ErlNifCharEncoding;
 #[cfg(not(feature = "nif_version_2_17"))]
 use crate::sys::enif_make_atom_len;
 #[cfg(feature = "nif_version_2_17")]
 use crate::sys::enif_make_new_atom_len;
-use crate::sys::ErlNifCharEncoding;
 use crate::sys::{enif_get_atom, enif_get_atom_length, enif_make_existing_atom_len};
-use crate::wrapper::{c_char, c_uint, NIF_ENV, NIF_TERM};
-use crate::Error;
+use crate::wrapper::{NIF_ENV, NIF_TERM, c_char, c_uint};
 
 #[cfg(not(feature = "nif_version_2_17"))]
 pub unsafe fn make_atom(
@@ -30,13 +30,15 @@ pub unsafe fn make_atom(
 
     // Create a new atom with the requested encoding.
     // Returns 0 if creation fails (e.g. invalid text/encoding).
-    if unsafe { enif_make_new_atom_len(
-        env,
-        name.as_ptr() as *const c_char,
-        name.len(),
-        &mut atom_out as *mut NIF_TERM,
-        encoding,
-    ) } != 0
+    if unsafe {
+        enif_make_new_atom_len(
+            env,
+            name.as_ptr() as *const c_char,
+            name.len(),
+            &mut atom_out as *mut NIF_TERM,
+            encoding,
+        )
+    } != 0
     {
         Ok(atom_out)
     } else {
@@ -51,13 +53,15 @@ pub unsafe fn make_existing_atom(
 ) -> Result<NIF_TERM, Error> {
     let mut atom_out: NIF_TERM = 0;
 
-    if unsafe { enif_make_existing_atom_len(
-        env,
-        name.as_ptr() as *const c_char,
-        name.len(),
-        &mut atom_out as *mut NIF_TERM,
-        encoding,
-    ) } != 0
+    if unsafe {
+        enif_make_existing_atom_len(
+            env,
+            name.as_ptr() as *const c_char,
+            name.len(),
+            &mut atom_out as *mut NIF_TERM,
+            encoding,
+        )
+    } != 0
     {
         Ok(atom_out)
     } else {
@@ -78,7 +82,8 @@ pub unsafe fn make_existing_atom(
 pub unsafe fn get_atom(env: NIF_ENV, term: NIF_TERM) -> Result<String, Error> {
     // Determine the length of the atom, in bytes.
     let mut len = 0;
-    let success = unsafe { enif_get_atom_length(env, term, &mut len, ErlNifCharEncoding::ERL_NIF_UTF8) };
+    let success =
+        unsafe { enif_get_atom_length(env, term, &mut len, ErlNifCharEncoding::ERL_NIF_UTF8) };
     if success == 0 {
         return Err(Error::BadArg);
     }
@@ -88,13 +93,15 @@ pub unsafe fn get_atom(env: NIF_ENV, term: NIF_TERM) -> Result<String, Error> {
     // so add 1 to the atom's length to make room for it.
     let mut string = String::with_capacity(len as usize + 1);
     let bytes = unsafe { string.as_mut_vec() };
-    let nbytes = unsafe { enif_get_atom(
-        env,
-        term,
-        bytes.as_mut_ptr(),
-        len + 1,
-        ErlNifCharEncoding::ERL_NIF_UTF8,
-    ) };
+    let nbytes = unsafe {
+        enif_get_atom(
+            env,
+            term,
+            bytes.as_mut_ptr(),
+            len + 1,
+            ErlNifCharEncoding::ERL_NIF_UTF8,
+        )
+    };
     if nbytes <= 0 || nbytes as c_uint != len + 1 {
         return Err(Error::BadArg);
     }
@@ -109,7 +116,8 @@ pub unsafe fn get_atom(env: NIF_ENV, term: NIF_TERM) -> Result<String, Error> {
 pub unsafe fn get_atom(env: NIF_ENV, term: NIF_TERM) -> Result<String, Error> {
     // Determine the length of the atom, in bytes.
     let mut len = 0;
-    let success = unsafe { enif_get_atom_length(env, term, &mut len, ErlNifCharEncoding::ERL_NIF_LATIN1) };
+    let success =
+        unsafe { enif_get_atom_length(env, term, &mut len, ErlNifCharEncoding::ERL_NIF_LATIN1) };
     if success == 0 {
         return Err(Error::BadArg);
     }

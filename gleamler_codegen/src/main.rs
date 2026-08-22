@@ -15,8 +15,14 @@ fn main() {
     let src_path = &args[1];
     let erl_out = &args[2];
     let gleam_out = &args[3];
-    let erl_module = args.get(4).cloned().unwrap_or_else(|| "gleamler_nif_ffi".to_string());
-    let lib_name = args.get(5).cloned().unwrap_or_else(|| "gleamler".to_string());
+    let erl_module = args
+        .get(4)
+        .cloned()
+        .unwrap_or_else(|| "gleamler_nif_ffi".to_string());
+    let lib_name = args
+        .get(5)
+        .cloned()
+        .unwrap_or_else(|| "gleamler".to_string());
 
     let source = fs::read_to_string(src_path)
         .unwrap_or_else(|e| panic!("failed to read {}: {}", src_path, e));
@@ -28,7 +34,7 @@ fn main() {
         erl_out,
         gleam_out
     );
-    
+
     let registered = gleamler_codegen::parse_init_nifs_list(&source);
     if !registered.is_empty() {
         for f in &functions {
@@ -44,18 +50,20 @@ fn main() {
             functions.iter().map(|f| f.name.as_str()).collect();
         for name in &registered {
             if !declared.contains(name.as_str()) {
-                eprintln!("warning: `{name}` is listed in init_nifs! but has no #[gleam_nif] function");
+                eprintln!(
+                    "warning: `{name}` is listed in init_nifs! but has no #[gleam_nif] function"
+                );
             }
         }
     }
 
     const RESERVED_ERL_NAMES: &[&str] = &["init", "module_info", "record_info"];
-    
+
     let mut erl_names = std::collections::BTreeSet::new();
-    
+
     for func in &functions {
         let erl_name = func.alias.clone().unwrap_or_else(|| func.name.clone());
-        
+
         if RESERVED_ERL_NAMES.contains(&erl_name.as_str()) {
             panic!(
                 "gleamler_codegen: NIF name '{}' conflicts with a reserved Erlang function name \
@@ -63,7 +71,7 @@ fn main() {
                 erl_name, erl_module
             );
         }
-        
+
         if !erl_names.insert(erl_name.clone()) {
             panic!(
                 "gleamler_codegen: duplicate exported NIF name '{}' (alias collision) in file {:?}",
@@ -71,10 +79,12 @@ fn main() {
             );
         }
     }
-    
+
     let erl_contents = gleamler_codegen::generate_erl(&functions, &erl_module, &lib_name);
     let gleam_contents = gleamler_codegen::generate_gleam(&functions, &erl_module);
 
-    fs::write(erl_out, erl_contents).unwrap_or_else(|e| panic!("failed to write {}: {}", erl_out, e));
-    fs::write(gleam_out, gleam_contents).unwrap_or_else(|e| panic!("failed to write {}: {}", gleam_out, e));
+    fs::write(erl_out, erl_contents)
+        .unwrap_or_else(|e| panic!("failed to write {}: {}", erl_out, e));
+    fs::write(gleam_out, gleam_contents)
+        .unwrap_or_else(|e| panic!("failed to write {}: {}", gleam_out, e));
 }

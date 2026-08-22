@@ -9,7 +9,9 @@ use std::sync::OnceLock;
 static DYN_NIF_CALLBACKS: OnceLock<DynNifCallbacks> = OnceLock::new();
 
 pub fn callbacks() -> &'static DynNifCallbacks {
-    DYN_NIF_CALLBACKS.get().expect("NIF callbacks not initialized")
+    DYN_NIF_CALLBACKS
+        .get()
+        .expect("NIF callbacks not initialized")
 }
 
 pub unsafe fn internal_set_symbols(callbacks: DynNifCallbacks) {

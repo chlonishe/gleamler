@@ -84,12 +84,12 @@
 //! [`OwnedBinary`]: struct.OwnedBinary.html
 
 use crate::{
+    Decoder, Encoder, Env, Error, NifResult, Term,
     sys::{
         enif_inspect_binary, enif_inspect_iolist_as_binary, enif_make_binary, enif_make_sub_binary,
         enif_release_binary,
     },
-    wrapper::binary::{alloc, new_binary, realloc, ErlNifBinary},
-    Decoder, Encoder, Env, Error, NifResult, Term,
+    wrapper::binary::{ErlNifBinary, alloc, new_binary, realloc},
 };
 use std::{
     borrow::{Borrow, BorrowMut},
@@ -173,10 +173,7 @@ impl OwnedBinary {
     pub fn as_mut_slice(&mut self) -> &mut [u8] {
         if self.0.size == 0 {
             return unsafe {
-                ::std::slice::from_raw_parts_mut(
-                    ::std::ptr::NonNull::<u8>::dangling().as_ptr(),
-                    0,
-                )
+                ::std::slice::from_raw_parts_mut(::std::ptr::NonNull::<u8>::dangling().as_ptr(), 0)
             };
         }
         unsafe { ::std::slice::from_raw_parts_mut(self.0.data, self.0.size) }
@@ -352,7 +349,7 @@ impl<'a> Binary<'a> {
         if term.is_binary() {
             return Binary::from_term(term);
         }
-        
+
         let env = term.get_env();
         let mut binary = MaybeUninit::uninit();
         if unsafe {
@@ -521,10 +518,7 @@ impl<'a> NewBinary<'a> {
     pub fn as_mut_slice(&mut self) -> &mut [u8] {
         if self.size == 0 {
             return unsafe {
-                ::std::slice::from_raw_parts_mut(
-                    ::std::ptr::NonNull::<u8>::dangling().as_ptr(),
-                    0,
-                )
+                ::std::slice::from_raw_parts_mut(::std::ptr::NonNull::<u8>::dangling().as_ptr(), 0)
             };
         }
         unsafe { ::std::slice::from_raw_parts_mut(self.buf, self.size) }

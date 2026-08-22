@@ -7,7 +7,8 @@ pub unsafe fn binary_to_term(env: NIF_ENV, data: &[u8], safe: bool) -> Option<(N
     let opts = if safe { ERL_NIF_BIN2TERM_SAFE } else { 0 };
 
     let mut result = MaybeUninit::uninit();
-    let read_count = unsafe { enif_binary_to_term(env, data.as_ptr(), data.len(), result.as_mut_ptr(), opts) };
+    let read_count =
+        unsafe { enif_binary_to_term(env, data.as_ptr(), data.len(), result.as_mut_ptr(), opts) };
 
     if read_count == 0 {
         return None;

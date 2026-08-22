@@ -103,13 +103,15 @@ where
 {
     fn decode(term: Term<'a>) -> NifResult<Self> {
         if let Ok((tag, inner)) = term.decode::<(atom::Atom, Term<'a>)>()
-            && tag == atom::some() {
-                return Ok(Some(inner.decode()?));
-            }
+            && tag == atom::some()
+        {
+            return Ok(Some(inner.decode()?));
+        }
         if let Ok(decoded_atom) = term.decode::<atom::Atom>()
-            && (decoded_atom == atom::none() || decoded_atom == atom::nil()) {
-                return Ok(None);
-            }
+            && (decoded_atom == atom::none() || decoded_atom == atom::nil())
+        {
+            return Ok(None);
+        }
         Err(Error::BadArg)
     }
 }
@@ -187,9 +189,7 @@ where
 
 impl Encoder for () {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        unsafe {
-            Term::new(env, crate::wrapper::list::make_list(env.as_c_arg(), &[]))
-        }
+        unsafe { Term::new(env, crate::wrapper::list::make_list(env.as_c_arg(), &[])) }
     }
 }
 

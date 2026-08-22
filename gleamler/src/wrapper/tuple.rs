@@ -1,5 +1,5 @@
 use crate::sys::{enif_get_tuple, enif_make_tuple_from_array};
-use crate::wrapper::{c_int, NIF_ENV, NIF_ERROR, NIF_TERM};
+use crate::wrapper::{NIF_ENV, NIF_ERROR, NIF_TERM, c_int};
 use std::mem::MaybeUninit;
 
 pub unsafe fn get_tuple<'a>(env: NIF_ENV, term: NIF_TERM) -> Result<&'a [NIF_TERM], NIF_ERROR> {
@@ -9,7 +9,8 @@ pub unsafe fn get_tuple<'a>(env: NIF_ENV, term: NIF_TERM) -> Result<&'a [NIF_TER
     if success != 1 {
         return Err(NIF_ERROR::BAD_ARG);
     }
-    let term_array = unsafe { ::std::slice::from_raw_parts(array_ptr.assume_init(), arity as usize) };
+    let term_array =
+        unsafe { ::std::slice::from_raw_parts(array_ptr.assume_init(), arity as usize) };
     Ok(term_array)
 }
 

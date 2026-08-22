@@ -2,7 +2,7 @@
 //!
 //! Right now the only supported way to read lists are through the ListIterator.
 
-use crate::wrapper::{list, NIF_TERM};
+use crate::wrapper::{NIF_TERM, list};
 use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 
 /// Enables iteration over the items in the list.
@@ -45,10 +45,7 @@ pub struct ListIterator<'a> {
 impl<'a> ListIterator<'a> {
     fn new(term: Term<'a>) -> Option<Self> {
         if term.is_list() {
-            let iter = ListIterator { 
-                term,
-                done: false,
-            };
+            let iter = ListIterator { term, done: false };
             Some(iter)
         } else {
             None

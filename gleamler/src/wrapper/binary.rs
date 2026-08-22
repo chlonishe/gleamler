@@ -1,8 +1,8 @@
 pub(crate) use crate::sys::ErlNifBinary;
 use crate::{
+    Env, Term,
     sys::{enif_alloc_binary, enif_make_new_binary, enif_realloc_binary},
     wrapper::size_t,
-    Env, Term,
 };
 use std::mem::MaybeUninit;
 

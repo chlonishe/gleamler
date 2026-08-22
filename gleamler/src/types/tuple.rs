@@ -1,4 +1,4 @@
-use crate::wrapper::{tuple, NIF_TERM};
+use crate::wrapper::{NIF_TERM, tuple};
 use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 
 /// Convert an Erlang tuple to a Rust vector. (To convert to a Rust tuple, use `term.decode()`

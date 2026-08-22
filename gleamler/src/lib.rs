@@ -5,23 +5,23 @@ extern crate self as gleamler;
 static GLOBAL_ALLOCATOR: crate::alloc::EnifAllocator = crate::alloc::EnifAllocator;
 
 #[doc(hidden)]
-pub mod wrapper;
-#[doc(hidden)]
 pub mod codegen_runtime;
 #[doc(hidden)]
 pub mod sys;
+#[doc(hidden)]
+pub mod wrapper;
 
 mod alloc;
-mod term;
-mod resource;
 mod dynamic;
 mod env;
 mod error;
-mod schedule;
-mod thread;
 mod nif;
+mod resource;
+mod schedule;
+mod term;
 #[cfg(test)]
 mod tests;
+mod thread;
 
 pub mod nifs;
 #[cfg(feature = "stress")]
@@ -34,9 +34,9 @@ pub use crate::env::{Env, OwnedEnv};
 pub use crate::error::Error;
 pub use crate::nif::Nif;
 pub use crate::resource::{Monitor, Resource, ResourceArc, ResourceInitError};
-pub use crate::schedule::{consume_timeslice, SchedulerFlags};
+pub use crate::schedule::{SchedulerFlags, consume_timeslice};
 pub use crate::term::Term;
-pub use crate::thread::{spawn, JobSpawner, ThreadSpawner};
+pub use crate::thread::{JobSpawner, ThreadSpawner, spawn};
 pub use crate::types::{
     Atom, Binary, Decoder, Encoder, ErlOption, ListIterator, LocalPid, MapIterator, NewBinary,
     OwnedBinary, Reference,

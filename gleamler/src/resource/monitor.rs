@@ -1,4 +1,4 @@
-use crate::sys::{enif_compare_monitors, ErlNifMonitor};
+use crate::sys::{ErlNifMonitor, enif_compare_monitors};
 
 /// Handle for a monitor created using `ResourceArc<T>::monitor`.
 ///

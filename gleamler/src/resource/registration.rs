@@ -1,10 +1,10 @@
+use super::ResourceInitError;
 use super::traits;
 use super::util::align_alloced_mem_for_struct;
-use super::ResourceInitError;
 use crate::env::EnvKind;
 use crate::sys::{
-    c_char, c_void, ErlNifEnv, ErlNifMonitor, ErlNifPid, ErlNifResourceDown, ErlNifResourceDtor,
-    ErlNifResourceFlags, ErlNifResourceType, ErlNifResourceTypeInit,
+    ErlNifEnv, ErlNifMonitor, ErlNifPid, ErlNifResourceDown, ErlNifResourceDtor,
+    ErlNifResourceFlags, ErlNifResourceType, ErlNifResourceTypeInit, c_char, c_void,
 };
 use crate::{Env, LocalPid, Monitor, Resource};
 use std::any::TypeId;
@@ -161,7 +161,7 @@ impl Registration {
         }
 
         let type_id = (self.get_type_id)();
-        
+
         let raw_name = self.type_name.unwrap_or_else(|| (self.get_type_name)());
         let sanitized_name: String = raw_name
             .replace("::", "_")
@@ -172,13 +172,15 @@ impl Registration {
 
         if sanitized_name.is_empty()
             || !sanitized_name.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
-            || sanitized_name.chars().any(|c| !c.is_ascii_alphanumeric() && c != '_')
+            || sanitized_name
+                .chars()
+                .any(|c| !c.is_ascii_alphanumeric() && c != '_')
         {
             return Err(ResourceInitError);
         }
 
         let name = CString::new(sanitized_name).map_err(|_| ResourceInitError)?;
-        
+
         let res: Option<*const ErlNifResourceType> = unsafe {
             open_resource_type(
                 env.as_c_arg(),
@@ -255,11 +257,7 @@ pub unsafe fn open_resource_type(
         unsafe { OPEN_RESOURCE_TYPE(env, name_p, &init, flags, tried.as_mut_ptr()) }
     };
 
-    if res.is_null() {
-        None
-    } else {
-        Some(res)
-    }
+    if res.is_null() { None } else { Some(res) }
 }
 
 type OpenResourceTypeFn = unsafe extern "C" fn(
@@ -279,9 +277,5 @@ static OPEN_RESOURCE_TYPE: OpenResourceTypeFn = crate::sys::enif_open_resource_t
 // Only used in NIF versions 2.16 and onwards
 #[allow(unused)]
 const fn max(i: i32, j: i32) -> i32 {
-    if i > j {
-        i
-    } else {
-        j
-    }
+    if i > j { i } else { j }
 }

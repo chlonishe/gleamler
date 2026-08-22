@@ -1,10 +1,10 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
 
-use syn::{self, spanned::Spanned, Field, Ident, Index};
+use syn::{self, Field, Ident, Index, spanned::Spanned};
 
-use super::context::Context;
 use super::GleamlerAttr;
+use super::context::Context;
 
 pub fn transcoder_decorator(ast: &syn::DeriveInput) -> TokenStream {
     let ctx = Context::from_ast(ast);

@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
-use syn::{self, spanned::Spanned, Fields, Variant};
+use syn::{self, Fields, Variant, spanned::Spanned};
 
 use super::context::Context;
 

@@ -1,5 +1,5 @@
-use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 use crate::types::atom;
+use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 
 const EXTERNAL_TERM_FORMAT_VERSION: u8 = 131;
 const SMALL_BIG_EXT: u8 = 110;
@@ -87,7 +87,7 @@ impl<'a> Decoder<'a> for i128 {
         res[..n].copy_from_slice(&input[4..4 + n]);
 
         let raw = u128::from_le_bytes(res);
-        
+
         if is_pos {
             if raw > i128::MAX as u128 {
                 return Err(Error::BadArg);

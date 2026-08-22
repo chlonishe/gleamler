@@ -1,6 +1,6 @@
+use crate::Env;
 use crate::sys::enif_consume_timeslice;
 use crate::wrapper::ErlNifTaskFlags;
-use crate::Env;
 
 pub enum SchedulerFlags {
     Normal = ErlNifTaskFlags::ERL_NIF_NORMAL_JOB as isize,

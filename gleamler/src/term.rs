@@ -1,7 +1,7 @@
 use crate::sys::*;
 use crate::types::binary::OwnedBinary;
-use crate::wrapper::env::term_to_binary;
 use crate::wrapper::NIF_TERM;
+use crate::wrapper::env::term_to_binary;
 use crate::{Binary, Decoder, Env, NifResult};
 use std::cmp::Ordering;
 use std::fmt::{self, Debug};

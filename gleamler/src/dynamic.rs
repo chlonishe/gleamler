@@ -3,8 +3,8 @@ use std::ffi::c_double;
 #[cfg(feature = "nif_version_2_15")]
 use crate::sys::ErlNifTermType;
 
-use crate::wrapper::check;
 use crate::Term;
+use crate::wrapper::check;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TermType {
@@ -49,7 +49,7 @@ pub fn get_type(term: Term) -> TermType {
     {
         term.get_erl_type().into()
     }
-    
+
     #[cfg(not(feature = "nif_version_2_15"))]
     {
         if term.is_atom() {

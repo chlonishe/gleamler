@@ -117,7 +117,11 @@ impl ApiBuilder for ForwardersApiBuilder<'_> {
         write!(self.0, "pub unsafe fn get_{name}() -> ").unwrap();
         write_variadic_fn_type(self.0, args, ret);
         writeln!(self.0, " {{").unwrap();
-        writeln!(self.0, "    unsafe {{ callbacks().{name}.unwrap_unchecked() }}").unwrap();
+        writeln!(
+            self.0,
+            "    unsafe {{ callbacks().{name}.unwrap_unchecked() }}"
+        )
+        .unwrap();
         writeln!(self.0, "}}\n").unwrap();
     }
     fn dummy(&mut self, _name: &str) {}
@@ -149,7 +153,6 @@ impl ApiBuilder for WriterBuilder<'_> {
     }
     fn dummy(&mut self, _name: &str) {}
 }
-
 
 fn generate(opts: &GenerateOptions) -> String {
     let mut out = String::new();
@@ -875,10 +878,10 @@ fn main() {
     };
 
     let target_pointer_width = match env::var("CARGO_CFG_TARGET_POINTER_WIDTH") {
-       Ok(target_pointer_width) => target_pointer_width,
-         Err(err) => panic!(
+        Ok(target_pointer_width) => target_pointer_width,
+        Err(err) => panic!(
             "An error occurred while determining the pointer width to compile `gleamler_sys` for:\n\n{err:?}\n\nPlease report a bug."
-        )
+        ),
     };
 
     let ulong_size = match target_family {

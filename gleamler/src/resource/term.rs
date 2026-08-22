@@ -12,18 +12,22 @@ impl<'a> Term<'a> {
     ) -> Option<(*const c_void, *mut T)> {
         let typ = T::get_resource_type()?;
         let mut ret_obj = MaybeUninit::uninit();
-        let res = unsafe { enif_get_resource(
-            self.get_env().as_c_arg(),
-            self.as_c_arg(),
-            typ,
-            ret_obj.as_mut_ptr(),
-        ) };
+        let res = unsafe {
+            enif_get_resource(
+                self.get_env().as_c_arg(),
+                self.as_c_arg(),
+                typ,
+                ret_obj.as_mut_ptr(),
+            )
+        };
 
         if res == 0 {
             None
         } else {
             let res = unsafe { ret_obj.assume_init() };
-            Some((res, unsafe { align_alloced_mem_for_struct::<T>(res) as *mut T } ))
+            Some((res, unsafe {
+                align_alloced_mem_for_struct::<T>(res) as *mut T
+            }))
         }
     }
 

@@ -59,10 +59,7 @@ where
                     } else if let Some(&s) = err.downcast_ref::<&'static str>() {
                         s.encode(env)
                     } else {
-                        Atom::from_str(env, "nif_panic")
-                            .ok()
-                            .unwrap()
-                            .to_term(env)
+                        Atom::from_str(env, "nif_panic").ok().unwrap().to_term(env)
                     };
                     env.error_tuple(reason)
                 }

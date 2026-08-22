@@ -64,7 +64,8 @@ pub(crate) trait ResourceExt: 'static {
     fn get_resource_type() -> Option<NifResourcePtr> {
         let map = RESOURCE_TYPES.get()?;
         let guard = map.read().expect("RESOURCE_TYPES poisoned");
-        guard.get(&TypeId::of::<Self>())
+        guard
+            .get(&TypeId::of::<Self>())
             .map(|ptr| *ptr as NifResourcePtr)
     }
 }
