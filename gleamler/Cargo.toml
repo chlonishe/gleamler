@@ -17,6 +17,7 @@ big_integer = ["num-bigint"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
+doctest = false
 
 [dependencies]
 gleamler_macros = { path = "../gleamler_macros" }
