@@ -857,13 +857,14 @@ fn atomic_write(path: &Path, contents: impl AsRef<[u8]>) {
     if cfg!(windows) {
         let _ = fs::remove_file(path);
     }
-    fs::rename(&tmp, path)
-        .unwrap_or_else(|e| panic!(
+    fs::rename(&tmp, path).unwrap_or_else(|e| {
+        panic!(
             "failed to rename {} → {}: {}",
             tmp.display(),
             path.display(),
             e
-        ));
+        )
+    });
 }
 
 fn get_nif_version_from_features() -> (u32, u32) {
