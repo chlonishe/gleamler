@@ -921,18 +921,29 @@ fn main() {
         let gleam_time = fs::metadata(&gleam_out).unwrap().modified().unwrap();
         let out_time = erl_time.max(gleam_time);
 
-        let src_dir = Path::new(&manifest_dir).join("src");
-        for entry in fs::read_dir(&src_dir).unwrap().flatten() {
-            let path = entry.path();
-            if path.extension().map_or(false, |e| e == "rs") {
-                if let Ok(meta) = fs::metadata(&path) {
-                    if let Ok(modified) = meta.modified() {
-                        if modified > out_time {
-                            needs_gen = true;
-                            break;
+        let check_dir = |dir: &Path| -> bool {
+            for entry in fs::read_dir(dir).unwrap().flatten() {
+                let path = entry.path();
+                if path.extension().is_some_and(|e| e == "rs") {
+                    if let Ok(meta) = fs::metadata(&path) {
+                        if let Ok(modified) = meta.modified() {
+                            if modified > out_time {
+                                return true;
+                            }
                         }
                     }
                 }
+            }
+            false
+        };
+
+        let src_dir = Path::new(&manifest_dir).join("src");
+        needs_gen = check_dir(&src_dir);
+
+        if !needs_gen {
+            let codegen_src = workspace_root.join("gleamler_codegen/src");
+            if codegen_src.exists() {
+                needs_gen = check_dir(&codegen_src);
             }
         }
     }
