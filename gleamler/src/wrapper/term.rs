@@ -41,7 +41,9 @@ pub fn fmt(term: NIF_TERM, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         }
     }
 
-    assert!(n > 0, "enif_snprintf failed to format Erlang term after 10 retries");
+    if n == 0 {
+        return f.write_str("<term>");
+    }
     unsafe {
         bytes.set_len(n);
     }
