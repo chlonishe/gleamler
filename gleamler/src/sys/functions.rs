@@ -22,7 +22,7 @@ pub unsafe fn internal_set_symbols(callbacks: DynNifCallbacks) {
 pub unsafe fn internal_write_symbols() {
     DYN_NIF_CALLBACKS.get_or_init(|| {
         let mut callbacks = DynNifCallbacks::default();
-        let filler = nif_filler::new();
+        let filler = super::nif_filler::new();
         callbacks.write_symbols(filler);
         callbacks
     });
