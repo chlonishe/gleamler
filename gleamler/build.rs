@@ -850,6 +850,22 @@ fn build_api(b: &mut dyn ApiBuilder, opts: &GenerateOptions) {
     b.finish();
 }
 
+fn atomic_write(path: &Path, contents: impl AsRef<[u8]>) {
+    let tmp = path.with_extension("tmp");
+    fs::write(&tmp, contents)
+        .unwrap_or_else(|e| panic!("failed to write temp file {}: {}", tmp.display(), e));
+    if cfg!(windows) {
+        let _ = fs::remove_file(path);
+    }
+    fs::rename(&tmp, path)
+        .unwrap_or_else(|e| panic!(
+            "failed to rename {} → {}: {}",
+            tmp.display(),
+            path.display(),
+            e
+        ));
+}
+
 fn get_nif_version_from_features() -> (u32, u32) {
     for major in ((MIN_SUPPORTED_VERSION.0)..=(MAX_SUPPORTED_VERSION.0)).rev() {
         for minor in ((MIN_SUPPORTED_VERSION.1)..=(MAX_SUPPORTED_VERSION.1)).rev() {
@@ -956,10 +972,8 @@ fn main() {
     let erl_contents = gleamler_codegen::generate_erl(&functions, erl_module, lib_name);
     let gleam_contents = gleamler_codegen::generate_gleam(&functions, erl_module);
 
-    fs::write(&erl_out, erl_contents)
-        .unwrap_or_else(|e| panic!("failed to write {}: {}", erl_out.display(), e));
-    fs::write(&gleam_out, gleam_contents)
-        .unwrap_or_else(|e| panic!("failed to write {}: {}", gleam_out.display(), e));
+    atomic_write(&erl_out, erl_contents);
+    atomic_write(&gleam_out, gleam_contents);
 
     let registry_out = Path::new(&out_dir).join("nif_registry.rs");
     let mut registry = String::from("pub static NIFS: &[::gleamler::sys::ErlNifFunc] = &[\n");
@@ -983,8 +997,7 @@ fn main() {
         ));
     }
     registry.push_str("];\n");
-    fs::write(&registry_out, registry)
-        .unwrap_or_else(|e| panic!("failed to write {}: {}", registry_out.display(), e));
+    atomic_write(&registry_out, registry);
 
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed={}", nifs_rs.display());
