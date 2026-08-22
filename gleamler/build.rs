@@ -914,80 +914,44 @@ fn main() {
     let erl_out = workspace_root.join("src/gleamler_nif_ffi.erl");
     let gleam_out = workspace_root.join("src/gleamler_nif.gleam");
 
-    let mut needs_gen = !erl_out.exists() || !gleam_out.exists();
-
-    if !needs_gen {
-        let erl_time = fs::metadata(&erl_out).unwrap().modified().unwrap();
-        let gleam_time = fs::metadata(&gleam_out).unwrap().modified().unwrap();
-        let out_time = erl_time.max(gleam_time);
-
-        let check_dir = |dir: &Path| -> bool {
-            for entry in fs::read_dir(dir).unwrap().flatten() {
-                let path = entry.path();
-                if path.extension().is_some_and(|e| e == "rs") {
-                    if let Ok(meta) = fs::metadata(&path) {
-                        if let Ok(modified) = meta.modified() {
-                            if modified > out_time {
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-            false
-        };
-
-        let src_dir = Path::new(&manifest_dir).join("src");
-        needs_gen = check_dir(&src_dir);
-
-        if !needs_gen {
-            let codegen_src = workspace_root.join("gleamler_codegen/src");
-            if codegen_src.exists() {
-                needs_gen = check_dir(&codegen_src);
-            }
-        }
-    }
-
     let source = fs::read_to_string(&nifs_rs)
         .unwrap_or_else(|e| panic!("failed to read {}: {}", nifs_rs.display(), e));
     let functions = gleamler_codegen::parse_nif_functions(&source);
 
-    if needs_gen {
-        let registered = gleamler_codegen::parse_init_nifs_list(&source);
+    let registered = gleamler_codegen::parse_init_nifs_list(&source);
 
-        if !registered.is_empty() {
-            for f in &functions {
-                if !registered.contains(&f.name) {
-                    println!(
-                        "cargo:warning=#[gleam_nif] fn `{}` is not listed in init_nifs! — \
-                         its stubs will exit(nif_library_not_loaded) at runtime",
-                        f.name
-                    );
-                }
-            }
-            let declared: std::collections::BTreeSet<_> =
-                functions.iter().map(|f| f.name.as_str()).collect();
-            for name in &registered {
-                if !declared.contains(name.as_str()) {
-                    println!(
-                        "cargo:warning=`{}` is listed in init_nifs! but has no #[gleam_nif] function",
-                        name
-                    );
-                }
+    if !registered.is_empty() {
+        for f in &functions {
+            if !registered.contains(&f.name) {
+                println!(
+                    "cargo:warning=#[gleam_nif] fn `{}` is not listed in init_nifs! — \
+                     its stubs will exit(nif_library_not_loaded) at runtime",
+                    f.name
+                );
             }
         }
-
-        let erl_module = "gleamler_nif_ffi";
-        let lib_name = "gleamler";
-
-        let erl_contents = gleamler_codegen::generate_erl(&functions, erl_module, lib_name);
-        let gleam_contents = gleamler_codegen::generate_gleam(&functions, erl_module);
-
-        fs::write(&erl_out, erl_contents)
-            .unwrap_or_else(|e| panic!("failed to write {}: {}", erl_out.display(), e));
-        fs::write(&gleam_out, gleam_contents)
-            .unwrap_or_else(|e| panic!("failed to write {}: {}", gleam_out.display(), e));
+        let declared: std::collections::BTreeSet<_> =
+            functions.iter().map(|f| f.name.as_str()).collect();
+        for name in &registered {
+            if !declared.contains(name.as_str()) {
+                println!(
+                    "cargo:warning=`{}` is listed in init_nifs! but has no #[gleam_nif] function",
+                    name
+                );
+            }
+        }
     }
+
+    let erl_module = "gleamler_nif_ffi";
+    let lib_name = "gleamler";
+
+    let erl_contents = gleamler_codegen::generate_erl(&functions, erl_module, lib_name);
+    let gleam_contents = gleamler_codegen::generate_gleam(&functions, erl_module);
+
+    fs::write(&erl_out, erl_contents)
+        .unwrap_or_else(|e| panic!("failed to write {}: {}", erl_out.display(), e));
+    fs::write(&gleam_out, gleam_contents)
+        .unwrap_or_else(|e| panic!("failed to write {}: {}", gleam_out.display(), e));
 
     let registry_out = Path::new(&out_dir).join("nif_registry.rs");
     let mut registry = String::from("pub static NIFS: &[::gleamler::sys::ErlNifFunc] = &[\n");
@@ -1007,7 +971,6 @@ fn main() {
     fs::write(&registry_out, registry)
         .unwrap_or_else(|e| panic!("failed to write {}: {}", registry_out.display(), e));
 
-    
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed={}", nifs_rs.display());
 
