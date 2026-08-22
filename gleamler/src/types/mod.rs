@@ -187,13 +187,15 @@ where
 
 impl Encoder for () {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        atom::nil().to_term(env)
+        unsafe {
+            Term::new(env, crate::wrapper::list::make_list(env.as_c_arg(), &[]))
+        }
     }
 }
 
 impl<'a> Decoder<'a> for () {
     fn decode(term: Term<'a>) -> NifResult<Self> {
-        if term == atom::nil().to_term(term.get_env()) {
+        if term.is_empty_list() {
             Ok(())
         } else {
             Err(Error::BadArg)
