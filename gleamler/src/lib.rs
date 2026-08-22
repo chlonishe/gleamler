@@ -24,6 +24,8 @@ mod nif;
 mod tests;
 
 pub mod nifs;
+#[cfg(feature = "stress")]
+pub mod stress_nifs;
 pub mod types;
 
 pub use crate::alloc::EnifAllocator;

@@ -911,12 +911,17 @@ fn main() {
     let workspace_root = Path::new(&manifest_dir).parent().unwrap();
 
     let nifs_rs = Path::new(&manifest_dir).join("src/nifs.rs");
+    let stress_nifs_rs = Path::new(&manifest_dir).join("src/stress_nifs.rs");
     let erl_out = workspace_root.join("src/gleamler_nif_ffi.erl");
     let gleam_out = workspace_root.join("src/gleamler_nif.gleam");
 
     let source = fs::read_to_string(&nifs_rs)
         .unwrap_or_else(|e| panic!("failed to read {}: {}", nifs_rs.display(), e));
-    let functions = gleamler_codegen::parse_nif_functions(&source);
+    let mut functions = gleamler_codegen::parse_nif_functions(&source);
+
+    let stress_source = fs::read_to_string(&stress_nifs_rs)
+        .unwrap_or_else(|e| panic!("failed to read {}: {}", stress_nifs_rs.display(), e));
+    functions.extend(gleamler_codegen::parse_nif_functions(&stress_source));
 
     let registered = gleamler_codegen::parse_init_nifs_list(&source);
 
@@ -957,7 +962,14 @@ fn main() {
     let mut registry = String::from("pub static NIFS: &[::gleamler::sys::ErlNifFunc] = &[\n");
 
     for f in &functions {
-        let const_name = format!("super::__GLEAMLER_NIF_{}", f.name);
+        let const_name = if f.name.starts_with("stress_") {
+            format!("crate::stress_nifs::__GLEAMLER_NIF_{}", f.name)
+        } else {
+            format!("super::__GLEAMLER_NIF_{}", f.name)
+        };
+        if f.name.starts_with("stress_") {
+            registry.push_str("    #[cfg(feature = \"stress\")]\n");
+        }
         registry.push_str(&format!(
             "    ::gleamler::sys::ErlNifFunc {{\n\
              name: {const_name}.name,\n\
@@ -973,6 +985,7 @@ fn main() {
 
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed={}", nifs_rs.display());
+    println!("cargo:rerun-if-changed={}", stress_nifs_rs.display());
 
     let codegen_src = workspace_root.join("gleamler_codegen/src");
     if codegen_src.exists() {
