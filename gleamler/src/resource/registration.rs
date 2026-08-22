@@ -11,6 +11,13 @@ use std::any::TypeId;
 use std::ffi::CString;
 use std::mem::MaybeUninit;
 use std::ptr;
+use std::sync::{Mutex, OnceLock};
+
+static FALLBACK_REGISTRATIONS: OnceLock<Mutex<Vec<Registration>>> = OnceLock::new();
+
+fn fallback_registrations() -> &'static Mutex<Vec<Registration>> {
+    FALLBACK_REGISTRATIONS.get_or_init(|| Mutex::new(Vec::new()))
+}
 
 #[derive(Debug)]
 pub struct Registration {
@@ -20,6 +27,7 @@ pub struct Registration {
     init: ErlNifResourceTypeInit,
 }
 
+unsafe impl Send for Registration {}
 unsafe impl Sync for Registration {}
 
 inventory::collect!(Registration);
@@ -39,10 +47,24 @@ impl Env<'_> {
 /// `std::mem::needs_drop`). All other callbacks are only registered if `IMPLEMENTS_...` is set to
 /// `true`.
 impl Registration {
+    /// Submit a registration into the fallback list. Used as a safety net
+    /// when `inventory` sections are stripped by the linker (cdylib, LTO).
+    pub fn submit_fallback(reg: Registration) {
+        if let Ok(mut guard) = fallback_registrations().lock() {
+            guard.push(reg);
+        }
+    }
+
     /// Register all resource types that have been submitted to the inventory.
+    /// Also processes fallback registrations for cdylib / LTO builds.
     pub fn register_all_collected(env: Env) -> Result<(), ResourceInitError> {
         for reg in inventory::iter::<Registration>() {
             reg.register(env)?;
+        }
+        if let Ok(guard) = fallback_registrations().lock() {
+            for reg in guard.iter() {
+                reg.register(env)?;
+            }
         }
 
         Ok(())

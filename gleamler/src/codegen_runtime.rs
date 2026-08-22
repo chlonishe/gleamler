@@ -9,6 +9,9 @@ use crate::{Encoder, Env, OwnedBinary, Term};
 // Re-export of inventory
 pub use inventory;
 
+// Re-export of ctor for resource_impl macro
+pub use ctor;
+
 // Re-export of resource registration
 pub use crate::resource::Registration as ResourceRegistration;
 

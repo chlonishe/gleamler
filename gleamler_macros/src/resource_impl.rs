@@ -63,19 +63,39 @@ pub fn transcoder_decorator(attrs: Attributes, mut input: syn::ItemImpl) -> Toke
     let mut res = quote!(#input);
 
     if attrs.register {
-        if let Some(name) = attrs.name {
-            res.extend(quote!(
+        let fallback_fn = syn::Ident::new(
+            &format!("__gleamler_fallback_reg_{}", type_path.path.segments.last().unwrap().ident),
+            Span::call_site(),
+        );
+        
+        let submit = if let Some(name) = attrs.name {
+            quote!(
                 ::gleamler::codegen_runtime::inventory::submit!(
                     ::gleamler::codegen_runtime::ResourceRegistration::new::<#type_path>().with_name(#name)
                 );
-            ));
+
+                #[::gleamler::codegen_runtime::ctor::ctor]
+                fn #fallback_fn() {
+                    ::gleamler::resource::Registration::submit_fallback(
+                        ::gleamler::resource::Registration::new::<#type_path>().with_name(#name)
+                    );
+                }
+            )
         } else {
-            res.extend(quote!(
+            quote!(
                 ::gleamler::codegen_runtime::inventory::submit!(
                     ::gleamler::codegen_runtime::ResourceRegistration::new::<#type_path>()
                 );
-            ));
-        }
+
+                #[::gleamler::codegen_runtime::ctor::ctor]
+                fn #fallback_fn() {
+                    ::gleamler::resource::Registration::submit_fallback(
+                        ::gleamler::resource::Registration::new::<#type_path>()
+                    );
+                }
+            )
+        };
+        res.extend(quote!(#submit));
     }
 
     res
