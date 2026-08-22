@@ -1,17 +1,33 @@
 {
    rust-thread-info-reachable
    Memcheck:Leak
-   match-leak-kinds: reachable
    fun:malloc
-   ...
+   fun:alloc
+   fun:alloc_impl
+   fun:allocate
+   fun:try_new_uninit_in
+   fun:new_uninit_in
+   fun:new
+   fun:new_leaf
+   fun:insert_entry
+   fun:insert
    fun:std::sys::pal::unix::stack_overflow::thread_info::set_current_info
-   ...
+   fun:init
+   fun:init
+   fun:init
+   fun:do_call
+   fun:catch_unwind
+   fun:catch_unwind
+   fun:std::rt::lang_start_internal
+   fun:std::rt::lang_start
+   fun:main
 }
 
 {
    rust-dlopen-reachable
    Memcheck:Leak
-   match-leak-kinds: reachable
+   fun:malloc
+   ...
    fun:_dl_open
    ...
 }
@@ -19,7 +35,6 @@
 {
    rust-possibly-lost-malloc
    Memcheck:Leak
-   match-leak-kinds: possibly-lost
    fun:malloc
    ...
 }
