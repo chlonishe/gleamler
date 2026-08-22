@@ -1,5 +1,5 @@
 {
-   rust-dlopen-thread-info-reachable
+   rust-thread-info-reachable
    Memcheck:Leak
    match-leak-kinds: reachable
    fun:malloc
@@ -9,27 +9,7 @@
 }
 
 {
-   rust-dlopen-btree-node-reachable
-   Memcheck:Leak
-   match-leak-kinds: reachable
-   fun:malloc
-   fun:*alloc*
-   ...
-   fun:*BTreeMap*
-   ...
-}
-
-{
-   libloading-dlopen-possibly-lost
-   Memcheck:Leak
-   match-leak-kinds: possibly-lost
-   fun:malloc
-   obj:*/libdl-*.so
-   ...
-}
-
-{
-   libloading-dlopen-reachable
+   rust-dlopen-reachable
    Memcheck:Leak
    match-leak-kinds: reachable
    fun:_dl_open
@@ -37,9 +17,9 @@
 }
 
 {
-   rustc-runtime-reachable
+   rust-possibly-lost-malloc
    Memcheck:Leak
-   match-leak-kinds: reachable
-   obj:*/libstd-*.so
+   match-leak-kinds: possibly-lost
+   fun:malloc
    ...
 }
