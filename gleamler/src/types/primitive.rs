@@ -117,13 +117,7 @@ impl Decoder<'_> for f64 {
 impl Decoder<'_> for f32 {
     fn decode(term: Term) -> NifResult<f32> {
         let res: f64 = term.decode()?;
-        let res = res as f32;
-        // Values bigger than f32 are coerced as infinity
-        if res.is_finite() {
-            Ok(res)
-        } else {
-            Err(Error::BadArg)
-        }
+        Ok(res as f32)
     }
 }
 
