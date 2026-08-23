@@ -258,10 +258,7 @@ impl<'a> Env<'a> {
         let mut size: crate::sys::size_t = 0;
 
         let ret = unsafe { enif_getenv(c_key.as_ptr(), std::ptr::null_mut(), &mut size) };
-        if ret == 0 {
-            return Err(Error::BadArg);
-        }
-        if ret < 0 {
+        if ret != 0 {
             return Err(Error::BadArg);
         }
 
@@ -273,11 +270,12 @@ impl<'a> Env<'a> {
                 &mut size,
             )
         };
-        if ret2 <= 0 {
+        if ret2 != 0 {
             return Err(Error::BadArg);
         }
 
-        String::from_utf8(buf[..size.min(buf.len())].to_vec()).map_err(|_| Error::BadArg)
+        let len = size.saturating_sub(1);
+        String::from_utf8(buf[..len].to_vec()).map_err(|_| Error::BadArg)
     }
 
     /// Attempts to find the port registered by `name_or_port`.
