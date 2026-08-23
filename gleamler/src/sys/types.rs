@@ -271,10 +271,10 @@ pub const ERL_NIF_UNIQUE_MONOTONIC: ErlNifUniqueInteger = 1 << 1;
 //        Fix if the right abstraction ever lands in Rust.
 
 /// See [ErlNifPort](http://erlang.org/doc/man/erl_nif.html#ErlNifPort) in the Erlang docs.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct ErlNifPort {
-    port_id: ERL_NIF_TERM, // internal, may change
+    pub(crate) port_id: ERL_NIF_TERM, // internal, may change
 }
 // ref https://github.com/erlang/otp/blob/maint/erts/emulator/beam/erl_nif.h#L155
 

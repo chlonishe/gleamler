@@ -6,7 +6,15 @@ use crate::{Encoder, Term};
 use std::marker::PhantomData;
 use std::ptr;
 use std::sync::{Arc, Weak};
-
+use crate::Error;
+use crate::sys::enif_getenv;
+use crate::sys::{enif_cpu_time, enif_make_unique_integer, enif_now_time};
+use crate::sys::enif_whereis_port;
+#[cfg(feature = "nif_version_2_17")]
+use crate::sys::{enif_set_option};
+#[cfg(feature = "nif_version_2_18")]
+use crate::sys::{enif_get_atom_cache_index, enif_max_atom_cache_index};
+use crate::types::LocalPort;
 /// Private type system hack to help ensure that each environment exposed to safe Rust code is
 /// given a different lifetime. The size of this type is zero, so it costs nothing at run time. Its
 /// purpose is to make `Env<'a>` and `Term<'a>` *invariant* w.r.t. `'a`, so that Rust won't
@@ -47,6 +55,41 @@ impl<'b> PartialEq<Env<'b>> for Env<'_> {
 /// [enif\_send](https://www.erlang.org/doc/man/erl_nif.html#enif_send).
 #[derive(Clone, Copy, Debug)]
 pub struct SendError;
+
+/// Flags for `Env::make_unique_integer`
+#[derive(Clone, Copy, Debug)]
+pub enum UniqueIntegerFlags {
+    Positive,
+    Monotonic,
+}
+
+impl UniqueIntegerFlags {
+    fn as_sys(self) -> crate::sys::ErlNifUniqueInteger {
+        match self {
+            UniqueIntegerFlags::Positive => crate::sys::ERL_NIF_UNIQUE_POSITIVE,
+            UniqueIntegerFlags::Monotonic => crate::sys::ERL_NIF_UNIQUE_MONOTONIC,
+        }
+    }
+}
+
+/// Options for `Env::set_option`
+/// Requires NIF version ≥ 2.17 (OTP 26+).
+#[cfg(feature = "nif_version_2_17")]
+#[derive(Clone, Copy, Debug)]
+pub enum NifOption {
+    DelayHalt,
+    OnHalt,
+}
+
+#[cfg(feature = "nif_version_2_17")]
+impl NifOption {
+    fn as_sys(self) -> crate::sys::ErlNifOption {
+        match self {
+            NifOption::DelayHalt => crate::sys::ErlNifOption::ERL_NIF_OPT_DELAY_HALT,
+            NifOption::OnHalt => crate::sys::ErlNifOption::ERL_NIF_OPT_ON_HALT,
+        }
+    }
+}
 
 impl<'a> Env<'a> {
     #[doc(hidden)]
@@ -186,6 +229,100 @@ impl<'a> Env<'a> {
 
     pub(crate) fn generation(self) -> u64 {
         self.generation
+    }
+
+    /// Returns the current time as an Erlang timestamp term.
+    pub fn now_time(self) -> Term<'a> {
+        unsafe { Term::new(self, enif_now_time(self.as_c_arg())) }
+    }
+
+    /// Returns the current CPU time as an Erlang timestamp term.
+    pub fn cpu_time(self) -> Term<'a> {
+        unsafe { Term::new(self, enif_cpu_time(self.as_c_arg())) }
+    }
+
+    /// Creates a unique integer term.
+    pub fn make_unique_integer(self, flags: UniqueIntegerFlags) -> Term<'a> {
+        unsafe { Term::new(self, enif_make_unique_integer(self.as_c_arg(), flags.as_sys())) }
+    }
+
+    /// Reads an OS environment variable via the Erlang VM.
+    pub fn getenv(self, key: &str) -> Result<String, Error> {
+        use std::ffi::CString;
+        let c_key = CString::new(key).map_err(|_| Error::BadArg)?;
+        let mut size: crate::sys::size_t = 0;
+
+        let ret = unsafe { enif_getenv(c_key.as_ptr(), std::ptr::null_mut(), &mut size) };
+        if ret == 0 {
+            return Err(Error::BadArg);
+        }
+        if ret < 0 {
+            return Err(Error::BadArg);
+        }
+
+        let mut buf = vec![0u8; size];
+        let ret2 = unsafe {
+            enif_getenv(
+                c_key.as_ptr(),
+                buf.as_mut_ptr() as *mut crate::sys::c_char,
+                &mut size,
+            )
+        };
+        if ret2 <= 0 {
+            return Err(Error::BadArg);
+        }
+
+        String::from_utf8(buf[..size.min(buf.len())].to_vec())
+            .map_err(|_| Error::BadArg)
+    }
+
+    /// Attempts to find the port registered by `name_or_port`.
+    pub fn whereis_port(self, name_or_port: impl Encoder) -> Option<LocalPort> {
+        let name_or_port = name_or_port.encode(self);
+        if name_or_port.is_port() {
+            return Some(name_or_port.decode().unwrap());
+        }
+        let mut enif_port = std::mem::MaybeUninit::uninit();
+        if unsafe {
+            enif_whereis_port(self.as_c_arg(), name_or_port.as_c_arg(), enif_port.as_mut_ptr())
+        } == 0
+        {
+            None
+        } else {
+            let enif_port = unsafe { enif_port.assume_init() };
+            Some(LocalPort::from_c_arg(enif_port))
+        }
+    }
+
+    /// Sets a NIF environment option.
+    /// Requires NIF version ≥ 2.17 (OTP 26+).
+    #[cfg(feature = "nif_version_2_17")]
+    pub fn set_option(self, option: NifOption) -> Result<(), Error> {
+        let res = unsafe { enif_set_option(self.as_c_arg(), option.as_sys()) };
+        if res == 0 {
+            Ok(())
+        } else {
+            Err(Error::BadArg)
+        }
+    }
+
+    /// Returns the atom cache index of an existing atom term.
+    /// Requires NIF version ≥ 2.18 (OTP 29+).
+    #[cfg(feature = "nif_version_2_18")]
+    pub fn get_atom_cache_index(self, term: Term<'a>) -> Result<u32, Error> {
+        let mut idx: crate::sys::c_uint = 0;
+        if unsafe { enif_get_atom_cache_index(self.as_c_arg(), term.as_c_arg(), &mut idx) } == 0 {
+            Err(Error::BadArg)
+        } else {
+            Ok(idx)
+        }
+    }
+
+    /// Returns the maximum atom cache index used by this VM instance.
+    /// Requires NIF version ≥ 2.18 (OTP 29+).
+    #[cfg(feature = "nif_version_2_18")]
+    pub fn max_atom_cache_index(self) -> u32 {
+        unsafe { enif_max_atom_cache_index() }
     }
 }
 

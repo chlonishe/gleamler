@@ -34,6 +34,10 @@ pub use self::local_pid::LocalPid;
 pub mod reference;
 pub use self::reference::Reference;
 
+#[doc(hidden)]
+pub mod local_port;
+pub use self::local_port::LocalPort;
+
 pub mod i128;
 pub mod path;
 

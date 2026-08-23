@@ -166,6 +166,36 @@ where
 
         unsafe { enif_demonitor_process(env.as_c_arg(), self.raw, mon.as_c_arg()) == 0 }
     }
+
+    /// Monitor an OS event (file descriptor / handle) associated with this resource.
+    ///
+    /// Available since NIF version 2.12 (OTP 22).  
+    /// See [`enif_select`](https://www.erlang.org/doc/man/erl_nif.html#enif_select).
+    #[allow(clippy::not_unsafe_ptr_arg_deref)] // ErlNifEvent is an opaque handle
+    pub fn select(
+        &self,
+        env: Env,
+        event: crate::sys::ErlNifEvent,
+        flags: crate::schedule::SelectFlags,
+        pid: &crate::LocalPid,
+        reference: Term,
+    ) -> Result<(), Error> {
+        let res = unsafe {
+            crate::sys::enif_select(
+                env.as_c_arg(),
+                event,
+                flags.as_c_int(),
+                self.raw,
+                pid.as_c_arg(),
+                reference.as_c_arg(),
+            )
+        };
+        if res == 0 {
+            Ok(())
+        } else {
+            Err(Error::BadArg)
+        }
+    }
 }
 
 impl<'a> Env<'a> {
