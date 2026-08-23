@@ -184,7 +184,7 @@ impl<'a> Env<'a> {
     pub fn whereis_pid(self, name_or_pid: impl Encoder) -> Option<LocalPid> {
         let name_or_pid = name_or_pid.encode(self);
         if name_or_pid.is_pid() {
-            return Some(name_or_pid.decode().unwrap());
+            return name_or_pid.decode::<LocalPid>().ok();
         }
 
         let mut enif_pid = std::mem::MaybeUninit::uninit();
@@ -284,7 +284,7 @@ impl<'a> Env<'a> {
     pub fn whereis_port(self, name_or_port: impl Encoder) -> Option<LocalPort> {
         let name_or_port = name_or_port.encode(self);
         if name_or_port.is_port() {
-            return Some(name_or_port.decode().unwrap());
+            return name_or_port.decode::<LocalPort>().ok();
         }
         let mut enif_port = std::mem::MaybeUninit::uninit();
         if unsafe {
