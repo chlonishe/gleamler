@@ -3,6 +3,19 @@
 
 import gleam/option
 
+pub opaque type Resource {
+  Resource
+}
+
+@internal
+pub fn resource_dummy() -> Resource {
+  Resource
+}
+
+@external(erlang, "gleamler_nif_ffi", "counter_new")
+pub fn rust_counter_new(target: Int) -> Resource
+@external(erlang, "gleamler_nif_ffi", "cooperative_count")
+pub fn rust_cooperative_count(counter: Resource) -> Int
 @external(erlang, "gleamler_nif_ffi", "add")
 pub fn rust_add(a: Int, b: Int) -> Int
 @external(erlang, "gleamler_nif_ffi", "sub")

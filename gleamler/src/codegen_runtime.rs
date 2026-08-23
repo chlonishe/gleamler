@@ -1,8 +1,10 @@
 //! Functions used by runtime generated code. Should not be used.
 
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::fmt;
+use std::cell::Cell;
 
+use crate::schedule::SchedulerFlags;
 use crate::types::atom;
 use crate::{Encoder, Env, OwnedBinary, Term};
 
@@ -35,6 +37,66 @@ unsafe impl Sync for NifRegistration {}
 /// # Safety
 pub unsafe trait NifReturnable {
     unsafe fn into_returned(self, env: Env) -> NifReturned;
+}
+
+thread_local! {
+    pub static CURRENT_NIF_CONTINUATION: Cell<Option<(
+        *const c_char,                                // static name (\0-terminated)
+        unsafe extern "C" fn(NIF_ENV, i32, *const NIF_TERM) -> NIF_TERM,
+        i32,                                          // argc
+        *const NIF_TERM,                              // argv
+    )>> = const { Cell::new(None) };
+}
+
+/// # Safety
+/// `name` must point to a null-terminated string with static lifetime.
+pub unsafe fn set_nif_continuation(
+    name: *const c_char,
+    fun: unsafe extern "C" fn(NIF_ENV, i32, *const NIF_TERM) -> NIF_TERM,
+    argc: i32,
+    argv: *const NIF_TERM,
+) {
+    CURRENT_NIF_CONTINUATION.with(|c| {
+        c.set(Some((name, fun, argc, argv)));
+    });
+}
+
+pub enum NifOutcome<T> {
+    Done(T),
+    Yield(SchedulerFlags),
+}
+
+unsafe impl<T> NifReturnable for NifOutcome<T>
+where
+    T: NifReturnable,
+{
+    unsafe fn into_returned(self, env: Env) -> NifReturned {
+        match self {
+            NifOutcome::Done(v) => unsafe { v.into_returned(env) },
+            NifOutcome::Yield(flags) => {
+                CURRENT_NIF_CONTINUATION.with(|c| {
+                    let (name, fun, argc, argv) = c.get().expect(
+                        "NifOutcome::Yield may only be used inside a #[gleam_nif] function"
+                    );
+
+                    // name создан макросом как статическая строка с \0 на конце
+                    let cstr = unsafe { CStr::from_ptr(name) };
+                    let fun_name = CString::from(cstr);
+
+                    let args = unsafe {
+                        std::slice::from_raw_parts(argv, argc as usize).to_vec()
+                    };
+
+                    NifReturned::Reschedule {
+                        fun_name,
+                        flags,
+                        fun,
+                        args,
+                    }
+                })
+            }
+        }
+    }
 }
 
 unsafe impl<T> NifReturnable for T

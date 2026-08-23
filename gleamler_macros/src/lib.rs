@@ -149,6 +149,15 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
         ) -> ::gleamler::codegen_runtime::NIF_TERM {
             use ::gleamler::codegen_runtime::NifReturnable;
 
+            unsafe {
+                ::gleamler::codegen_runtime::set_nif_continuation(
+                    #export_name_lit.as_ptr() as *const _,
+                    #ffi_fn_name,
+                    argc,
+                    argv,
+                );
+            }
+
             let lifetime = ();
             let env = unsafe { ::gleamler::Env::new(&lifetime, nif_env) };
 

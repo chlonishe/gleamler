@@ -5,7 +5,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 Write-Host "==> Building Rust NIF..." -ForegroundColor Cyan
-cargo build -p gleamler --release
+cargo build -p gleamler --release --features stress
 
 New-Item -ItemType Directory -Force -Path priv | Out-Null
 

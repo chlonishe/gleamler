@@ -141,3 +141,9 @@ pub fn large_number_test() {
   gleamler_nif.rust_stress_i64_max()
   |> should.equal(9_223_372_036_854_775_807)
 }
+
+pub fn cooperative_count_test() {
+  let counter = gleamler_nif.rust_counter_new(1234)
+  gleamler_nif.rust_cooperative_count(counter)
+  |> should.equal(1234)
+}

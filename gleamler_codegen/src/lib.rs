@@ -161,6 +161,14 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> String {
 
                 "ResourceArc" => "Resource".into(),
 
+                "NifOutcome" => {
+                    if let Some(inner) = generic_args.first() {
+                        type_to_gleam_ctx(inner, ctx)
+                    } else {
+                        "Nil".into()
+                    }
+                }
+
                 _ => {
                     if generic_args.is_empty() {
                         ident_str
@@ -386,7 +394,10 @@ pub fn generate_gleam(funcs: &[NifFunc], erl_module: &str) -> String {
         out.push_str("import gleam/dict\n");
     }
     if has_resource {
-        out.push_str("\npub opaque type Resource {\n  Resource\n}\n");
+        out.push_str(
+            "\npub opaque type Resource {\n  Resource\n}\n\n\
+            @internal\npub fn resource_dummy() -> Resource {\n  Resource\n}\n"
+        );
     }
     out.push('\n');
 

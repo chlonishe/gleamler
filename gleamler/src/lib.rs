@@ -28,6 +28,7 @@ pub mod nifs;
 pub mod stress_nifs;
 pub mod types;
 
+pub use crate::codegen_runtime::NifOutcome;
 pub use crate::alloc::EnifAllocator;
 pub use crate::dynamic::TermType;
 #[cfg(feature = "nif_version_2_17")]

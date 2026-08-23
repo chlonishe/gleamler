@@ -8,7 +8,7 @@ else
 endif
 
 all:
-	cargo build -p gleamler --release
+	cargo build -p gleamler --release --features stress
 	mkdir -p priv
 	cp $(SRC_LIB) priv/gleamler.so
 	gleam build

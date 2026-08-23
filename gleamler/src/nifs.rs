@@ -1,4 +1,38 @@
-use crate::{gleam_nif, init_nifs};
+use std::sync::atomic::{AtomicI64, Ordering};
+use crate::{gleam_nif, init_nifs, Resource, ResourceArc, Env, Term, NifOutcome};
+use crate::schedule::SchedulerFlags;
+
+pub struct Counter {
+    current: AtomicI64,
+    target: i64,
+}
+
+impl Resource for Counter {}
+
+#[gleam_nif]
+pub fn counter_new(target: i64) -> ResourceArc<Counter> {
+    ResourceArc::new(Counter {
+        current: AtomicI64::new(0),
+        target,
+    })
+}
+
+#[gleam_nif]
+pub fn cooperative_count(counter: ResourceArc<Counter>) -> NifOutcome<i64> {
+    loop {
+        let val = counter.current.fetch_add(1, Ordering::SeqCst);
+        if val >= counter.target {
+            return NifOutcome::Done(val);
+        }
+        if val % 500 == 0 {
+            return NifOutcome::Yield(SchedulerFlags::Normal);
+        }
+    }
+}
+
+fn on_load(env: Env, _info: Term) -> bool {
+    env.register::<Counter>().is_ok()
+}
 
 #[gleam_nif]
 pub fn add(a: i64, b: i64) -> i64 {
@@ -65,4 +99,4 @@ pub mod __generated_registry {
     include!(concat!(env!("OUT_DIR"), "/nif_registry.rs"));
 }
 
-init_nifs!();
+init_nifs!(load = on_load);
