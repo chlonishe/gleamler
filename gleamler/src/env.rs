@@ -1,20 +1,20 @@
+use crate::Error;
+use crate::sys::enif_getenv;
+#[cfg(feature = "nif_version_2_17")]
+use crate::sys::enif_set_option;
+use crate::sys::enif_whereis_port;
 use crate::sys::{enif_alloc_env, enif_clear_env, enif_free_env, enif_send, enif_whereis_pid};
+use crate::sys::{enif_cpu_time, enif_make_unique_integer, enif_now_time};
+#[cfg(feature = "nif_version_2_18")]
+use crate::sys::{enif_get_atom_cache_index, enif_max_atom_cache_index};
 use crate::thread::is_scheduler_thread;
 use crate::types::LocalPid;
+use crate::types::LocalPort;
 use crate::wrapper::{NIF_ENV, NIF_TERM};
 use crate::{Encoder, Term};
 use std::marker::PhantomData;
 use std::ptr;
 use std::sync::{Arc, Weak};
-use crate::Error;
-use crate::sys::enif_getenv;
-use crate::sys::{enif_cpu_time, enif_make_unique_integer, enif_now_time};
-use crate::sys::enif_whereis_port;
-#[cfg(feature = "nif_version_2_17")]
-use crate::sys::{enif_set_option};
-#[cfg(feature = "nif_version_2_18")]
-use crate::sys::{enif_get_atom_cache_index, enif_max_atom_cache_index};
-use crate::types::LocalPort;
 /// Private type system hack to help ensure that each environment exposed to safe Rust code is
 /// given a different lifetime. The size of this type is zero, so it costs nothing at run time. Its
 /// purpose is to make `Env<'a>` and `Term<'a>` *invariant* w.r.t. `'a`, so that Rust won't
@@ -243,7 +243,12 @@ impl<'a> Env<'a> {
 
     /// Creates a unique integer term.
     pub fn make_unique_integer(self, flags: UniqueIntegerFlags) -> Term<'a> {
-        unsafe { Term::new(self, enif_make_unique_integer(self.as_c_arg(), flags.as_sys())) }
+        unsafe {
+            Term::new(
+                self,
+                enif_make_unique_integer(self.as_c_arg(), flags.as_sys()),
+            )
+        }
     }
 
     /// Reads an OS environment variable via the Erlang VM.
@@ -272,8 +277,7 @@ impl<'a> Env<'a> {
             return Err(Error::BadArg);
         }
 
-        String::from_utf8(buf[..size.min(buf.len())].to_vec())
-            .map_err(|_| Error::BadArg)
+        String::from_utf8(buf[..size.min(buf.len())].to_vec()).map_err(|_| Error::BadArg)
     }
 
     /// Attempts to find the port registered by `name_or_port`.
@@ -284,7 +288,11 @@ impl<'a> Env<'a> {
         }
         let mut enif_port = std::mem::MaybeUninit::uninit();
         if unsafe {
-            enif_whereis_port(self.as_c_arg(), name_or_port.as_c_arg(), enif_port.as_mut_ptr())
+            enif_whereis_port(
+                self.as_c_arg(),
+                name_or_port.as_c_arg(),
+                enif_port.as_mut_ptr(),
+            )
         } == 0
         {
             None
@@ -299,11 +307,7 @@ impl<'a> Env<'a> {
     #[cfg(feature = "nif_version_2_17")]
     pub fn set_option(self, option: NifOption) -> Result<(), Error> {
         let res = unsafe { enif_set_option(self.as_c_arg(), option.as_sys()) };
-        if res == 0 {
-            Ok(())
-        } else {
-            Err(Error::BadArg)
-        }
+        if res == 0 { Ok(()) } else { Err(Error::BadArg) }
     }
 
     /// Returns the atom cache index of an existing atom term.

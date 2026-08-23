@@ -190,11 +190,7 @@ where
                 reference.as_c_arg(),
             )
         };
-        if res == 0 {
-            Ok(())
-        } else {
-            Err(Error::BadArg)
-        }
+        if res == 0 { Ok(()) } else { Err(Error::BadArg) }
     }
 }
 

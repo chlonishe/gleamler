@@ -32,7 +32,11 @@ impl<'a> Decoder<'a> for LocalPort {
     fn decode(term: Term<'a>) -> NifResult<LocalPort> {
         let mut port = MaybeUninit::uninit();
         if unsafe {
-            enif_get_local_port(term.get_env().as_c_arg(), term.as_c_arg(), port.as_mut_ptr())
+            enif_get_local_port(
+                term.get_env().as_c_arg(),
+                term.as_c_arg(),
+                port.as_mut_ptr(),
+            )
         } == 0
         {
             return Err(Error::BadArg);

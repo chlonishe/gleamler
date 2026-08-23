@@ -28,22 +28,22 @@ pub mod nifs;
 pub mod stress_nifs;
 pub mod types;
 
-pub use crate::env::UniqueIntegerFlags;
-#[cfg(feature = "nif_version_2_17")]
-pub use crate::env::NifOption;
-pub use crate::schedule::SelectFlags;
 pub use crate::alloc::EnifAllocator;
 pub use crate::dynamic::TermType;
+#[cfg(feature = "nif_version_2_17")]
+pub use crate::env::NifOption;
+pub use crate::env::UniqueIntegerFlags;
 pub use crate::env::{Env, OwnedEnv};
 pub use crate::error::Error;
 pub use crate::nif::Nif;
 pub use crate::resource::{Monitor, Resource, ResourceArc, ResourceInitError};
+pub use crate::schedule::SelectFlags;
 pub use crate::schedule::{SchedulerFlags, consume_timeslice};
 pub use crate::term::Term;
 pub use crate::thread::{JobSpawner, ThreadSpawner, spawn};
 pub use crate::types::{
-    Atom, Binary, Decoder, Encoder, ErlOption, ListIterator, LocalPid, LocalPort,
-    MapIterator, NewBinary, OwnedBinary, Reference,
+    Atom, Binary, Decoder, Encoder, ErlOption, ListIterator, LocalPid, LocalPort, MapIterator,
+    NewBinary, OwnedBinary, Reference,
 };
 
 pub type NifResult<T> = Result<T, Error>;
