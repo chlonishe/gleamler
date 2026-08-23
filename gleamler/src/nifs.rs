@@ -1,6 +1,6 @@
-use std::sync::atomic::{AtomicI64, Ordering};
-use crate::{gleam_nif, init_nifs, Resource, ResourceArc, Env, Term, NifOutcome};
 use crate::schedule::SchedulerFlags;
+use crate::{Env, NifOutcome, Resource, ResourceArc, Term, gleam_nif, init_nifs};
+use std::sync::atomic::{AtomicI64, Ordering};
 
 pub struct Counter {
     current: AtomicI64,

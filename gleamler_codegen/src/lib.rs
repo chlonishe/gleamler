@@ -396,7 +396,7 @@ pub fn generate_gleam(funcs: &[NifFunc], erl_module: &str) -> String {
     if has_resource {
         out.push_str(
             "\npub opaque type Resource {\n  Resource\n}\n\n\
-            @internal\npub fn resource_dummy() -> Resource {\n  Resource\n}\n"
+            @internal\npub fn resource_dummy() -> Resource {\n  Resource\n}\n",
         );
     }
     out.push('\n');
