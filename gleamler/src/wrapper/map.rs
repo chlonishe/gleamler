@@ -139,11 +139,9 @@ pub unsafe fn make_map_from_arrays(
     keys: &[NIF_TERM],
     values: &[NIF_TERM],
 ) -> Option<NIF_TERM> {
-    assert_eq!(
-        keys.len(),
-        values.len(),
-        "make_map_from_arrays: keys and values must have the same length"
-    );
+    if keys.len() != values.len() {
+        return None;
+    }
     let mut map = MaybeUninit::uninit();
     if unsafe {
         enif_make_map_from_arrays(
