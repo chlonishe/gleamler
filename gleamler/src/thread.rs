@@ -1,6 +1,6 @@
 use crate::env::OwnedEnv;
 use crate::sys::enif_thread_type;
-use crate::{Atom, Encoder, Env, Term};
+use crate::{Env, Term};
 use std::panic;
 use std::thread;
 
@@ -54,12 +54,23 @@ where
             match panic::catch_unwind(|| thread_fn(env)) {
                 Ok(term) => term,
                 Err(err) => {
-                    let reason = if let Some(string) = err.downcast_ref::<String>() {
-                        string.encode(env)
+                    #[cfg(debug_assertions)]
+                    let bt = std::backtrace::Backtrace::force_capture();
+                    #[cfg(not(debug_assertions))]
+                    let bt = std::backtrace::Backtrace::capture();
+
+                    let base = if let Some(string) = err.downcast_ref::<String>() {
+                        string.clone()
                     } else if let Some(&s) = err.downcast_ref::<&'static str>() {
-                        s.encode(env)
+                        s.to_string()
                     } else {
-                        Atom::from_str(env, "nif_panic").ok().unwrap().to_term(env)
+                        "nif_panicked".to_string()
+                    };
+
+                    let reason = if bt.status() == std::backtrace::BacktraceStatus::Captured {
+                        format!("{base}\n{bt}")
+                    } else {
+                        base
                     };
                     env.error_tuple(reason)
                 }

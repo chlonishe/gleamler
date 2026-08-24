@@ -18,6 +18,8 @@ pub enum Error {
     /// (`Error(term)` in Gleam) from the NIF. Very useful for returning
     /// descriptive, context-full errors.
     Term(Box<dyn Encoder>),
+    /// NIF panicked. Carries a human-readable backtrace.
+    Panic(String),
 }
 
 unsafe impl NifReturnable for crate::error::Error {
@@ -41,6 +43,10 @@ unsafe impl NifReturnable for crate::error::Error {
                 let error_tuple = (atom::error(), term).encode(env);
                 NifReturned::Term(error_tuple.as_c_arg())
             }
+            Error::Panic(ref msg) => {
+                let term = (atom::nif_panicked(), msg.as_str()).encode(env).as_c_arg();
+                NifReturned::Raise(term)
+            }
         }
     }
 }
@@ -53,6 +59,7 @@ impl fmt::Debug for Error {
             Error::RaiseAtom(s) => write!(fmt, "throw({s})"),
             Error::RaiseTerm(_) => write!(fmt, "throw(<term>)"),
             Error::Term(_) => write!(fmt, "{{error, <term>}}"),
+            Error::Panic(s) => write!(fmt, "panic({s})"),
         }
     }
 }

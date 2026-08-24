@@ -198,7 +198,17 @@ where
         match result {
             Ok(res) => NifReturnable::into_returned(res, env),
             Err(_) => {
-                let term = atom::nif_panicked().as_c_arg();
+                #[cfg(debug_assertions)]
+                let bt = std::backtrace::Backtrace::force_capture();
+                #[cfg(not(debug_assertions))]
+                let bt = std::backtrace::Backtrace::capture();
+
+                let msg = if bt.status() == std::backtrace::BacktraceStatus::Captured {
+                    format!("NIF panicked\n{bt}")
+                } else {
+                    "NIF panicked (backtrace disabled; set RUST_BACKTRACE=1)".to_string()
+                };
+                let term = (atom::nif_panicked(), msg).encode(env).as_c_arg();
                 NifReturned::Raise(term)
             }
         }
