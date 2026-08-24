@@ -209,7 +209,10 @@ where
     // run.
     let obj = unsafe { ptr::read::<T>(aligned as *mut T) };
     if T::IMPLEMENTS_DESTRUCTOR {
-        obj.destructor(env);
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let obj = obj;
+            obj.destructor(env);
+        }));
     }
 }
 
@@ -225,7 +228,9 @@ unsafe extern "C" fn resource_down<T: Resource>(
     let pid = unsafe { LocalPid::from_c_arg(*pid) };
     let mon = unsafe { Monitor::from_c_arg(*mon) };
 
-    res.down(env, pid, mon);
+    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        res.down(env, pid, mon);
+    }));
 }
 
 #[cfg(feature = "nif_version_2_16")]
@@ -238,7 +243,9 @@ unsafe extern "C" fn resource_dyncall<T: Resource>(
     let aligned = unsafe { align_alloced_mem_for_struct::<T>(obj) };
     let res = unsafe { &*(aligned as *const T) };
 
-    unsafe { res.dyncall(env, call_data) };
+    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        unsafe { res.dyncall(env, call_data) };
+    }));
 }
 
 pub unsafe fn open_resource_type(
