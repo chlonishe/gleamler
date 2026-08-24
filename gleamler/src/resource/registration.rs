@@ -58,11 +58,21 @@ impl Registration {
     /// Register all resource types that have been submitted to the inventory.
     /// Also processes fallback registrations for cdylib / LTO builds.
     pub fn register_all_collected(env: Env) -> Result<(), ResourceInitError> {
+        let mut seen = std::collections::HashSet::new();
+
         for reg in inventory::iter::<Registration>() {
+            let type_id = (reg.get_type_id)();
+            if !seen.insert(type_id) {
+                continue;
+            }
             reg.register(env)?;
         }
         if let Ok(guard) = fallback_registrations().lock() {
             for reg in guard.iter() {
+                let type_id = (reg.get_type_id)();
+                if !seen.insert(type_id) {
+                    continue;
+                }
                 reg.register(env)?;
             }
         }
