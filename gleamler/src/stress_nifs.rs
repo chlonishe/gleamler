@@ -75,8 +75,9 @@ pub fn stress_dirty_cpu(n: i64) -> i64 {
 
 #[gleam_nif(dirty_io)]
 pub fn stress_dirty_io(ms: i64) -> i64 {
-    std::thread::sleep(Duration::from_millis(ms as u64));
-    ms
+    let safe_ms = ms.max(0);
+    std::thread::sleep(Duration::from_millis(safe_ms as u64));
+    safe_ms
 }
 
 #[gleam_nif]
