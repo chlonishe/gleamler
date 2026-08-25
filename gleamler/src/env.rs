@@ -356,8 +356,13 @@ impl OwnedEnv {
     /// Allocates a new process-independent environment.
     #[allow(clippy::arc_with_non_send_sync)] // Likely false negative, see https://github.com/rust-lang/rust-clippy/issues/11382
     pub fn new() -> OwnedEnv {
+        let raw = unsafe { enif_alloc_env() };
+        assert!(
+            !raw.is_null(),
+            "gleamler: enif_alloc_env returned null (out of memory)"
+        );
         OwnedEnv {
-            env: Arc::new(unsafe { enif_alloc_env() }),
+            env: Arc::new(raw),
             generation: 0,
         }
     }
