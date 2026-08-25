@@ -161,11 +161,15 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
             let lifetime = ();
             let env = unsafe { ::gleamler::Env::new(&lifetime, nif_env) };
 
-            let terms = unsafe {
-                std::slice::from_raw_parts(argv, argc as usize)
-                    .iter()
-                    .map(|term| ::gleamler::Term::new(env, *term))
-                    .collect::<Vec<::gleamler::Term>>()
+            let terms: Vec<::gleamler::Term> = if argc == 0 {
+                Vec::new()
+            } else {
+                unsafe {
+                    std::slice::from_raw_parts(argv, argc as usize)
+                        .iter()
+                        .map(|term| ::gleamler::Term::new(env, *term))
+                        .collect()
+                }
             };
             let args: &[::gleamler::Term] = &terms;
 
