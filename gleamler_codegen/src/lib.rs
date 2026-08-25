@@ -429,6 +429,7 @@ pub fn generate_gleam(funcs: &[NifFunc], erl_module: &str) -> String {
 fn clean_name(n: &str) -> String {
     let name = n.trim_start_matches('_');
     let name = name.strip_prefix("r#").unwrap_or(name);
+    let name = if name.is_empty() { "arg" } else { name };
     if GLEAM_KEYWORDS.contains(&name) {
         format!("{}_", name)
     } else {
