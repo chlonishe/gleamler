@@ -115,7 +115,7 @@ pub fn stress_float_is_special(n: f64) -> String {
         "nan".to_string()
     } else if n.is_infinite() {
         "inf".to_string()
-    } else if n == 0.0 && n.signum() < 0.0 {
+    } else if n == 0.0 && n.is_sign_negative() {
         "neg_zero".to_string()
     } else {
         "normal".to_string()
