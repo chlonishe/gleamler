@@ -71,7 +71,14 @@ pub fn make_pair(a: i64, b: String) -> (i64, String) {
 
 #[gleam_nif]
 pub fn factorial(n: i64) -> i64 {
-    if n <= 1 { 1 } else { n * factorial(n - 1) }
+    if n <= 1 {
+        return 1;
+    }
+    let mut acc = 1i64;
+    for i in 2..=n {
+        acc = acc.wrapping_mul(i);
+    }
+    acc
 }
 
 #[gleam_nif(dirty_cpu)]
