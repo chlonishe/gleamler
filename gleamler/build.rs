@@ -882,6 +882,11 @@ fn atomic_write(path: &Path, contents: impl AsRef<[u8]>) {
     });
 }
 
+/// Selects the highest active NIF version feature.
+///
+/// Features form an implication chain (e.g. 2_17 → 2_16 → … → 2_14), so multiple
+/// `CARGO_FEATURE_NIF_VERSION_*` env vars may be set simultaneously. We iterate
+/// in reverse and pick the first (i.e. highest) match.
 fn get_nif_version_from_features() -> (u32, u32) {
     for major in ((MIN_SUPPORTED_VERSION.0)..=(MAX_SUPPORTED_VERSION.0)).rev() {
         for minor in ((MIN_SUPPORTED_VERSION.1)..=(MAX_SUPPORTED_VERSION.1)).rev() {

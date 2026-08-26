@@ -7,6 +7,10 @@ build = "build.rs"
 [features]
 default = ["nif_version_2_17"]
 stress = []
+
+# NIF version features form an implication chain: each higher version enables all lower ones
+# The build script selects the highest active version. If you explicitly enable multiple
+# versions, the maximum is used. Do not rely on enabling incompatible versions side-by-side
 nif_version_2_14 = []
 nif_version_2_15 = ["nif_version_2_14"]
 nif_version_2_16 = ["nif_version_2_15"]
