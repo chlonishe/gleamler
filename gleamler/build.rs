@@ -947,27 +947,49 @@ fn main() {
     let nifs_rs = Path::new(&manifest_dir).join("src/nifs.rs");
     let stress_nifs_rs = Path::new(&manifest_dir).join("src/stress_nifs.rs");
 
-    let source = fs::read_to_string(&nifs_rs)
+    let nifs_source = fs::read_to_string(&nifs_rs)
         .unwrap_or_else(|e| panic!("failed to read {}: {}", nifs_rs.display(), e));
-    let mut functions = gleamler_codegen::parse_nif_functions(&source);
+    let nifs_functions = gleamler_codegen::parse_nif_functions(&nifs_source);
 
-    let stress_source = fs::read_to_string(&stress_nifs_rs)
-        .unwrap_or_else(|e| panic!("failed to read {}: {}", stress_nifs_rs.display(), e));
-    functions.extend(gleamler_codegen::parse_nif_functions(&stress_source));
+    let stress_functions = if stress_nifs_rs.exists() {
+        let stress_source = fs::read_to_string(&stress_nifs_rs)
+            .unwrap_or_else(|e| panic!("failed to read {}: {}", stress_nifs_rs.display(), e));
+        gleamler_codegen::parse_nif_functions(&stress_source)
+    } else {
+        Vec::new()
+    };
+
+    let registered = gleamler_codegen::parse_init_nifs_list(&nifs_source);
+
+    if !registered.is_empty() {
+        let all_functions: Vec<_> = nifs_functions.iter().chain(&stress_functions).collect();
+        for f in &all_functions {
+            if !registered.contains(&f.name) {
+                println!(
+                    "cargo:warning=#[gleam_nif] fn `{}` is not listed in init_nifs! — \
+                     its stubs will exit(nif_library_not_loaded) at runtime",
+                    f.name
+                );
+            }
+        }
+        let declared: std::collections::BTreeSet<_> =
+            all_functions.iter().map(|f| f.name.as_str()).collect();
+        for name in &registered {
+            if !declared.contains(name.as_str()) {
+                println!(
+                    "cargo:warning=`{}` is listed in init_nifs! but has no #[gleam_nif] function",
+                    name
+                );
+            }
+        }
+    }
 
     // NIF registry (OUT_DIR only)
     let registry_out = Path::new(&out_dir).join("nif_registry.rs");
     let mut registry = String::from("pub static NIFS: &[::gleamler::sys::ErlNifFunc] = &[\n");
 
-    for f in &functions {
-        let const_name = if f.name.starts_with("stress_") {
-            format!("crate::stress_nifs::__GLEAMLER_NIF_{}", f.name)
-        } else {
-            format!("super::__GLEAMLER_NIF_{}", f.name)
-        };
-        if f.name.starts_with("stress_") {
-            registry.push_str("    #[cfg(feature = \"stress\")]\n");
-        }
+    for f in &nifs_functions {
+        let const_name = format!("super::__GLEAMLER_NIF_{}", f.name);
         registry.push_str(&format!(
             "    ::gleamler::sys::ErlNifFunc {{\n\
              name: {const_name}.name,\n\
@@ -977,10 +999,23 @@ fn main() {
              }},\n",
         ));
     }
+
+    for f in &stress_functions {
+        registry.push_str("    #[cfg(feature = \"stress\")]\n");
+        let const_name = format!("crate::stress_nifs::__GLEAMLER_NIF_{}", f.name);
+        registry.push_str(&format!(
+            "    ::gleamler::sys::ErlNifFunc {{\n\
+             name: {const_name}.name,\n\
+             arity: {const_name}.arity,\n\
+             function: {const_name}.raw_func,\n\
+             flags: {const_name}.flags,\n\
+             }},\n",
+        ));
+    }
+
     registry.push_str("];\n");
     atomic_write(&registry_out, registry);
 
-    // Cargo rebuild triggers
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed={}", nifs_rs.display());
     println!("cargo:rerun-if-changed={}", stress_nifs_rs.display());
