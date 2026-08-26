@@ -1,18 +1,30 @@
 use std::env;
 use std::fs;
+use std::path::Path;
+
+fn write_if_changed(path: &str, contents: impl AsRef<[u8]>) {
+    let bytes = contents.as_ref();
+    if let Ok(existing) = fs::read(path) {
+        if existing == bytes {
+            return;
+        }
+    }
+    fs::write(path, bytes)
+        .unwrap_or_else(|e| panic!("failed to write {}: {}", path, e));
+}
 
 fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 4 {
         eprintln!(
-            "Usage: {} <source.rs> <erl_out> <gleam_out> [erl_module] [lib_name]",
+            "Usage: {} <gleamler_crate_dir> <erl_out> <gleam_out> [erl_module] [lib_name]",
             args[0]
         );
         std::process::exit(1);
     }
 
-    let src_path = &args[1];
+    let crate_dir = &args[1];
     let erl_out = &args[2];
     let gleam_out = &args[3];
     let erl_module = args
@@ -24,10 +36,22 @@ fn main() {
         .cloned()
         .unwrap_or_else(|| "gleamler".to_string());
 
-    let source = fs::read_to_string(src_path)
-        .unwrap_or_else(|e| panic!("failed to read {}: {}", src_path, e));
+    let nifs_rs = Path::new(crate_dir).join("src/nifs.rs");
+    let stress_nifs_rs = Path::new(crate_dir).join("src/stress_nifs.rs");
 
-    let functions = gleamler_codegen::parse_nif_functions(&source);
+    let mut functions = Vec::new();
+
+    let nifs_source = fs::read_to_string(&nifs_rs)
+        .unwrap_or_else(|e| panic!("failed to read {}: {}", nifs_rs.display(), e));
+    functions.extend(gleamler_codegen::parse_nif_functions(&nifs_source));
+
+    // stress_nifs.rs is optional — absence means empty list (e.g. cross-compile)
+    if stress_nifs_rs.exists() {
+        let stress_source = fs::read_to_string(&stress_nifs_rs)
+            .unwrap_or_else(|e| panic!("failed to read {}: {}", stress_nifs_rs.display(), e));
+        functions.extend(gleamler_codegen::parse_nif_functions(&stress_source));
+    }
+
     eprintln!(
         "Generated {} function(s)\n  → {}\n  → {}",
         functions.len(),
@@ -35,7 +59,7 @@ fn main() {
         gleam_out
     );
 
-    let registered = gleamler_codegen::parse_init_nifs_list(&source);
+    let registered = gleamler_codegen::parse_init_nifs_list(&nifs_source);
     if !registered.is_empty() {
         for f in &functions {
             if !registered.contains(&f.name) {
@@ -74,8 +98,8 @@ fn main() {
 
         if !erl_names.insert(erl_name.clone()) {
             panic!(
-                "gleamler_codegen: duplicate exported NIF name '{}' (alias collision) in file {:?}",
-                erl_name, source
+                "gleamler_codegen: duplicate exported NIF name '{}' (alias collision)",
+                erl_name
             );
         }
     }
@@ -83,8 +107,6 @@ fn main() {
     let erl_contents = gleamler_codegen::generate_erl(&functions, &erl_module, &lib_name);
     let gleam_contents = gleamler_codegen::generate_gleam(&functions, &erl_module);
 
-    fs::write(erl_out, erl_contents)
-        .unwrap_or_else(|e| panic!("failed to write {}: {}", erl_out, e));
-    fs::write(gleam_out, gleam_contents)
-        .unwrap_or_else(|e| panic!("failed to write {}: {}", gleam_out, e));
+    write_if_changed(erl_out, erl_contents);
+    write_if_changed(gleam_out, gleam_contents);
 }

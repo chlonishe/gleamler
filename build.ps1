@@ -32,6 +32,9 @@ if ($IsWindows -or $env:OS -eq "Windows_NT") {
     Copy-Item target/release/libgleamler.$ext priv/gleamler.so -Force
 }
 
+Write-Host "==> Generating Erlang / Gleam stubs..." -ForegroundColor Cyan
+cargo run -p gleamler_codegen -- gleamler src/gleamler_nif_ffi.erl src/gleamler_nif.gleam
+
 Write-Host "==> Building Gleam..." -ForegroundColor Cyan
 gleam build
 

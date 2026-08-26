@@ -851,8 +851,14 @@ fn build_api(b: &mut dyn ApiBuilder, opts: &GenerateOptions) {
 }
 
 fn atomic_write(path: &Path, contents: impl AsRef<[u8]>) {
+    let bytes = contents.as_ref();
+    if let Ok(existing) = fs::read(path) {
+        if existing == bytes {
+            return;
+        }
+    }
     let tmp = path.with_extension("tmp");
-    fs::write(&tmp, contents)
+    fs::write(&tmp, bytes)
         .unwrap_or_else(|e| panic!("failed to write temp file {}: {}", tmp.display(), e));
     if cfg!(windows) {
         let _ = fs::remove_file(path);
@@ -928,12 +934,9 @@ fn main() {
     fs::write(dest_path, api).unwrap();
 
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-    let workspace_root = Path::new(&manifest_dir).parent().unwrap();
 
     let nifs_rs = Path::new(&manifest_dir).join("src/nifs.rs");
     let stress_nifs_rs = Path::new(&manifest_dir).join("src/stress_nifs.rs");
-    let erl_out = workspace_root.join("src/gleamler_nif_ffi.erl");
-    let gleam_out = workspace_root.join("src/gleamler_nif.gleam");
 
     let source = fs::read_to_string(&nifs_rs)
         .unwrap_or_else(|e| panic!("failed to read {}: {}", nifs_rs.display(), e));
@@ -943,39 +946,7 @@ fn main() {
         .unwrap_or_else(|e| panic!("failed to read {}: {}", stress_nifs_rs.display(), e));
     functions.extend(gleamler_codegen::parse_nif_functions(&stress_source));
 
-    let registered = gleamler_codegen::parse_init_nifs_list(&source);
-
-    if !registered.is_empty() {
-        for f in &functions {
-            if !registered.contains(&f.name) {
-                println!(
-                    "cargo:warning=#[gleam_nif] fn `{}` is not listed in init_nifs! — \
-                     its stubs will exit(nif_library_not_loaded) at runtime",
-                    f.name
-                );
-            }
-        }
-        let declared: std::collections::BTreeSet<_> =
-            functions.iter().map(|f| f.name.as_str()).collect();
-        for name in &registered {
-            if !declared.contains(name.as_str()) {
-                println!(
-                    "cargo:warning=`{}` is listed in init_nifs! but has no #[gleam_nif] function",
-                    name
-                );
-            }
-        }
-    }
-
-    let erl_module = "gleamler_nif_ffi";
-    let lib_name = "gleamler";
-
-    let erl_contents = gleamler_codegen::generate_erl(&functions, erl_module, lib_name);
-    let gleam_contents = gleamler_codegen::generate_gleam(&functions, erl_module);
-
-    atomic_write(&erl_out, erl_contents);
-    atomic_write(&gleam_out, gleam_contents);
-
+    // NIF registry (OUT_DIR only)
     let registry_out = Path::new(&out_dir).join("nif_registry.rs");
     let mut registry = String::from("pub static NIFS: &[::gleamler::sys::ErlNifFunc] = &[\n");
 
@@ -1000,14 +971,8 @@ fn main() {
     registry.push_str("];\n");
     atomic_write(&registry_out, registry);
 
+    // Cargo rebuild triggers
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed={}", nifs_rs.display());
     println!("cargo:rerun-if-changed={}", stress_nifs_rs.display());
-
-    let codegen_src = workspace_root.join("gleamler_codegen/src");
-    if codegen_src.exists() {
-        for entry in fs::read_dir(&codegen_src).unwrap().flatten() {
-            println!("cargo:rerun-if-changed={}", entry.path().display());
-        }
-    }
 }

@@ -1,7 +1,10 @@
 /build
+/target
+Cargo.lock
 
 /priv/*.dll
 /priv/*.so
 /priv/*.dylib
-/target
-Cargo.lock
+
+src/gleamler_nif_ffi.erl
+src/gleamler_nif.gleam
