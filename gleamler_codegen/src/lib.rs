@@ -1,7 +1,9 @@
-use proc_macro2::{Delimiter, TokenTree};
 use syn::{
-    AngleBracketedGenericArguments, FnArg, GenericArgument, Item, ItemFn, Pat, PathArguments,
-    ReturnType, Type, TypeArray, TypePath, TypeReference, TypeSlice, TypeTuple, parse_file,
+    parse::{Parse, ParseStream},
+    punctuated::Punctuated,
+    AngleBracketedGenericArguments, ExprPath, FnArg, GenericArgument, Ident, Item, ItemFn, LitStr,
+    Pat, PathArguments, ReturnType, Token, Type, TypeArray, TypePath, TypeReference, TypeSlice,
+    TypeTuple, parse_file,
 };
 
 #[derive(Debug)]
@@ -12,6 +14,52 @@ pub struct NifFunc {
     pub ret: String,
     pub arity: usize,
     pub docs: Vec<String>,
+}
+
+struct InitNifsInput {
+    #[allow(dead_code)]
+    module: Option<LitStr>,
+    #[allow(dead_code)]
+    load: Option<ExprPath>,
+    names: Vec<Ident>,
+}
+
+impl Parse for InitNifsInput {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut module = None;
+        let mut load = None;
+
+        if input.peek(LitStr) {
+            module = Some(input.parse()?);
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            }
+        }
+
+        if input.peek(Ident) && input.peek2(Token![=]) {
+            let key: Ident = input.parse()?;
+            if key != "load" {
+                return Err(syn::Error::new(key.span(), "expected `load`"));
+            }
+            input.parse::<Token![=]>()?;
+            load = Some(input.parse::<ExprPath>()?);
+            if input.peek(Token![,]) {
+                input.parse::<Token![,]>()?;
+            }
+        }
+
+        let names = if input.peek(syn::token::Bracket) {
+            let content;
+            syn::bracketed!(content in input);
+            let punctuated: Punctuated<Ident, Token![,]> =
+                content.parse_terminated(Ident::parse, Token![,])?;
+            punctuated.into_iter().collect()
+        } else {
+            Vec::new()
+        };
+
+        Ok(Self { module, load, names })
+    }
 }
 
 pub fn parse_nif_functions(source: &str) -> Vec<NifFunc> {
@@ -37,19 +85,8 @@ pub fn parse_init_nifs_list(source: &str) -> Vec<String> {
         if !m.mac.path.is_ident("init_nifs") {
             continue;
         }
-        for tt in m.mac.tokens.clone() {
-            let TokenTree::Group(g) = tt else { continue };
-            if g.delimiter() != Delimiter::Bracket {
-                continue;
-            }
-            return g
-                .stream()
-                .into_iter()
-                .filter_map(|t| match t {
-                    TokenTree::Ident(id) => Some(id.to_string()),
-                    _ => None,
-                })
-                .collect();
+        if let Ok(input) = syn::parse2::<InitNifsInput>(m.mac.tokens.clone()) {
+            return input.names.into_iter().map(|id| id.to_string()).collect();
         }
     }
     Vec::new()
