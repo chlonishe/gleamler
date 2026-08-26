@@ -858,6 +858,15 @@ fn atomic_write(path: &Path, contents: impl AsRef<[u8]>) {
         }
     }
     let tmp = path.with_extension("tmp");
+
+    struct TmpGuard<'a>(&'a Path);
+    impl<'a> Drop for TmpGuard<'a> {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(self.0);
+        }
+    }
+    let _guard = TmpGuard(&tmp);
+
     fs::write(&tmp, bytes)
         .unwrap_or_else(|e| panic!("failed to write temp file {}: {}", tmp.display(), e));
     if cfg!(windows) {
