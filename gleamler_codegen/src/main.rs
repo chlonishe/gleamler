@@ -17,7 +17,7 @@ fn main() {
 
     if args.len() < 4 {
         eprintln!(
-            "Usage: {} <gleamler_crate_dir> <erl_out> <gleam_out> [erl_module] [lib_name] [--with-stress]",
+            "Usage: {} <gleamler_crate_dir> <erl_out> <gleam_out> [--with-stress] [erl_module] [lib_name]",
             args[0]
         );
         std::process::exit(1);
@@ -41,14 +41,6 @@ fn main() {
     let crate_dir = &positional[0];
     let erl_out = &positional[1];
     let gleam_out = &positional[2];
-    let erl_module = positional
-        .get(3)
-        .cloned()
-        .unwrap_or_else(|| "gleamler_nif_ffi".to_string());
-    let lib_name = positional
-        .get(4)
-        .cloned()
-        .unwrap_or_else(|| "gleamler".to_string());
 
     let nifs_rs = Path::new(crate_dir).join("src/nifs.rs");
     let stress_nifs_rs = Path::new(crate_dir).join("src/stress_nifs.rs");
@@ -96,6 +88,16 @@ fn main() {
     const RESERVED_ERL_NAMES: &[&str] = &["init", "module_info", "record_info"];
 
     let mut erl_names = std::collections::BTreeSet::new();
+
+    let erl_module = positional
+        .get(3)
+        .cloned()
+        .or_else(|| gleamler_codegen::parse_init_nifs_module(&nifs_source))
+        .unwrap_or_else(|| "gleamler_nif_ffi".to_string());
+    let lib_name = positional
+        .get(4)
+        .cloned()
+        .unwrap_or_else(|| "gleamler".to_string());
 
     for func in &functions {
         let erl_name = func.alias.clone().unwrap_or_else(|| func.name.clone());

@@ -97,6 +97,19 @@ pub fn parse_init_nifs_list(source: &str) -> Vec<String> {
     Vec::new()
 }
 
+pub fn parse_init_nifs_module(source: &str) -> Option<String> {
+    let file = parse_file(source).ok()?;
+    for item in file.items {
+        let Item::Macro(m) = item else { continue };
+        if !m.mac.path.is_ident("init_nifs") {
+            continue;
+        }
+        let input = syn::parse2::<InitNifsInput>(m.mac.tokens.clone()).ok()?;
+        return input.module.map(|lit| lit.value());
+    }
+    None
+}
+
 fn has_gleam_nif(attrs: &[syn::Attribute]) -> bool {
     attrs.iter().any(|a| {
         let path = a.path();
