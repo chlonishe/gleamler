@@ -142,7 +142,7 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
     let expanded = quote! {
         #input_fn
 
-        pub unsafe extern "C" fn #ffi_fn_name(
+        unsafe extern "C" fn #ffi_fn_name(
             nif_env: ::gleamler::codegen_runtime::NIF_ENV,
             argc: ::gleamler::codegen_runtime::c_int,
             argv: *const ::gleamler::codegen_runtime::NIF_TERM,
