@@ -11,7 +11,7 @@ all:
 	cargo build -p gleamler --release --features stress
 	mkdir -p priv
 	cp $(SRC_LIB) priv/gleamler.so
-	cargo run -p gleamler_codegen -- gleamler src/gleamler_nif_ffi.erl src/gleamler_nif.gleam
+	cargo run -p gleamler_codegen -- gleamler src/gleamler_nif_ffi.erl src/gleamler_nif.gleam --with-stress
 	gleam build
 
 test: all

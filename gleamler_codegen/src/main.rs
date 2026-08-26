@@ -17,43 +17,56 @@ fn main() {
 
     if args.len() < 4 {
         eprintln!(
-            "Usage: {} <gleamler_crate_dir> <erl_out> <gleam_out> [erl_module] [lib_name]",
+            "Usage: {} <gleamler_crate_dir> <erl_out> <gleam_out> [erl_module] [lib_name] [--with-stress]",
             args[0]
         );
         std::process::exit(1);
     }
 
-    let crate_dir = &args[1];
-    let erl_out = &args[2];
-    let gleam_out = &args[3];
-    let erl_module = args
-        .get(4)
+    let mut with_stress = false;
+    let mut positional = Vec::new();
+    for arg in &args[1..] {
+        if arg == "--with-stress" {
+            with_stress = true;
+        } else {
+            positional.push(arg.clone());
+        }
+    }
+
+    if positional.len() < 3 {
+        eprintln!("Error: missing required positional arguments");
+        std::process::exit(1);
+    }
+
+    let crate_dir = &positional[0];
+    let erl_out = &positional[1];
+    let gleam_out = &positional[2];
+    let erl_module = positional
+        .get(3)
         .cloned()
         .unwrap_or_else(|| "gleamler_nif_ffi".to_string());
-    let lib_name = args
-        .get(5)
+    let lib_name = positional
+        .get(4)
         .cloned()
         .unwrap_or_else(|| "gleamler".to_string());
 
     let nifs_rs = Path::new(crate_dir).join("src/nifs.rs");
     let stress_nifs_rs = Path::new(crate_dir).join("src/stress_nifs.rs");
 
-    let mut functions = Vec::new();
-
     let nifs_source = fs::read_to_string(&nifs_rs)
         .unwrap_or_else(|e| panic!("failed to read {}: {}", nifs_rs.display(), e));
-    functions.extend(gleamler_codegen::parse_nif_functions(&nifs_source));
+    let mut functions = gleamler_codegen::parse_nif_functions(&nifs_source);
 
-    // stress_nifs.rs is optional — absence means empty list (e.g. cross-compile)
-    if stress_nifs_rs.exists() {
+    if with_stress && stress_nifs_rs.exists() {
         let stress_source = fs::read_to_string(&stress_nifs_rs)
             .unwrap_or_else(|e| panic!("failed to read {}: {}", stress_nifs_rs.display(), e));
         functions.extend(gleamler_codegen::parse_nif_functions(&stress_source));
     }
 
     eprintln!(
-        "Generated {} function(s)\n  → {}\n  → {}",
+        "Generated {} function(s){}\n  → {}\n  → {}",
         functions.len(),
+        if with_stress { " (with stress)" } else { "" },
         erl_out,
         gleam_out
     );
