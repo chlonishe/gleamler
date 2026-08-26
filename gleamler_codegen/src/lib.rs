@@ -1,9 +1,10 @@
 use syn::{
     parse::{Parse, ParseStream},
+    parse_file,
     punctuated::Punctuated,
     AngleBracketedGenericArguments, ExprPath, FnArg, GenericArgument, Ident, Item, ItemFn, LitStr,
     Pat, PathArguments, ReturnType, Token, Type, TypeArray, TypePath, TypeReference, TypeSlice,
-    TypeTuple, parse_file,
+    TypeTuple,
 };
 
 #[derive(Debug)]
@@ -58,7 +59,11 @@ impl Parse for InitNifsInput {
             Vec::new()
         };
 
-        Ok(Self { module, load, names })
+        Ok(Self {
+            module,
+            load,
+            names,
+        })
     }
 }
 
