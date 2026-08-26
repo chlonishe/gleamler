@@ -9,8 +9,7 @@ fn write_if_changed(path: &str, contents: impl AsRef<[u8]>) {
             return;
         }
     }
-    fs::write(path, bytes)
-        .unwrap_or_else(|e| panic!("failed to write {}: {}", path, e));
+    fs::write(path, bytes).unwrap_or_else(|e| panic!("failed to write {}: {}", path, e));
 }
 
 fn main() {
