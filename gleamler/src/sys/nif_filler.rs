@@ -34,7 +34,7 @@ mod internal {
 
     impl DynNifFiller for DlsymNifFiller {
         fn write<T: Copy>(&self, field: &mut Option<T>, name: &str) {
-            let symbol = unsafe { self.lib.get::<T>(name.as_bytes()) }
+            let symbol = unsafe { self.lib.get::<T>(name) }
                 .unwrap_or_else(|e| panic!("gleamler: NIF symbol `{name}` not found: {e}"));
             *field = Some(*symbol);
         }
