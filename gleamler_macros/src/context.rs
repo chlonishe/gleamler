@@ -176,7 +176,7 @@ impl<'a> Context<'a> {
     fn parse_gleamler(meta: &Meta) -> Vec<GleamlerAttr> {
         if let Meta::List(list) = meta {
             let mut attrs: Vec<GleamlerAttr> = vec![];
-            let _ = list.parse_nested_meta(|nested_meta| {
+            list.parse_nested_meta(|nested_meta| {
                 if nested_meta.path.is_ident("encode") {
                     attrs.push(GleamlerAttr::Encode);
                     Ok(())
@@ -184,9 +184,10 @@ impl<'a> Context<'a> {
                     attrs.push(GleamlerAttr::Decode);
                     Ok(())
                 } else {
-                    Err(nested_meta.error("Expected encode and/or decode in gleamler attribute"))
+                    Err(nested_meta.error("expected `encode` and/or `decode` in gleamler attribute"))
                 }
-            });
+            })
+            .expect("invalid gleamler attribute");
 
             return attrs;
         }
