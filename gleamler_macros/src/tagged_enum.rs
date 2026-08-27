@@ -50,7 +50,7 @@ pub fn transcoder_decorator(ast: &syn::DeriveInput) -> TokenStream {
         .collect::<Vec<_>>();
 
     let atom_defs = quote! {
-        ::gleamler::atoms! {
+        gleamler::atoms! {
             #(#atoms)*
         }
     };
