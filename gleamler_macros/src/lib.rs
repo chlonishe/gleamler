@@ -78,6 +78,13 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut args_names = Vec::new();
     let mut nif_arg_idx: usize = 0;
 
+    fn is_reference_to_env(ty: &syn::Type) -> bool {
+        match ty {
+            syn::Type::Reference(type_ref) => is_env_type(&type_ref.elem),
+            _ => false,
+        }
+    }
+
     fn is_env_type(ty: &syn::Type) -> bool {
         match ty {
             syn::Type::Path(type_path) => type_path
@@ -120,6 +127,16 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
         let arg_type = &pat_type.ty;
 
         let is_env = is_env_type(&pat_type.ty);
+
+        if is_reference_to_env(&pat_type.ty) {
+            return syn::Error::new_spanned(
+                pat_type,
+                "gleam_nif: `&Env` and `&mut Env` arguments are not supported; \
+                 pass `Env` by value instead (it implements `Copy`)",
+            )
+            .to_compile_error()
+            .into();
+        }
 
         if is_env {
             args_names.push(arg_ident.clone());
