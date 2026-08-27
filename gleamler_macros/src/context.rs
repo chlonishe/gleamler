@@ -145,12 +145,9 @@ impl<'a> Context<'a> {
     }
 
     fn remove_raw(ident_str: &str) -> &str {
-        ident_str
-            .split("r#")
-            .last()
-            .expect("split has always at least one element")
+        ident_str.strip_prefix("r#").unwrap_or(ident_str)
     }
-
+    
     fn encode_decode_attr_set(attrs: &[GleamlerAttr]) -> bool {
         attrs
             .iter()
