@@ -29,17 +29,6 @@ pub(crate) fn decoder(ctx: &Context, inner: TokenStream) -> TokenStream {
             bounds: punctuated,
         };
         where_clause.predicates.push(predicate.into());
-
-        let mut punctuated = syn::punctuated::Punctuated::new();
-        punctuated.push(decode_lifetime.clone());
-        let predicate = syn::PredicateLifetime {
-            lifetime: lifetime.clone(),
-            colon_token: syn::token::Colon {
-                spans: [Span::call_site()],
-            },
-            bounds: punctuated,
-        };
-        where_clause.predicates.push(predicate.into());
     }
 
     for type_parameter in ctx.type_parameters.iter() {
