@@ -8,6 +8,12 @@ use super::context::Context;
 pub fn transcoder_decorator(ast: &syn::DeriveInput) -> TokenStream {
     let ctx = Context::from_ast(ast);
 
+    if ctx.is_tuple_struct {
+        return quote! {
+            compile_error!("NifMap can only be used with structs containing named fields");
+        };
+    }
+
     let struct_fields = ctx
         .struct_fields
         .as_ref()
