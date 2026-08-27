@@ -167,8 +167,9 @@ pub const ERL_NIF_SELECT_NOTSUP: ErlNifSelectFlags = 1 << 7;
 #[repr(C)]
 pub struct ErlNifMonitor {
     // from https://github.com/erlang/otp/blob/83e20c62057ebc1d8064bf57b01be560cd244e1d/erts/emulator/beam/erl_drv_nif.h#L64
-    // data: [c_uchar; size_of::<*const c_void>()*4],  size_of is non-const
-    data: [usize; 4],
+    // C original: char data[sizeof(void*)*4], alignment = 1.
+    // Using u8 preserves the exact same size and alignment on all platforms.
+    data: [u8; std::mem::size_of::<usize>() * 4],
 }
 
 /// See [ErlNifResourceFlags](http://www.erlang.org/doc/man/erl_nif.html#ErlNifResourceFlags) in the Erlang docs.
