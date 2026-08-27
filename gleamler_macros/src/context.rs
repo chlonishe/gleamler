@@ -184,7 +184,8 @@ impl<'a> Context<'a> {
                     attrs.push(GleamlerAttr::Decode);
                     Ok(())
                 } else {
-                    Err(nested_meta.error("expected `encode` and/or `decode` in gleamler attribute"))
+                    Err(nested_meta
+                        .error("expected `encode` and/or `decode` in gleamler attribute"))
                 }
             })
             .expect("invalid gleamler attribute");
