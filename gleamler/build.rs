@@ -8,8 +8,13 @@ use std::fmt::Write;
 use std::path::Path;
 use std::{env, fs};
 
-pub const MIN_SUPPORTED_VERSION: (u32, u32) = (2, 14);
-pub const MAX_SUPPORTED_VERSION: (u32, u32) = (2, 18);
+const SUPPORTED_NIF_VERSIONS: &[(u32, u32)] = &[
+    (2, 14),
+    (2, 15),
+    (2, 16),
+    (2, 17),
+    (2, 18),
+];
 
 const SNIPPET_NAME: &str = "nif_api.snippet.rs";
 
@@ -888,16 +893,15 @@ fn atomic_write(path: &Path, contents: impl AsRef<[u8]>) {
 /// `CARGO_FEATURE_NIF_VERSION_*` env vars may be set simultaneously. We iterate
 /// in reverse and pick the first (i.e. highest) match.
 fn get_nif_version_from_features() -> (u32, u32) {
-    for major in ((MIN_SUPPORTED_VERSION.0)..=(MAX_SUPPORTED_VERSION.0)).rev() {
-        for minor in ((MIN_SUPPORTED_VERSION.1)..=(MAX_SUPPORTED_VERSION.1)).rev() {
-            if env::var(format!("CARGO_FEATURE_NIF_VERSION_{major}_{minor}")).is_ok() {
-                return (major, minor);
-            }
+    for &(major, minor) in SUPPORTED_NIF_VERSIONS.iter().rev() {
+        if env::var(format!("CARGO_FEATURE_NIF_VERSION_{major}_{minor}")).is_ok() {
+            return (major, minor);
         }
     }
+    let (min_major, min_minor) = SUPPORTED_NIF_VERSIONS[0];
     panic!(
         "At least the minimal feature nif_version_{}_{} has to be defined",
-        MIN_SUPPORTED_VERSION.0, MIN_SUPPORTED_VERSION.1
+        min_major, min_minor
     );
 }
 
