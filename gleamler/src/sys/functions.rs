@@ -21,7 +21,7 @@ pub unsafe fn internal_set_symbols(callbacks: DynNifCallbacks) {
 }
 
 #[cfg(not(target_os = "windows"))]
-pub unsafe fn internal_write_symbols() {
+pub fn internal_write_symbols() {
     DYN_NIF_CALLBACKS.get_or_init(|| {
         let mut callbacks = DynNifCallbacks::default();
         let filler = super::nif_filler::new();
@@ -31,7 +31,7 @@ pub unsafe fn internal_write_symbols() {
 }
 
 #[cfg(target_os = "windows")]
-pub unsafe fn internal_write_symbols() {}
+pub fn internal_write_symbols() {}
 
 pub unsafe fn enif_make_pid(_env: *mut ErlNifEnv, pid: ErlNifPid) -> ERL_NIF_TERM {
     pid.pid

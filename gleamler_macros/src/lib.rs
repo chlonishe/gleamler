@@ -394,7 +394,7 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
             use std::sync::Once;
             static INIT: Once = Once::new();
             INIT.call_once(|| {
-                unsafe { ::gleamler::codegen_runtime::internal_write_symbols() };
+                ::gleamler::codegen_runtime::internal_write_symbols();
             });
             #entry_body
         }
