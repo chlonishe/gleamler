@@ -1,6 +1,6 @@
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{GenericArgument, PathSegment, TraitBound};
+use syn::parse_quote;
 
 use super::context::Context;
 
@@ -19,64 +19,17 @@ pub(crate) fn decoder(ctx: &Context, inner: TokenStream) -> TokenStream {
     let where_clause = impl_generics.make_where_clause();
 
     for lifetime in ctx.lifetimes.iter() {
-        let mut punctuated = syn::punctuated::Punctuated::new();
-        punctuated.push(lifetime.clone());
-        let predicate = syn::PredicateLifetime {
-            lifetime: decode_lifetime.clone(),
-            colon_token: syn::token::Colon {
-                spans: [Span::call_site()],
-            },
-            bounds: punctuated,
+        let bound: syn::WherePredicate = parse_quote! {
+            '__gleamler_decode_lifetime: #lifetime
         };
-        where_clause.predicates.push(predicate.into());
+        where_clause.predicates.push(bound);
     }
-
     for type_parameter in ctx.type_parameters.iter() {
-        let mut punctuated = syn::punctuated::Punctuated::new();
-        punctuated.push(decode_lifetime.clone().into());
-        punctuated.push(syn::TypeParamBound::Trait(TraitBound {
-            paren_token: None,
-            modifier: syn::TraitBoundModifier::None,
-            lifetimes: None,
-            path: syn::Path {
-                leading_colon: Some(syn::token::PathSep::default()),
-                segments: [
-                    PathSegment {
-                        ident: syn::Ident::new("gleamler", Span::call_site()),
-                        arguments: syn::PathArguments::None,
-                    },
-                    PathSegment {
-                        ident: syn::Ident::new("Decoder", Span::call_site()),
-                        arguments: syn::PathArguments::AngleBracketed(
-                            syn::AngleBracketedGenericArguments {
-                                colon2_token: None,
-                                lt_token: Default::default(),
-                                args: std::iter::once(GenericArgument::Lifetime(
-                                    decode_lifetime.clone(),
-                                ))
-                                .collect(),
-                                gt_token: Default::default(),
-                            },
-                        ),
-                    },
-                ]
-                .iter()
-                .cloned()
-                .collect(),
-            },
-        }));
-        let predicate = syn::PredicateType {
-            lifetimes: None,
-            bounded_ty: syn::Type::Path(syn::TypePath {
-                qself: None,
-                path: type_parameter.clone().ident.into(),
-            }),
-            colon_token: syn::token::Colon {
-                spans: [Span::call_site()],
-            },
-            bounds: punctuated,
+        let ty = &type_parameter.ident;
+        let bound: syn::WherePredicate = parse_quote! {
+            #ty: ::gleamler::Decoder<'__gleamler_decode_lifetime>
         };
-        where_clause.predicates.push(predicate.into());
+        where_clause.predicates.push(bound);
     }
 
     let (impl_generics, _, where_clause) = impl_generics.split_for_impl();
@@ -98,40 +51,11 @@ pub(crate) fn encoder(ctx: &Context, inner: TokenStream) -> TokenStream {
     let where_clause = generics.make_where_clause();
 
     for type_parameter in ctx.type_parameters.iter() {
-        let mut punctuated = syn::punctuated::Punctuated::new();
-        punctuated.push(syn::TypeParamBound::Trait(TraitBound {
-            paren_token: None,
-            modifier: syn::TraitBoundModifier::None,
-            lifetimes: None,
-            path: syn::Path {
-                leading_colon: Some(syn::token::PathSep::default()),
-                segments: [
-                    PathSegment {
-                        ident: syn::Ident::new("gleamler", Span::call_site()),
-                        arguments: syn::PathArguments::None,
-                    },
-                    PathSegment {
-                        ident: syn::Ident::new("Encoder", Span::call_site()),
-                        arguments: syn::PathArguments::None,
-                    },
-                ]
-                .iter()
-                .cloned()
-                .collect(),
-            },
-        }));
-        let predicate = syn::PredicateType {
-            lifetimes: None,
-            bounded_ty: syn::Type::Path(syn::TypePath {
-                qself: None,
-                path: type_parameter.ident.clone().into(),
-            }),
-            colon_token: syn::token::Colon {
-                spans: [Span::call_site()],
-            },
-            bounds: punctuated,
+        let ty = &type_parameter.ident;
+        let bound: syn::WherePredicate = parse_quote! {
+            #ty: ::gleamler::Encoder
         };
-        where_clause.predicates.push(predicate.into());
+        where_clause.predicates.push(bound);
     }
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
