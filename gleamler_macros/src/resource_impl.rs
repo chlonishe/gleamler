@@ -42,11 +42,14 @@ pub fn transcoder_decorator(attrs: Attributes, mut input: syn::ItemImpl) -> Toke
     let mut to_add: HashSet<String> = HashSet::new();
     let mut already_has: HashSet<String> = HashSet::new();
 
+    const KNOWN_CALLBACKS: &[&str] = &["destructor", "down", "dyncall"];
+
     for item in input.items.iter() {
         if let syn::ImplItem::Fn(f) = item {
-            to_add.insert(
-                format!("IMPLEMENTS_{}", f.sig.ident.to_string().to_uppercase()).to_string(),
-            );
+            let name = f.sig.ident.to_string();
+            if KNOWN_CALLBACKS.contains(&name.as_str()) {
+                to_add.insert(format!("IMPLEMENTS_{}", name.to_uppercase()));
+            }
         }
 
         if let syn::ImplItem::Const(f) = item {
