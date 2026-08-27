@@ -23,16 +23,21 @@ mod internal {
                 _ => None,
             };
             let beam_path = beam_location.as_deref().map(std::ffi::OsStr::new);
-            let lib = unsafe { Library::open(beam_path, FLAGS) };
+            let lib = unsafe { Library::open(beam_path, FLAGS) }
+                .expect(
+                    "gleamler: failed to open BEAM VM library for NIF symbol resolution. \
+                     Ensure GLEAMLER_BEAM_LIBRARY_PATH is correct and BEAM was loaded with RTLD_GLOBAL",
+                );
             DlsymNifFiller {
-                lib: lib.unwrap().into(),
+                lib: lib.into(),
             }
         }
     }
 
     impl DynNifFiller for DlsymNifFiller {
         fn write<T: Copy>(&self, field: &mut Option<T>, name: &str) {
-            let symbol = unsafe { self.lib.get::<T>(name.as_bytes()).unwrap() };
+            let symbol = unsafe { self.lib.get::<T>(name.as_bytes()) }
+                .unwrap_or_else(|e| panic!("gleamler: NIF symbol `{name}` not found: {e}"));
             *field = Some(*symbol);
         }
     }
