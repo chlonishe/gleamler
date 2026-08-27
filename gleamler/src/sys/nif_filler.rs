@@ -28,9 +28,7 @@ mod internal {
                     "gleamler: failed to open BEAM VM library for NIF symbol resolution. \
                      Ensure GLEAMLER_BEAM_LIBRARY_PATH is correct and BEAM was loaded with RTLD_GLOBAL",
                 );
-            DlsymNifFiller {
-                lib: lib.into(),
-            }
+            DlsymNifFiller { lib: lib.into() }
         }
     }
 
