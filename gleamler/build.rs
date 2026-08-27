@@ -8,13 +8,7 @@ use std::fmt::Write;
 use std::path::Path;
 use std::{env, fs};
 
-const SUPPORTED_NIF_VERSIONS: &[(u32, u32)] = &[
-    (2, 14),
-    (2, 15),
-    (2, 16),
-    (2, 17),
-    (2, 18),
-];
+const SUPPORTED_NIF_VERSIONS: &[(u32, u32)] = &[(2, 14), (2, 15), (2, 16), (2, 17), (2, 18)];
 
 const SNIPPET_NAME: &str = "nif_api.snippet.rs";
 
