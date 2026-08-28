@@ -69,13 +69,19 @@ fn main() {
 
     let nifs_source = fs::read_to_string(&nifs_rs)
         .unwrap_or_else(|e| panic!("failed to read {}: {}", nifs_rs.display(), e));
-    let mut functions = gleamler_codegen::parse_nif_functions(&nifs_source);
+    let nifs_functions = gleamler_codegen::parse_nif_functions(&nifs_source);
 
-    if with_stress && stress_nifs_rs.exists() {
+    let stress_functions = if with_stress && stress_nifs_rs.exists() {
         let stress_source = fs::read_to_string(&stress_nifs_rs)
             .unwrap_or_else(|e| panic!("failed to read {}: {}", stress_nifs_rs.display(), e));
-        functions.extend(gleamler_codegen::parse_nif_functions(&stress_source));
-    }
+        gleamler_codegen::parse_nif_functions(&stress_source)
+    } else {
+        Vec::new()
+    };
+
+    let mut functions = Vec::with_capacity(nifs_functions.len() + stress_functions.len());
+    functions.extend(nifs_functions.clone());
+    functions.extend(stress_functions.clone());
 
     eprintln!(
         "Generated {} function(s){}\n  → {}\n  → {}",
@@ -86,40 +92,10 @@ fn main() {
     );
 
     let registered = gleamler_codegen::parse_init_nifs_list(&nifs_source);
-    if !registered.is_empty() {
-        let stress_names: std::collections::BTreeSet<_> = if with_stress && stress_nifs_rs.exists()
-        {
-            let stress_source = fs::read_to_string(&stress_nifs_rs)
-                .unwrap_or_else(|e| panic!("failed to read {}: {}", stress_nifs_rs.display(), e));
-            gleamler_codegen::parse_nif_functions(&stress_source)
-                .into_iter()
-                .map(|f| f.name)
-                .collect()
-        } else {
-            std::collections::BTreeSet::new()
-        };
-
-        for f in &functions {
-            if stress_names.contains(&f.name) {
-                continue;
-            }
-            if !registered.contains(&f.name) {
-                eprintln!(
-                    "warning: #[gleam_nif] fn `{}` is not listed in init_nifs! — \
-                     its stubs will exit(nif_library_not_loaded) at runtime",
-                    f.name
-                );
-            }
-        }
-        let declared: std::collections::BTreeSet<_> =
-            functions.iter().map(|f| f.name.as_str()).collect();
-        for name in &registered {
-            if !declared.contains(name.as_str()) {
-                eprintln!(
-                    "warning: `{name}` is listed in init_nifs! but has no #[gleam_nif] function"
-                );
-            }
-        }
+    let warnings =
+        gleamler_codegen::validate_nif_registry(&registered, &nifs_functions, &stress_functions);
+    for w in warnings {
+        eprintln!("warning: {w}");
     }
 
     const RESERVED_ERL_NAMES: &[&str] = &["init", "module_info", "record_info"];

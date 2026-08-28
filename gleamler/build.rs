@@ -963,28 +963,10 @@ fn main() {
     };
 
     let registered = gleamler_codegen::parse_init_nifs_list(&nifs_source);
-
-    if !registered.is_empty() {
-        for f in &nifs_functions {
-            if !registered.contains(&f.name) {
-                println!(
-                    "cargo:warning=#[gleam_nif] fn `{}` is not listed in init_nifs! — \
-                     its stubs will exit(nif_library_not_loaded) at runtime",
-                    f.name
-                );
-            }
-        }
-        let all_functions: Vec<_> = nifs_functions.iter().chain(&stress_functions).collect();
-        let declared: std::collections::BTreeSet<_> =
-            all_functions.iter().map(|f| f.name.as_str()).collect();
-        for name in &registered {
-            if !declared.contains(name.as_str()) {
-                println!(
-                    "cargo:warning=`{}` is listed in init_nifs! but has no #[gleam_nif] function",
-                    name
-                );
-            }
-        }
+    let warnings =
+        gleamler_codegen::validate_nif_registry(&registered, &nifs_functions, &stress_functions);
+    for w in warnings {
+        println!("cargo:warning={w}");
     }
 
     // NIF registry (OUT_DIR only)

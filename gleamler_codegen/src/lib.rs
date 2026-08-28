@@ -7,7 +7,7 @@ use syn::{
     punctuated::Punctuated,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NifFunc {
     pub name: String,
     pub alias: Option<String>,
@@ -110,6 +110,42 @@ pub fn parse_init_nifs_module(source: &str) -> Option<String> {
         return input.module.map(|lit| lit.value());
     }
     None
+}
+
+pub fn validate_nif_registry(
+    registered: &[String],
+    nifs_functions: &[NifFunc],
+    stress_functions: &[NifFunc],
+) -> Vec<String> {
+    let mut warnings = Vec::new();
+    if registered.is_empty() {
+        return warnings;
+    }
+
+    let all_functions: Vec<_> = nifs_functions
+        .iter()
+        .chain(stress_functions.iter())
+        .collect();
+    let declared: std::collections::BTreeSet<_> =
+        all_functions.iter().map(|f| f.name.as_str()).collect();
+
+    for f in nifs_functions {
+        if !registered.contains(&f.name) {
+            warnings.push(format!(
+                "#[gleam_nif] fn `{}` is not listed in init_nifs! — \
+                 its stubs will exit(nif_library_not_loaded) at runtime",
+                f.name
+            ));
+        }
+    }
+    for name in registered {
+        if !declared.contains(name.as_str()) {
+            warnings.push(format!(
+                "`{name}` is listed in init_nifs! but has no #[gleam_nif] function"
+            ));
+        }
+    }
+    warnings
 }
 
 fn has_gleam_nif(attrs: &[syn::Attribute]) -> bool {
@@ -452,9 +488,6 @@ const GLEAM_KEYWORDS: &[&str] = &[
 ];
 
 pub fn generate_gleam(funcs: &[NifFunc], erl_module: &str) -> String {
-    let mut has_option = false;
-    let mut has_dict = false;
-    let mut has_resource = false;
     let mut has_option = false;
     let mut has_dict = false;
     let mut has_resource = false;
