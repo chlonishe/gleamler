@@ -224,6 +224,14 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> String {
                     }
                 }
 
+                "ErlOption" => {
+                    if let Some(inner) = generic_args.first() {
+                        format!("option.Option({})", type_to_gleam_ctx(inner, ctx))
+                    } else {
+                        "option.Option(Nil)".into()
+                    }
+                }
+
                 _ => {
                     if generic_args.is_empty() {
                         ident_str
