@@ -130,14 +130,16 @@ pub fn validate_nif_registry(
         all_functions.iter().map(|f| f.name.as_str()).collect();
 
     for f in nifs_functions {
-        if !registered.contains(&f.name) {
+        let effective_name = f.alias.as_ref().unwrap_or(&f.name);
+        if !registered.contains(effective_name) && !registered.contains(&f.name) {
             warnings.push(format!(
-                "#[gleam_nif] fn `{}` is not listed in init_nifs! — \
+                "#[gleam_nif] fn `{}` (alias `{}`) is not listed in init_nifs! — \
                  its stubs will exit(nif_library_not_loaded) at runtime",
-                f.name
+                f.name, effective_name
             ));
         }
     }
+
     for name in registered {
         if !declared.contains(name.as_str()) {
             warnings.push(format!(
