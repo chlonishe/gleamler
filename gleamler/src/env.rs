@@ -265,6 +265,10 @@ impl<'a> Env<'a> {
     }
 
     /// Reads an OS environment variable via the Erlang VM.
+    ///
+    /// This uses the two-call pattern: first with a null buffer to obtain the
+    /// required size, then with a correctly sized buffer. This is supported by
+    /// OTP 20+ on all platforms.
     #[inline]
     pub fn getenv(self, key: &str) -> Result<String, Error> {
         use std::ffi::CString;
