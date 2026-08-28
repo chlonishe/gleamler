@@ -2,14 +2,36 @@ use std::env;
 use std::fs;
 use std::path::Path;
 
-fn write_if_changed(path: &str, contents: impl AsRef<[u8]>) {
+fn atomic_write(path: &std::path::Path, contents: impl AsRef<[u8]>) {
     let bytes = contents.as_ref();
-    if let Ok(existing) = fs::read(path) {
+    if let Ok(existing) = std::fs::read(path) {
         if existing == bytes {
             return;
         }
     }
-    fs::write(path, bytes).unwrap_or_else(|e| panic!("failed to write {}: {}", path, e));
+    let tmp = path.with_extension("tmp");
+
+    struct TmpGuard<'a>(&'a std::path::Path);
+    impl<'a> Drop for TmpGuard<'a> {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(self.0);
+        }
+    }
+    let _guard = TmpGuard(&tmp);
+
+    std::fs::write(&tmp, bytes)
+        .unwrap_or_else(|e| panic!("failed to write temp file {}: {}", tmp.display(), e));
+    if cfg!(windows) {
+        let _ = std::fs::remove_file(path);
+    }
+    std::fs::rename(&tmp, path).unwrap_or_else(|e| {
+        panic!(
+            "failed to rename {} → {}: {}",
+            tmp.display(),
+            path.display(),
+            e
+        )
+    });
 }
 
 fn main() {
@@ -121,6 +143,6 @@ fn main() {
     let erl_contents = gleamler_codegen::generate_erl(&functions, &erl_module, &lib_name);
     let gleam_contents = gleamler_codegen::generate_gleam(&functions, &erl_module);
 
-    write_if_changed(erl_out, erl_contents);
-    write_if_changed(gleam_out, gleam_contents);
+    atomic_write(std::path::Path::new(erl_out), erl_contents);
+    atomic_write(std::path::Path::new(gleam_out), gleam_contents);
 }
