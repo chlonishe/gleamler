@@ -965,8 +965,7 @@ fn main() {
     let registered = gleamler_codegen::parse_init_nifs_list(&nifs_source);
 
     if !registered.is_empty() {
-        let all_functions: Vec<_> = nifs_functions.iter().chain(&stress_functions).collect();
-        for f in &all_functions {
+        for f in &nifs_functions {
             if !registered.contains(&f.name) {
                 println!(
                     "cargo:warning=#[gleam_nif] fn `{}` is not listed in init_nifs! — \
@@ -975,6 +974,7 @@ fn main() {
                 );
             }
         }
+        let all_functions: Vec<_> = nifs_functions.iter().chain(&stress_functions).collect();
         let declared: std::collections::BTreeSet<_> =
             all_functions.iter().map(|f| f.name.as_str()).collect();
         for name in &registered {
