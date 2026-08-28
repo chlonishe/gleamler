@@ -54,7 +54,16 @@ impl<'b> PartialEq<Env<'b>> for Env<'_> {
 /// Indicates that a send failed, see
 /// [enif\_send](https://www.erlang.org/doc/man/erl_nif.html#enif_send).
 #[derive(Clone, Copy, Debug)]
+#[must_use]
 pub struct SendError;
+
+impl std::fmt::Display for SendError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "failed to send message to Erlang process")
+    }
+}
+
+impl std::error::Error for SendError {}
 
 /// Flags for `Env::make_unique_integer`
 #[derive(Clone, Copy, Debug)]
@@ -128,6 +137,7 @@ impl<'a> Env<'a> {
         unsafe { Self::new_internal(_lifetime_marker, env, EnvKind::Init, 0) }
     }
 
+    #[inline]
     pub fn as_c_arg(self) -> NIF_ENV {
         self.env
     }
@@ -153,6 +163,7 @@ impl<'a> Env<'a> {
     /// The result indicates whether the send was successful, see also
     /// [enif\_send](https://www.erlang.org/doc/man/erl_nif.html#enif_send).
     #[inline]
+    #[must_use]
     pub fn send(self, pid: &LocalPid, message: impl Encoder) -> Result<(), SendError> {
         if !is_scheduler_thread() {
             return Err(SendError);
@@ -181,6 +192,7 @@ impl<'a> Env<'a> {
     /// - `Some(pid)` if `name_or_pid` is an atom and an alive process is currently registered under the given name.
     /// - `None` if `name_or_pid` is an atom but there is no alive process registered under this name.
     /// - `None` if `name_or_pid` is not a PID or atom.
+    #[inline]
     pub fn whereis_pid(self, name_or_pid: impl Encoder) -> Option<LocalPid> {
         let name_or_pid = name_or_pid.encode(self);
         if name_or_pid.is_pid() {
@@ -227,6 +239,7 @@ impl<'a> Env<'a> {
             .map(|(term, size)| (unsafe { Term::new(self, term) }, size))
     }
 
+    #[inline]
     pub(crate) fn generation(self) -> u64 {
         self.generation
     }
@@ -252,6 +265,7 @@ impl<'a> Env<'a> {
     }
 
     /// Reads an OS environment variable via the Erlang VM.
+    #[inline]
     pub fn getenv(self, key: &str) -> Result<String, Error> {
         use std::ffi::CString;
         let c_key = CString::new(key).map_err(|_| Error::BadArg)?;
@@ -274,11 +288,14 @@ impl<'a> Env<'a> {
             return Err(Error::BadArg);
         }
 
+        // size now includes the null terminator written by enif_getenv
         let len = size.saturating_sub(1);
-        String::from_utf8(buf[..len].to_vec()).map_err(|_| Error::BadArg)
+        buf.truncate(len);
+        String::from_utf8(buf).map_err(|_| Error::BadArg)
     }
 
     /// Attempts to find the port registered by `name_or_port`.
+    #[inline]
     pub fn whereis_port(self, name_or_port: impl Encoder) -> Option<LocalPort> {
         let name_or_port = name_or_port.encode(self);
         if name_or_port.is_port() {
@@ -302,6 +319,7 @@ impl<'a> Env<'a> {
 
     /// Sets a NIF environment option.
     /// Requires NIF version ≥ 2.17 (OTP 26+).
+    #[inline]
     #[cfg(feature = "nif_version_2_17")]
     pub fn set_option(self, option: NifOption) -> Result<(), Error> {
         let res = unsafe { enif_set_option(self.as_c_arg(), option.as_sys()) };
@@ -310,6 +328,7 @@ impl<'a> Env<'a> {
 
     /// Returns the atom cache index of an existing atom term.
     /// Requires NIF version ≥ 2.18 (OTP 29+).
+    #[inline]
     #[cfg(feature = "nif_version_2_18")]
     pub fn get_atom_cache_index(self, term: Term<'a>) -> Result<u32, Error> {
         let mut idx: crate::sys::c_uint = 0;
@@ -322,6 +341,7 @@ impl<'a> Env<'a> {
 
     /// Returns the maximum atom cache index used by this VM instance.
     /// Requires NIF version ≥ 2.18 (OTP 29+).
+    #[inline]
     #[cfg(feature = "nif_version_2_18")]
     pub fn max_atom_cache_index(self) -> u32 {
         unsafe { enif_max_atom_cache_index() }
@@ -368,6 +388,7 @@ impl OwnedEnv {
     }
 
     /// Run some code in this environment.
+    #[inline]
     pub fn run<'a, F, R>(&self, closure: F) -> R
     where
         F: FnOnce(Env<'a>) -> R,
@@ -391,6 +412,7 @@ impl OwnedEnv {
     /// can only use this method on a thread that was created by other
     /// means. (This curious restriction is imposed by the Erlang VM.)
     ///
+    #[must_use]
     pub fn send_and_clear<'a, F, T>(
         &mut self,
         recipient: &LocalPid,
@@ -461,6 +483,7 @@ impl OwnedEnv {
     ///
     /// **Note: There is no way to save terms across `OwnedEnv::send()` or `clear()`.**
     /// If you try, the `.load()` call will panic.
+    #[inline]
     pub fn save(&self, term: impl Encoder) -> SavedTerm {
         SavedTerm {
             term: self.run(|env| term.encode(env).as_c_arg()),
@@ -499,6 +522,7 @@ impl SavedTerm {
     /// `env` must be the `Env` of a `.run()` or `.send()` call on the
     /// `OwnedEnv` where this term was saved, and the `OwnedEnv` must not have
     /// been cleared or dropped since then. Otherwise this method will panic.
+    #[inline]
     pub fn load<'a>(&self, env: Env<'a>) -> Term<'a> {
         // Check that the saved term is still valid.
         match self.env_generation.upgrade() {
