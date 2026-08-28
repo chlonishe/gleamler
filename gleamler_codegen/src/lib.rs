@@ -73,9 +73,11 @@ pub fn parse_nif_functions(source: &str) -> Vec<NifFunc> {
     for item in file.items {
         if let syn::Item::Fn(func) = item
             && has_gleam_nif(&func.attrs)
-            && let Some(f) = parse_nif_function(func)
         {
-            functions.push(f);
+            match parse_nif_function(func) {
+                Ok(f) => functions.push(f),
+                Err(e) => eprintln!("warning: gleamler_codegen: skipping {e}"),
+            }
         }
     }
     functions
@@ -133,15 +135,15 @@ fn is_env_type(ty: &Type) -> bool {
 
 #[cfg(test)]
 fn type_to_gleam(ty: &Type) -> String {
-    type_to_gleam_ctx(ty, "<unknown>")
+    type_to_gleam_ctx(ty, "<unknown>").unwrap_or_else(|e| panic!("{e}"))
 }
 
-fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> String {
+fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> Result<String, String> {
     match ty {
         Type::Path(TypePath { path, .. }) => {
             let segment = match path.segments.last() {
                 Some(seg) => seg,
-                None => return "Nil".into(),
+                None => return Ok("Nil".into()),
             };
             let ident_str = segment.ident.to_string();
 
@@ -161,86 +163,86 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> String {
 
             match ident_str.as_str() {
                 "i8" | "i16" | "i32" | "i64" | "isize" | "u8" | "u16" | "u32" | "u64" | "usize"
-                | "i128" | "u128" => "Int".into(),
+                | "i128" | "u128" => Ok("Int".into()),
 
-                "f32" | "f64" => "Float".into(),
+                "f32" | "f64" => Ok("Float".into()),
 
-                "bool" => "Bool".into(),
+                "bool" => Ok("Bool".into()),
 
-                "String" | "str" => "String".into(),
+                "String" | "str" => Ok("String".into()),
 
-                "Atom" => panic!(
+                "Atom" => Err(format!(
                     "gleamler_codegen: bare Atom type is not supported in #[gleam_nif] fn '{ctx}'. \
                     Gleam has no built-in Atom type — use String instead"
-                ),
+                )),
 
-                "Binary" | "OwnedBinary" | "NewBinary" => "BitArray".into(),
+                "Binary" | "OwnedBinary" | "NewBinary" => Ok("BitArray".into()),
 
                 "Vec" => {
                     if let Some(inner) = generic_args.first() {
-                        format!("List({})", type_to_gleam_ctx(inner, ctx))
+                        Ok(format!("List({})", type_to_gleam_ctx(inner, ctx)?))
                     } else {
-                        "List(Nil)".into()
+                        Ok("List(Nil)".into())
                     }
                 }
 
                 "Option" => {
                     if let Some(inner) = generic_args.first() {
-                        format!("option.Option({})", type_to_gleam_ctx(inner, ctx))
+                        Ok(format!("option.Option({})", type_to_gleam_ctx(inner, ctx)?))
                     } else {
-                        "option.Option(Nil)".into()
-                    }
-                }
-
-                "Result" => match generic_args.len() {
-                    1 => format!("Result({}, Nil)", type_to_gleam_ctx(generic_args[0], ctx)),
-                    2 => format!(
-                        "Result({}, {})",
-                        type_to_gleam_ctx(generic_args[0], ctx),
-                        type_to_gleam_ctx(generic_args[1], ctx)
-                    ),
-                    _ => "Result(Nil, Nil)".into(),
-                },
-
-                "HashMap" | "BTreeMap" => {
-                    if generic_args.len() == 2 {
-                        format!(
-                            "dict.Dict({}, {})",
-                            type_to_gleam_ctx(generic_args[0], ctx),
-                            type_to_gleam_ctx(generic_args[1], ctx)
-                        )
-                    } else {
-                        "dict.Dict(Nil, Nil)".into()
-                    }
-                }
-
-                "ResourceArc" => "Resource".into(),
-
-                "NifOutcome" => {
-                    if let Some(inner) = generic_args.first() {
-                        type_to_gleam_ctx(inner, ctx)
-                    } else {
-                        "Nil".into()
+                        Ok("option.Option(Nil)".into())
                     }
                 }
 
                 "ErlOption" => {
                     if let Some(inner) = generic_args.first() {
-                        format!("option.Option({})", type_to_gleam_ctx(inner, ctx))
+                        Ok(format!("option.Option({})", type_to_gleam_ctx(inner, ctx)?))
                     } else {
-                        "option.Option(Nil)".into()
+                        Ok("option.Option(Nil)".into())
+                    }
+                }
+
+                "Result" => match generic_args.len() {
+                    1 => Ok(format!("Result({}, Nil)", type_to_gleam_ctx(generic_args[0], ctx)?)),
+                    2 => Ok(format!(
+                        "Result({}, {})",
+                        type_to_gleam_ctx(generic_args[0], ctx)?,
+                        type_to_gleam_ctx(generic_args[1], ctx)?
+                    )),
+                    _ => Ok("Result(Nil, Nil)".into()),
+                },
+
+                "HashMap" | "BTreeMap" => {
+                    if generic_args.len() == 2 {
+                        Ok(format!(
+                            "dict.Dict({}, {})",
+                            type_to_gleam_ctx(generic_args[0], ctx)?,
+                            type_to_gleam_ctx(generic_args[1], ctx)?
+                        ))
+                    } else {
+                        Ok("dict.Dict(Nil, Nil)".into())
+                    }
+                }
+
+                "ResourceArc" => Ok("Resource".into()),
+
+                "NifOutcome" => {
+                    if let Some(inner) = generic_args.first() {
+                        Ok(type_to_gleam_ctx(inner, ctx)?)
+                    } else {
+                        Ok("Nil".into())
                     }
                 }
 
                 _ => {
                     if generic_args.is_empty() {
-                        ident_str
+                        Ok(ident_str)
                     } else {
                         let args_str: Vec<_> = generic_args
                             .iter()
                             .map(|t| type_to_gleam_ctx(t, ctx))
-                            .collect();
-                        format!("{}({})", ident_str, args_str.join(", "))
+                            .collect::<Result<_, _>>()?;
+                        Ok(format!("{}({})", ident_str, args_str.join(", ")))
                     }
                 }
             }
@@ -250,33 +252,37 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> String {
 
         Type::Tuple(TypeTuple { elems, .. }) => {
             if elems.is_empty() {
-                "Nil".into()
+                Ok("Nil".into())
             } else {
-                let parts: Vec<_> = elems.iter().map(|t| type_to_gleam_ctx(t, ctx)).collect();
-                format!("#({})", parts.join(", "))
+                let parts: Vec<_> = elems
+                    .iter()
+                    .map(|t| type_to_gleam_ctx(t, ctx))
+                    .collect::<Result<_, _>>()?;
+                Ok(format!("#({})", parts.join(", ")))
             }
         }
 
         Type::Slice(TypeSlice { elem, .. }) => {
-            format!("List({})", type_to_gleam_ctx(elem, ctx))
+            Ok(format!("List({})", type_to_gleam_ctx(elem, ctx)?))
         }
 
         Type::Array(TypeArray { elem, .. }) => {
-            format!("List({})", type_to_gleam_ctx(elem, ctx))
+            Ok(format!("List({})", type_to_gleam_ctx(elem, ctx)?))
         }
 
         _ => {
             use quote::ToTokens;
-            ty.to_token_stream()
+            Ok(ty
+                .to_token_stream()
                 .to_string()
                 .split_whitespace()
                 .collect::<Vec<_>>()
-                .join("")
+                .join(""))
         }
     }
 }
 
-fn parse_nif_function(func: ItemFn) -> Option<NifFunc> {
+fn parse_nif_function(func: ItemFn) -> Result<NifFunc, String> {
     let name = func.sig.ident.to_string();
     let mut args = Vec::new();
     for (idx, arg) in func.sig.inputs.iter().enumerate() {
@@ -288,13 +294,15 @@ fn parse_nif_function(func: ItemFn) -> Option<NifFunc> {
                 Pat::Ident(ident) => ident.ident.to_string(),
                 _ => format!("arg{}", idx),
             };
-            let ty = type_to_gleam_ctx(&pat_type.ty, &name);
+            let ty = type_to_gleam_ctx(&pat_type.ty, &name)
+                .map_err(|e| format!("in fn `{name}` argument `{arg_name}`: {e}"))?;
             args.push((arg_name, ty));
         }
     }
     let ret = match &func.sig.output {
         ReturnType::Default => "Nil".into(),
-        ReturnType::Type(_, ty) => type_to_gleam_ctx(ty, &name),
+        ReturnType::Type(_, ty) => type_to_gleam_ctx(ty, &name)
+            .map_err(|e| format!("in fn `{name}` return type: {e}"))?,
     };
     let alias = func
         .attrs
@@ -357,7 +365,7 @@ fn parse_nif_function(func: ItemFn) -> Option<NifFunc> {
         })
         .collect();
 
-    Some(NifFunc {
+    Ok(NifFunc {
         name,
         alias,
         args,
