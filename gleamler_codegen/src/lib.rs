@@ -291,7 +291,14 @@ fn parse_nif_function(func: ItemFn) -> Option<NifFunc> {
     let alias = func
         .attrs
         .iter()
-        .filter(|a| a.path().is_ident("gleam_nif"))
+        .filter(|a| {
+            let path = a.path();
+            path.is_ident("gleam_nif")
+                || path
+                    .segments
+                    .last()
+                    .is_some_and(|seg| seg.ident == "gleam_nif")
+        })
         .find_map(|a| {
             if let syn::Meta::List(list) = &a.meta {
                 list.parse_args_with(
