@@ -87,7 +87,8 @@ fn main() {
 
     let registered = gleamler_codegen::parse_init_nifs_list(&nifs_source);
     if !registered.is_empty() {
-        let stress_names: std::collections::BTreeSet<_> = if with_stress && stress_nifs_rs.exists() {
+        let stress_names: std::collections::BTreeSet<_> = if with_stress && stress_nifs_rs.exists()
+        {
             let stress_source = fs::read_to_string(&stress_nifs_rs)
                 .unwrap_or_else(|e| panic!("failed to read {}: {}", stress_nifs_rs.display(), e));
             gleamler_codegen::parse_nif_functions(&stress_source)
