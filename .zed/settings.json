@@ -1,0 +1,17 @@
+{
+  "lsp": {
+    "rust-analyzer": {
+      "initialization_options": {
+        "linkedProjects": [
+          "./Cargo.toml"
+        ],
+        "diagnostics": {
+          "disabled": [
+            "unresolved-macro-call",
+            "inactive-code"
+          ]
+        }
+      }
+    }
+  }
+}
