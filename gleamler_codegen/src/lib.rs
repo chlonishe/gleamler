@@ -174,6 +174,17 @@ fn type_to_gleam(ty: &Type) -> String {
     type_to_gleam_ctx(ty, "<unknown>").unwrap_or_else(|e| panic!("{e}"))
 }
 
+fn is_u8_type(ty: &Type) -> bool {
+    match ty {
+        Type::Path(TypePath { path, .. }) => path
+            .segments
+            .last()
+            .map(|s| s.ident == "u8")
+            .unwrap_or(false),
+        _ => false,
+    }
+}
+
 fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> Result<String, String> {
     match ty {
         Type::Path(TypePath { path, .. }) => {
@@ -216,7 +227,11 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> Result<String, String> {
 
                 "Vec" => {
                     if let Some(inner) = generic_args.first() {
-                        Ok(format!("List({})", type_to_gleam_ctx(inner, ctx)?))
+                        if is_u8_type(inner) {
+                            Ok("BitArray".into())
+                        } else {
+                            Ok(format!("List({})", type_to_gleam_ctx(inner, ctx)?))
+                        }
                     } else {
                         Ok("List(Nil)".into())
                     }
