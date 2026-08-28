@@ -237,6 +237,12 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> Result<String, String> {
                     }
                 }
 
+                "Term" => Ok("dynamic.Dynamic".into()),
+                "LocalPid" => Ok("dynamic.Dynamic".into()),
+                "LocalPort" => Ok("dynamic.Dynamic".into()),
+                "Reference" => Ok("dynamic.Dynamic".into()),
+                "Monitor" => Ok("dynamic.Dynamic".into()),
+
                 _ => {
                     if generic_args.is_empty() {
                         Ok(ident_str)
@@ -449,6 +455,10 @@ pub fn generate_gleam(funcs: &[NifFunc], erl_module: &str) -> String {
     let mut has_option = false;
     let mut has_dict = false;
     let mut has_resource = false;
+    let mut has_option = false;
+    let mut has_dict = false;
+    let mut has_resource = false;
+    let mut has_dynamic = false;
 
     for f in funcs {
         if f.ret.contains("option.Option")
@@ -475,6 +485,9 @@ pub fn generate_gleam(funcs: &[NifFunc], erl_module: &str) -> String {
     if has_dict {
         out.push_str("import gleam/dict\n");
     }
+    if has_dynamic {
+        out.push_str("import gleam/dynamic\n");
+    }
     if has_resource {
         out.push_str(
             "\npub opaque type Resource {\n  Resource\n}\n\n\
@@ -488,6 +501,13 @@ pub fn generate_gleam(funcs: &[NifFunc], erl_module: &str) -> String {
             out.push_str("/// ");
             out.push_str(&f.docs.join("\n/// "));
             out.push('\n');
+        }
+        if gleam_type_mentions(&f.ret, "Dynamic")
+            || f.args
+                .iter()
+                .any(|(_, t)| gleam_type_mentions(t, "Dynamic"))
+        {
+            has_dynamic = true;
         }
         let gleam_name = format!("rust_{}", f.alias.as_ref().unwrap_or(&f.name));
         let erl_name = f.alias.as_ref().unwrap_or(&f.name);
