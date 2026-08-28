@@ -203,7 +203,10 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> Result<String, String> {
                 }
 
                 "Result" => match generic_args.len() {
-                    1 => Ok(format!("Result({}, Nil)", type_to_gleam_ctx(generic_args[0], ctx)?)),
+                    1 => Ok(format!(
+                        "Result({}, Nil)",
+                        type_to_gleam_ctx(generic_args[0], ctx)?
+                    )),
                     2 => Ok(format!(
                         "Result({}, {})",
                         type_to_gleam_ctx(generic_args[0], ctx)?,
@@ -301,8 +304,9 @@ fn parse_nif_function(func: ItemFn) -> Result<NifFunc, String> {
     }
     let ret = match &func.sig.output {
         ReturnType::Default => "Nil".into(),
-        ReturnType::Type(_, ty) => type_to_gleam_ctx(ty, &name)
-            .map_err(|e| format!("in fn `{name}` return type: {e}"))?,
+        ReturnType::Type(_, ty) => {
+            type_to_gleam_ctx(ty, &name).map_err(|e| format!("in fn `{name}` return type: {e}"))?
+        }
     };
     let alias = func
         .attrs
