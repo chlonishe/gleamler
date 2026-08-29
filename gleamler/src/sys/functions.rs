@@ -1,5 +1,3 @@
-#![allow(unsafe_op_in_unsafe_fn)]
-
 #[cfg(not(target_os = "windows"))]
 use super::nif_filler::DynNifFiller;
 use super::types::*;
@@ -38,7 +36,7 @@ pub unsafe fn enif_make_pid(_env: *mut ErlNifEnv, pid: ErlNifPid) -> ERL_NIF_TER
 }
 
 pub unsafe fn enif_compare_pids(pid1: *const ErlNifPid, pid2: *const ErlNifPid) -> c_int {
-    enif_compare((*pid1).pid, (*pid2).pid)
+    unsafe { enif_compare((*pid1).pid, (*pid2).pid) }
 }
 
 include!(concat!(env!("OUT_DIR"), "/nif_api.snippet.rs"));
