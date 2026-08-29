@@ -96,14 +96,19 @@ jobs:
             --target x86_64-unknown-linux-gnu \
             -p gleamler --features stress
 
-  # valgrind-rust job
+# valgrind-rust job
       - name: Run Valgrind on gleamler test binary
         run: |
-          TEST_BIN=$(find target/debug/deps -maxdepth 1 -type f -executable -name 'gleamler-*' ! -name '*.d' | head -n 1)
-          if [ -z "$TEST_BIN" ]; then
-            echo "Error: Test binary not found!"
+          TEST_BIN=$(cargo test -p gleamler --features stress --no-run --message-format=json 2>/dev/null \
+            | grep -o '"executable":"[^"]*gleamler-[^"]*"' \
+            | sed -E 's/.*"executable":"([^"]+)".*/\1/' \
+            | head -n 1)
+
+          if [ -z "$TEST_BIN" ] || [ ! -f "$TEST_BIN" ]; then
+            echo "Error: Could not locate test binary from cargo metadata"
             exit 1
           fi
+
           echo "Valgrind target: $TEST_BIN"
           valgrind \
             --leak-check=full \
