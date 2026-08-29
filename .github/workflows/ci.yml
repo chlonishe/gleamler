@@ -17,11 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-
       - uses: Swatinem/rust-cache@v2
 
       - name: cargo fmt
@@ -66,7 +64,8 @@ jobs:
             --lib
 
   coverage:
-    runs-on: ubuntu-latest    steps:
+    runs-on: ubuntu-latest
+    steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
@@ -100,13 +99,11 @@ jobs:
             gleam: "1.14.0"
             nif_src: target/release/libgleamler.so
             nif_dst: priv/gleamler.so
-
           - os: ubuntu-latest
             otp: "27"
             gleam: "1.6.0"
             nif_src: target/release/libgleamler.so
             nif_dst: priv/gleamler.so
-
           - os: macos-latest
             otp: "27"
             gleam: "1.14.0"
