@@ -96,17 +96,7 @@ jobs:
             --target x86_64-unknown-linux-gnu \
             -p gleamler --features stress
 
-  valgrind-rust:
-    name: Valgrind (Rust unit tests)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Install Valgrind
-        run: sudo apt-get update && sudo apt-get install -y valgrind
-      - name: Build gleamler tests (debug)
-        run: cargo test -p gleamler --features stress --no-run
+  # valgrind-rust job
       - name: Run Valgrind on gleamler test binary
         run: |
           TEST_BIN=$(find target/debug/deps -maxdepth 1 -type f -executable -name 'gleamler-*' ! -name '*.d' | head -n 1)
@@ -121,38 +111,9 @@ jobs:
             --errors-for-leak-kinds=definite,indirect \
             --track-origins=yes \
             --error-exitcode=1 \
-            --suppressions=valgrind.supp \
             "$TEST_BIN" --test-threads=1
 
-  valgrind-nif:
-    name: Valgrind (NIF via Erlang VM)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Setup Erlang/OTP and Gleam
-        uses: erlef/setup-beam@v1
-        with:
-          otp-version: "27"
-          gleam-version: "1.14.0"
-          rebar3-version: "3"
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Install Valgrind
-        run: sudo apt-get update && sudo apt-get install -y valgrind
-
-      - name: Build everything (make all)
-        run: make all
-
-      - name: Compile leak test module
-        run: |
-          EBIN_DIR="build/dev/erlang/gleamler/ebin"
-          mkdir -p "$EBIN_DIR"
-          erlc -o "$EBIN_DIR" src/resource_leak_test.erl
-
+# valgrind-nif job
       - name: Run resource leak test under Valgrind
         run: |
           EBIN_DIRS=$(find build/dev/erlang -name ebin | sed 's/^/-pa /' | tr '\n' ' ')
@@ -162,6 +123,5 @@ jobs:
             --show-leak-kinds=definite,indirect \
             --errors-for-leak-kinds=definite,indirect \
             --error-exitcode=1 \
-            --suppressions=valgrind.supp \
             erl +S 1:1 -noshell $EBIN_DIRS \
               -s resource_leak_test run -s init stop
