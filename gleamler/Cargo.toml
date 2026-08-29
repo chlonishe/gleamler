@@ -30,6 +30,7 @@ libloading = "0.9"
 libc = "0.2"
 num-bigint = { version = "0.4", optional = true }
 ctor = "0.2"
+thiserror = "2.0.20"
 
 [build-dependencies]
 regex-lite = "0.1"
