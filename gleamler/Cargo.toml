@@ -3,6 +3,7 @@ name = "gleamler"
 version = "0.1.0"
 edition = "2024"
 build = "build.rs"
+license = "MIT OR Apache-2.0"
 
 [features]
 default = ["nif_version_2_17"]
