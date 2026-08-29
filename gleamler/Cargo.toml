@@ -25,7 +25,7 @@ crate-type = ["cdylib", "rlib"]
 doctest = false
 
 [dependencies]
-gleamler_macros = { path = "../gleamler_macros" }
+gleamler_macros = { path = "../gleamler_macros", version = "0.1.0" }
 inventory = "0.3"
 libloading = "0.9"
 libc = "0.2"
