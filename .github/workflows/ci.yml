@@ -120,15 +120,7 @@ jobs:
 
       - uses: taiki-e/install-action@cargo-hack
 
-      - run: |
-
-          cargo hack check -p gleamler \
-
-            --feature-powerset \
-
-            --at-least-one-of nif_version_2_14,nif_version_2_15,nif_version_2_16,nif_version_2_17,nif_version_2_18 \
-
-            --lib
+      - run: cargo hack check -p gleamler --feature-powerset --at-least-one-of nif_version_2_14,nif_version_2_15,nif_version_2_16,nif_version_2_17,nif_version_2_18 --lib
 
 
 
@@ -148,7 +140,7 @@ jobs:
 
 
 
-      - run: cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info
+      - run: cargo llvm-cov --workspace --lcov --output-path lcov.info
 
 
 
@@ -254,7 +246,7 @@ jobs:
 
           gleam-version: ${{ matrix.gleam }}
 
-          rebar3-version: "3"
+          rebar3-version: "3.22.1"
 
 
 
@@ -392,17 +384,15 @@ jobs:
 
 
 
-      - name: Run Valgrind on gleamler test binary
+      - name: Locate test binary
+
+        id: test_bin
 
         run: |
 
-          TEST_BIN=$(cargo test -p gleamler --features stress --no-run --message-format=json 2>/dev/null \
+          cargo test -p gleamler --features stress --no-run --message-format=json > /tmp/cargo.json
 
-            | grep -o '"executable":"[^"]*gleamler-[^"]*"' \
-
-            | sed -E 's/.*"executable":"([^"]+)".*/\1/' \
-
-            | head -n 1)
+          TEST_BIN=$(grep -o '"executable":"[^"]*gleamler-[^"]*"' /tmp/cargo.json | sed -E 's/.*"executable":"([^"]+)".*/\1/' | head -n 1)
 
           if [ -z "$TEST_BIN" ] || [ ! -f "$TEST_BIN" ]; then
 
@@ -413,6 +403,14 @@ jobs:
           fi
 
           echo "Valgrind target: $TEST_BIN"
+
+          echo "test_bin=$TEST_BIN" >> "$GITHUB_OUTPUT"
+
+
+
+      - name: Run Valgrind on gleamler test binary
+
+        run: |
 
           valgrind \
 
@@ -426,7 +424,7 @@ jobs:
 
             --error-exitcode=1 \
 
-            "$TEST_BIN" --test-threads=1
+            "${{ steps.test_bin.outputs.test_bin }}" --test-threads=1
 
 
 
@@ -496,19 +494,7 @@ jobs:
 
           echo "Using ebin dirs: $EBIN_DIRS"
 
-          valgrind \
-
-            --leak-check=full \
-
-            --show-leak-kinds=definite,indirect \
-
-            --errors-for-leak-kinds=definite,indirect \
-
-            --error-exitcode=1 \
-
-            erl +S 1:1 -noshell $EBIN_DIRS \
-
-              -s resource_leak_test run -s init stop
+          valgrind --leak-check=full --show-leak-kinds=definite,indirect --errors-for-leak-kinds=definite,indirect --error-exitcode=1 erl +S 1:1 -noshell $EBIN_DIRS -s resource_leak_test run -s init stop
 
 
 
