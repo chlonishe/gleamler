@@ -5,6 +5,8 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  schedule:
+    - cron: '0 6 * * 1'
 
 env:
   CARGO_TERM_COLOR: always
@@ -15,29 +17,104 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+
       - uses: Swatinem/rust-cache@v2
 
-      - run: cargo fmt --all -- --check
-      - run: cargo clippy --workspace --all-targets -- -W warnings
-      - run: cargo test -p gleamler --features stress
-      - run: cargo test -p gleamler_codegen
-      - run: cargo test -p gleamler_macros
+      - name: cargo fmt
+        run: cargo fmt --all -- --check
+
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets -- -W warnings
+
+      - name: test gleamler (default)
+        run: cargo test -p gleamler
+
+      - name: test gleamler (stress)
+        run: cargo test -p gleamler --features stress
+
+      - name: test gleamler_codegen
+        run: cargo test -p gleamler_codegen
+
+      - name: test gleamler_macros
+        run: cargo test -p gleamler_macros
+
+      - name: cargo deny
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check all
+
+      - name: cargo machete
+        uses: bnjbvr/cargo-machete@main
+        continue-on-error: true
+
+  feature-matrix:
+    name: Feature powerset (NIF versions)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@cargo-hack
+      - run: |
+          cargo hack check -p gleamler \
+            --feature-powerset \
+            --at-least-one-of nif_version_2_14,nif_version_2_15,nif_version_2_16,nif_version_2_17,nif_version_2_18 \
+            --lib
+
+  coverage:
+    runs-on: ubuntu-latest    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@cargo-llvm-cov
+
+      - run: cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info
+
+      - uses: codecov/codecov-action@v5
+        with:
+          files: lcov.info
+          fail_ci_if_error: false
 
   gleam-test:
+    name: Gleam / OTP matrix
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
+            otp: "25"
+            gleam: "1.14.0"
             nif_src: target/release/libgleamler.so
             nif_dst: priv/gleamler.so
+          - os: ubuntu-latest
+            otp: "26"
+            gleam: "1.14.0"
+            nif_src: target/release/libgleamler.so
+            nif_dst: priv/gleamler.so
+          - os: ubuntu-latest
+            otp: "27"
+            gleam: "1.14.0"
+            nif_src: target/release/libgleamler.so
+            nif_dst: priv/gleamler.so
+
+          - os: ubuntu-latest
+            otp: "27"
+            gleam: "1.6.0"
+            nif_src: target/release/libgleamler.so
+            nif_dst: priv/gleamler.so
+
           - os: macos-latest
+            otp: "27"
+            gleam: "1.14.0"
             nif_src: target/release/libgleamler.dylib
             nif_dst: priv/gleamler.so
           - os: windows-latest
+            otp: "27"
+            gleam: "1.14.0"
             nif_src: target/release/gleamler.dll
             nif_dst: priv/gleamler.dll
 
@@ -48,15 +125,19 @@ jobs:
       - name: Setup Erlang/OTP and Gleam
         uses: erlef/setup-beam@v1
         with:
-          otp-version: "27"
-          gleam-version: "1.14.0"
+          otp-version: ${{ matrix.otp }}
+          gleam-version: ${{ matrix.gleam }}
           rebar3-version: "3"
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+
       - uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.os }}
+          key: ${{ matrix.os }}-${{ matrix.otp }}-${{ matrix.gleam }}
+
+      - name: Gleam format check
+        run: gleam format --check
 
       - name: Build Rust NIF (Unix)
         if: runner.os != 'Windows'
@@ -74,9 +155,14 @@ jobs:
           Copy-Item ${{ matrix.nif_src }} ${{ matrix.nif_dst }}
 
       - name: Generate Erlang / Gleam stubs
-        run: cargo run -p gleamler_codegen -- gleamler src/gleamler_nif_ffi.erl src/gleamler_nif.gleam --with-stress
+        run: |
+          cargo run -p gleamler_codegen -- \
+            gleamler src/gleamler_nif_ffi.erl src/gleamler_nif.gleam --with-stress
 
-      - name: Run Gleam tests
+      - name: Gleam build
+        run: gleam build
+
+      - name: Gleam test
         run: gleam test
 
   sanitizer:
@@ -171,3 +257,15 @@ jobs:
             --error-exitcode=1 \
             erl +S 1:1 -noshell $EBIN_DIRS \
               -s resource_leak_test run -s init stop
+
+  publish-dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Dry-run publish workspace crates
+        run: |
+          cargo publish -p gleamler_codegen --dry-run
+          cargo publish -p gleamler_macros --dry-run
+          cargo publish -p gleamler --dry-run

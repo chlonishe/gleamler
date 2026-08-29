@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            nif_src: target/x86_64-unknown-linux-gnu/release/libgleamler.so
+            nif_dst: gleamler-x86_64-linux.so
+          - target: x86_64-apple-darwin
+            os: macos-13
+            nif_src: target/x86_64-apple-darwin/release/libgleamler.dylib
+            nif_dst: gleamler-x86_64-macos.so
+          - target: aarch64-apple-darwin
+            os: macos-14
+            nif_src: target/aarch64-apple-darwin/release/libgleamler.dylib
+            nif_dst: gleamler-aarch64-macos.so
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            nif_src: target/x86_64-pc-windows-msvc/release/gleamler.dll
+            nif_dst: gleamler-x86_64-windows.dll
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build release NIF
+        run: cargo build -p gleamler --release --features stress --target ${{ matrix.target }}
+
+      - name: Stage artifact (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p artifacts
+          cp ${{ matrix.nif_src }} artifacts/${{ matrix.nif_dst }}
+
+      - name: Stage artifact (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          Copy-Item ${{ matrix.nif_src }} artifacts\${{ matrix.nif_dst }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.nif_dst }}
+          path: artifacts/*
+
+  release:
+    needs: build-native
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
