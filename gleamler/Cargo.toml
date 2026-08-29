@@ -30,7 +30,7 @@ inventory = "0.3"
 libloading = "0.9"
 libc = "0.2"
 num-bigint = { version = "0.5", optional = true }
-ctor = "=1.0.12"
+ctor = "=0.6.0"
 thiserror = "2.0.20"
 
 [build-dependencies]
