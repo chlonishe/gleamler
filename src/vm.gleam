@@ -1,8 +1,8 @@
-import gleam/list
-import gleam/int
-import gleam/float
-import gleam/string
 import gleam/bool
+import gleam/float
+import gleam/int
+import gleam/list
+import gleam/string
 
 import gleamler_nif
 
@@ -117,32 +117,28 @@ fn step(op: Op, stack: List(Value)) -> Result(List(Value), String) {
 
     Factorial -> {
       case stack {
-        [VInt(n), ..rest] ->
-          Ok([VInt(gleamler_nif.rust_factorial(n)), ..rest])
+        [VInt(n), ..rest] -> Ok([VInt(gleamler_nif.rust_factorial(n)), ..rest])
         _ -> Error("Factorial: need int")
       }
     }
 
     Fib -> {
       case stack {
-        [VInt(n), ..rest] ->
-          Ok([VInt(gleamler_nif.rust_fib(n)), ..rest])
+        [VInt(n), ..rest] -> Ok([VInt(gleamler_nif.rust_fib(n)), ..rest])
         _ -> Error("Fib: need int")
       }
     }
 
     EchoI128 -> {
       case stack {
-        [VInt(n), ..rest] ->
-          Ok([VInt(gleamler_nif.rust_echo_i128(n)), ..rest])
+        [VInt(n), ..rest] -> Ok([VInt(gleamler_nif.rust_echo_i128(n)), ..rest])
         _ -> Error("EchoI128: need int")
       }
     }
 
     EchoU128 -> {
       case stack {
-        [VInt(n), ..rest] ->
-          Ok([VInt(gleamler_nif.rust_echo_u128(n)), ..rest])
+        [VInt(n), ..rest] -> Ok([VInt(gleamler_nif.rust_echo_u128(n)), ..rest])
         _ -> Error("EchoU128: need int")
       }
     }
@@ -151,15 +147,18 @@ fn step(op: Op, stack: List(Value)) -> Result(List(Value), String) {
 
 pub fn inspect_stack(stack: List(Value)) -> String {
   "["
-  <> string.join(list.map(stack, fn(v) {
-    case v {
-      VInt(i) -> int.to_string(i)
-      VFloat(f) -> float.to_string(f)
-      VString(s) -> "\"" <> s <> "\""
-      VBool(b) -> bool.to_string(b)
-      VList(l) -> string.inspect(l)
-      VPair(p) -> string.inspect(p)
-    }
-  }), ", ")
+  <> string.join(
+    list.map(stack, fn(v) {
+      case v {
+        VInt(i) -> int.to_string(i)
+        VFloat(f) -> float.to_string(f)
+        VString(s) -> "\"" <> s <> "\""
+        VBool(b) -> bool.to_string(b)
+        VList(l) -> string.inspect(l)
+        VPair(p) -> string.inspect(p)
+      }
+    }),
+    ", ",
+  )
   <> "]"
 }

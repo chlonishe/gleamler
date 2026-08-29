@@ -1,7 +1,7 @@
+import gleam/list
+import gleam/option
 import gleeunit
 import gleeunit/should
-import gleam/option
-import gleam/list
 
 import gleamler_nif
 
@@ -99,17 +99,17 @@ pub fn fib_test() {
 }
 
 pub fn i128_max_test() {
-  let max = 170141183460469231731687303715884105727
+  let max = 170_141_183_460_469_231_731_687_303_715_884_105_727
   gleamler_nif.rust_echo_i128(max) |> should.equal(max)
 }
 
 pub fn i128_min_test() {
-  let min = -170141183460469231731687303715884105728
+  let min = -170_141_183_460_469_231_731_687_303_715_884_105_728
   gleamler_nif.rust_echo_i128(min) |> should.equal(min)
 }
 
 pub fn u128_max_test() {
-  let max = 340282366920938463463374607431768211455
+  let max = 340_282_366_920_938_463_463_374_607_431_768_211_455
   gleamler_nif.rust_echo_u128(max) |> should.equal(max)
 }
 
