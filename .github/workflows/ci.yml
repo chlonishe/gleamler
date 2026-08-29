@@ -97,11 +97,6 @@ jobs:
             gleam: "1.14.0"
             nif_src: target/release/libgleamler.so
             nif_dst: priv/gleamler.so
-          - os: ubuntu-latest
-            otp: "27"
-            gleam: "1.6.0"
-            nif_src: target/release/libgleamler.so
-            nif_dst: priv/gleamler.so
           - os: macos-latest
             otp: "27"
             gleam: "1.14.0"
