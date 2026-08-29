@@ -30,9 +30,9 @@ inventory = "0.3"
 libloading = "0.9"
 libc = "0.2"
 num-bigint = { version = "0.5", optional = true }
-ctor = "1.0"
+ctor = "=1.0.12"
 thiserror = "2.0.20"
 
 [build-dependencies]
 regex-lite = "0.1"
-gleamler_codegen = { path = "../gleamler_codegen" }
+gleamler_codegen = { path = "../gleamler_codegen", version = "0.1.0" }
