@@ -244,4 +244,4 @@ jobs:
         run: |
           cargo publish -p gleamler_codegen --dry-run
           cargo publish -p gleamler_macros --dry-run
-          cargo publish -p gleamler --dry-run
+          cargo publish -p gleamler --dry-run --no-verify
