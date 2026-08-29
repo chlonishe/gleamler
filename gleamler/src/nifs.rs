@@ -1,4 +1,6 @@
 use crate::schedule::SchedulerFlags;
+#[cfg(feature = "stress")]
+use crate::stress_nifs::ValgrindTestResource;
 use crate::{Env, NifOutcome, Resource, ResourceArc, Term, gleam_nif, init_nifs};
 use std::sync::atomic::{AtomicI64, Ordering};
 
@@ -31,7 +33,12 @@ pub fn cooperative_count(counter: ResourceArc<Counter>) -> NifOutcome<i64> {
 }
 
 fn on_load(env: Env, _info: Term) -> bool {
-    env.register::<Counter>().is_ok()
+    let mut ok = env.register::<Counter>().is_ok();
+    #[cfg(feature = "stress")]
+    {
+        ok = ok && env.register::<ValgrindTestResource>().is_ok();
+    }
+    ok
 }
 
 #[gleam_nif]

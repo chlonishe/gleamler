@@ -80,3 +80,7 @@ pub fn rust_stress_safe_sqrt(n: Float) -> Result(Float, String)
 pub fn rust_stress_now_ms() -> Int
 @external(erlang, "gleamler_nif_ffi", "stress_float_is_special")
 pub fn rust_stress_float_is_special(n: Float) -> String
+@external(erlang, "gleamler_nif_ffi", "stress_resource_roundtrip")
+pub fn rust_stress_resource_roundtrip() -> Resource
+@external(erlang, "gleamler_nif_ffi", "stress_resource_intentional_leak")
+pub fn rust_stress_resource_intentional_leak() -> Nil

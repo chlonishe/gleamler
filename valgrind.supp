@@ -31,10 +31,3 @@
    fun:_dl_open
    ...
 }
-
-{
-   rust-possibly-lost-malloc
-   Memcheck:Leak
-   fun:malloc
-   ...
-}

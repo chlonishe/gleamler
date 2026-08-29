@@ -1,5 +1,12 @@
 use crate::gleam_nif;
+use crate::{Resource, ResourceArc};
 use std::time::Duration;
+
+pub struct ValgrindTestResource {
+    pub payload: Vec<u8>,
+}
+
+impl Resource for ValgrindTestResource {}
 
 #[gleam_nif]
 pub fn stress_i128_min() -> i128 {
@@ -120,4 +127,19 @@ pub fn stress_float_is_special(n: f64) -> String {
     } else {
         "normal".to_string()
     }
+}
+
+#[gleam_nif]
+pub fn stress_resource_roundtrip() -> ResourceArc<ValgrindTestResource> {
+    ResourceArc::new(ValgrindTestResource {
+        payload: vec![0xAB; 1024 * 1024],
+    })
+}
+
+#[gleam_nif]
+pub fn stress_resource_intentional_leak() {
+    let res = ResourceArc::new(ValgrindTestResource {
+        payload: vec![0xCD; 1024 * 1024],
+    });
+    std::mem::forget(res);
 }

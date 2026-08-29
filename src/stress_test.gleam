@@ -112,5 +112,9 @@ pub fn run() {
   io.println("Dirty IO 150ms took " <> int.to_string(elapsed) <> " ms")
   io.println("PASS")
 
+  section("Resource lifecycle")
+  let _ = gleamler_nif.rust_stress_resource_roundtrip()
+  io.println("PASS")
+
   section("ALL STRESS TESTS PASSED")
 }

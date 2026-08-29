@@ -1,4 +1,4 @@
-.PHONY: all test clean
+.PHONY: all test clean leak-test valgrind-test
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
@@ -16,6 +16,18 @@ all:
 
 test: all
 	gleam test
+
+leak-test: all
+	erlc -o build/dev/erlang/gleamler/ebin src/resource_leak_test.erl
+	erl +S 1:1 -noshell -pa build/dev/erlang/gleamler/ebin -s resource_leak_test run -s init stop
+
+valgrind-test: all
+	valgrind --leak-check=full --show-leak-kinds=definite,indirect \
+		--errors-for-leak-kinds=definite,indirect \
+		--error-exitcode=1 \
+		--suppressions=valgrind.supp \
+		erl +S 1:1 -noshell -pa $(shell find build/dev/erlang -name ebin) \
+		-s resource_leak_test run -s init stop
 
 clean:
 	rm -rf priv target build
