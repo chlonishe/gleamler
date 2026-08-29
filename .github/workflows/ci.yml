@@ -235,8 +235,9 @@ jobs:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Dry-run publish workspace crates
+      - name: Dry-run publish leaf crates
         run: |
           cargo publish -p gleamler_codegen --dry-run
           cargo publish -p gleamler_macros --dry-run
-          cargo publish -p gleamler --dry-run --no-verify
+      - name: Verify gleamler package tarball (private repo, no registry deps)
+        run: cargo package -p gleamler --allow-dirty --no-verify
