@@ -382,36 +382,19 @@ jobs:
 
         run: cargo test -p gleamler --features stress --no-run
 
-
-
-      - name: Locate test binary
-
-        id: test_bin
-
-        run: |
-
-          cargo test -p gleamler --features stress --no-run --message-format=json > /tmp/cargo.json
-
-          TEST_BIN=$(grep -o '"executable":"[^"]*gleamler-[^"]*"' /tmp/cargo.json | sed -E 's/.*"executable":"([^"]+)".*/\1/' | head -n 1)
-
-          if [ -z "$TEST_BIN" ] || [ ! -f "$TEST_BIN" ]; then
-
-            echo "Error: Could not locate test binary from cargo metadata"
-
-            exit 1
-
-          fi
-
-          echo "Valgrind target: $TEST_BIN"
-
-          echo "test_bin=$TEST_BIN" >> "$GITHUB_OUTPUT"
-
-
-
       - name: Run Valgrind on gleamler test binary
 
         run: |
-
+          cargo test -p gleamler --features stress --no-run --message-format=json > /tmp/cargo.json
+          TEST_BIN=$(grep -o '"executable":"[^"]*gleamler-[^"]*"' /tmp/cargo.json \
+                     | sed -E 's/.*"executable":"([^"]+)".*/\1/' \
+                     | head -n 1 \
+                     | tr -d '\n\r')
+          if [ -z "$TEST_BIN" ] || [ ! -f "$TEST_BIN" ]; then
+            echo "Error: Could not locate test binary from cargo metadata"
+            exit 1
+          fi
+          echo "Valgrind target: $TEST_BIN"
           valgrind \
 
             --leak-check=full \
@@ -423,8 +406,7 @@ jobs:
             --track-origins=yes \
 
             --error-exitcode=1 \
-
-            "${{ steps.test_bin.outputs.test_bin }}" --test-threads=1
+            "$TEST_BIN" --test-threads=1
 
 
 
