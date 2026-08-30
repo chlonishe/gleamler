@@ -168,6 +168,24 @@ impl<'a> Decoder<'a> for bool {
     }
 }
 
+impl Encoder for char {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        let mut buf = [0; 4];
+        self.encode_utf8(&mut buf).encode(env)
+    }
+}
+
+impl<'a> Decoder<'a> for char {
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        let s: &'a str = term.decode()?;
+        let mut chars = s.chars();
+        match (chars.next(), chars.next()) {
+            (Some(c), None) => Ok(c),
+            _ => Err(Error::BadArg),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -187,5 +205,21 @@ mod tests {
         assert!(std::num::NonZeroU64::new(0).is_none());
         assert!(std::num::NonZeroI32::new(0).is_none());
         assert_eq!(std::num::NonZeroU64::new(42).unwrap().get(), 42);
+    }
+
+    #[test]
+    fn char_impls_exist() {
+        fn assert_encoder<T: Encoder>() {}
+        fn assert_decoder<'a, T: Decoder<'a>>() {}
+        assert_encoder::<char>();
+        assert_decoder::<char>();
+    }
+
+    #[test]
+    fn char_decode_logic() {
+        assert_eq!("a".chars().count(), 1);
+        assert_eq!("é".chars().count(), 1);
+        assert_eq!("".chars().count(), 0);
+        assert_eq!("ab".chars().count(), 2);
     }
 }
