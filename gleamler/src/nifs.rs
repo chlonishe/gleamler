@@ -2,7 +2,10 @@ use crate::schedule::SchedulerFlags;
 #[cfg(feature = "stress")]
 use crate::stress_nifs::ValgrindTestResource;
 use crate::{Env, NifOutcome, Resource, ResourceArc, Term, gleam_nif, init_nifs};
+use std::collections::{BTreeMap, BTreeSet, HashSet, LinkedList, VecDeque};
+use std::net::{IpAddr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::sync::atomic::{AtomicI64, Ordering};
+use std::time::SystemTime;
 
 pub struct Counter {
     current: AtomicI64,
@@ -117,6 +120,56 @@ pub fn mul(a: i64, b: i64) -> i64 {
 #[doc(hidden)]
 pub mod __generated_registry {
     include!(concat!(env!("OUT_DIR"), "/nif_registry.rs"));
+}
+
+#[gleam_nif]
+pub fn net_ip_roundtrip(ip: IpAddr) -> IpAddr {
+    ip
+}
+
+#[gleam_nif]
+pub fn net_socket_roundtrip(addr: SocketAddr) -> SocketAddr {
+    addr
+}
+
+#[gleam_nif]
+pub fn net_socket_v4_roundtrip(addr: SocketAddrV4) -> SocketAddrV4 {
+    addr
+}
+
+#[gleam_nif]
+pub fn net_socket_v6_roundtrip(addr: SocketAddrV6) -> SocketAddrV6 {
+    addr
+}
+
+#[gleam_nif]
+pub fn collections_hashset_roundtrip(set: HashSet<i64>) -> HashSet<i64> {
+    set
+}
+
+#[gleam_nif]
+pub fn collections_btreeset_roundtrip(set: BTreeSet<String>) -> BTreeSet<String> {
+    set
+}
+
+#[gleam_nif]
+pub fn collections_vecdeque_roundtrip(dq: VecDeque<i64>) -> VecDeque<i64> {
+    dq
+}
+
+#[gleam_nif]
+pub fn collections_linkedlist_roundtrip(ll: LinkedList<bool>) -> LinkedList<bool> {
+    ll
+}
+
+#[gleam_nif]
+pub fn collections_btreemap_roundtrip(map: BTreeMap<String, i64>) -> BTreeMap<String, i64> {
+    map
+}
+
+#[gleam_nif]
+pub fn time_system_time_roundtrip(t: SystemTime) -> SystemTime {
+    t
 }
 
 init_nifs!(load = on_load);

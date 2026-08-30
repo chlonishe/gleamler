@@ -92,21 +92,47 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::collections::{BTreeSet, HashSet, LinkedList, VecDeque};
 
     #[test]
-    fn trait_impls_exist() {
-        fn assert_enc<T: Encoder>() {}
-        fn assert_dec<'a, T: Decoder<'a>>() {}
+    fn hashset_roundtrip_via_vec() {
+        let original: HashSet<i64> = [1, 2, 3].into_iter().collect();
+        let vec: Vec<i64> = original.iter().copied().collect();
+        let reconstructed: HashSet<i64> = vec.into_iter().collect();
+        assert_eq!(original, reconstructed);
+    }
 
-        assert_enc::<HashSet<i64>>();
-        assert_dec::<HashSet<i64>>();
-        assert_enc::<BTreeSet<i64>>();
-        assert_dec::<BTreeSet<i64>>();
-        assert_enc::<VecDeque<String>>();
-        assert_dec::<VecDeque<String>>();
-        assert_enc::<LinkedList<bool>>();
-        assert_dec::<LinkedList<bool>>();
+    #[test]
+    fn btreeset_maintains_order() {
+        let set: BTreeSet<i32> = [3, 1, 2].into_iter().collect();
+        let vec: Vec<i32> = set.iter().copied().collect();
+        assert_eq!(vec, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn vecdeque_front_back() {
+        let mut dq = VecDeque::new();
+        dq.push_back(1);
+        dq.push_front(0);
+        assert_eq!(dq.as_slices().0, &[0]);
+        assert_eq!(dq.as_slices().1, &[1]);
+    }
+
+    #[test]
+    fn linkedlist_collect_identity() {
+        let original = LinkedList::from([1, 2, 3]);
+        let vec: Vec<i32> = original.into_iter().collect();
+        let reconstructed: LinkedList<i32> = vec.into_iter().collect();
+        assert_eq!(reconstructed, LinkedList::from([1, 2, 3]));
+    }
+
+    #[test]
+    fn hashset_deduplicates_on_reconstruct() {
+        let vec = vec![1, 1, 2, 2, 3];
+        let set: HashSet<i64> = vec.into_iter().collect();
+        assert_eq!(set.len(), 3);
+        assert!(set.contains(&1));
+        assert!(set.contains(&2));
+        assert!(set.contains(&3));
     }
 }

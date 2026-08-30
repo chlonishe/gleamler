@@ -2,6 +2,7 @@
 // Do not edit
 
 import gleam/option
+import gleam/dict
 
 pub opaque type Resource {
   Resource
@@ -42,6 +43,26 @@ pub fn rust_echo_i128(n: Int) -> Int
 pub fn rust_echo_u128(n: Int) -> Int
 @external(erlang, "gleamler_nif_ffi", "mul")
 pub fn rust_mul(a: Int, b: Int) -> Int
+@external(erlang, "gleamler_nif_ffi", "net_ip_roundtrip")
+pub fn rust_net_ip_roundtrip(ip: String) -> String
+@external(erlang, "gleamler_nif_ffi", "net_socket_roundtrip")
+pub fn rust_net_socket_roundtrip(addr: #(String, Int)) -> #(String, Int)
+@external(erlang, "gleamler_nif_ffi", "net_socket_v4_roundtrip")
+pub fn rust_net_socket_v4_roundtrip(addr: #(String, Int)) -> #(String, Int)
+@external(erlang, "gleamler_nif_ffi", "net_socket_v6_roundtrip")
+pub fn rust_net_socket_v6_roundtrip(addr: #(String, Int)) -> #(String, Int)
+@external(erlang, "gleamler_nif_ffi", "collections_hashset_roundtrip")
+pub fn rust_collections_hashset_roundtrip(set: List(Int)) -> List(Int)
+@external(erlang, "gleamler_nif_ffi", "collections_btreeset_roundtrip")
+pub fn rust_collections_btreeset_roundtrip(set: List(String)) -> List(String)
+@external(erlang, "gleamler_nif_ffi", "collections_vecdeque_roundtrip")
+pub fn rust_collections_vecdeque_roundtrip(dq: List(Int)) -> List(Int)
+@external(erlang, "gleamler_nif_ffi", "collections_linkedlist_roundtrip")
+pub fn rust_collections_linkedlist_roundtrip(ll: List(Bool)) -> List(Bool)
+@external(erlang, "gleamler_nif_ffi", "collections_btreemap_roundtrip")
+pub fn rust_collections_btreemap_roundtrip(map: dict.Dict(String, Int)) -> dict.Dict(String, Int)
+@external(erlang, "gleamler_nif_ffi", "time_system_time_roundtrip")
+pub fn rust_time_system_time_roundtrip(t: #(Int, Int, Int)) -> #(Int, Int, Int)
 @external(erlang, "gleamler_nif_ffi", "stress_i128_min")
 pub fn rust_stress_i128_min() -> Int
 @external(erlang, "gleamler_nif_ffi", "stress_i128_max")

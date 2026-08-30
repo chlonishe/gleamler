@@ -204,7 +204,6 @@ where
     V: Decoder<'a>,
 {
     fn decode(term: Term<'a>) -> NifResult<Self> {
-        let size = term.map_size()?;
         let it = MapIterator::new(term).ok_or(Error::BadArg)?;
         let mut map = std::collections::BTreeMap::new();
         for (k, v) in it {

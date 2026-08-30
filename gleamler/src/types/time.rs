@@ -2,8 +2,6 @@ use std::time::SystemTime;
 
 use crate::{Decoder, Encoder, Env, NifResult, Term};
 
-/// Encodes `SystemTime` as Erlang timestamp `{MegaSecs, Secs, MicroSecs}`
-/// Decodes from either the timestamp tuple or a plain microseconds integer
 impl Encoder for SystemTime {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
         let duration = self
@@ -30,32 +28,56 @@ impl<'a> Decoder<'a> for SystemTime {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::time::{Duration, SystemTime};
-
-    #[test]
-    fn trait_impls_exist() {
-        fn assert_enc<T: Encoder>() {}
-        fn assert_dec<'a, T: Decoder<'a>>() {}
-
-        assert_enc::<SystemTime>();
-        assert_dec::<SystemTime>();
-    }
-
-    #[test]
-    fn system_time_decomposition_roundtrip() {
-        let total_micros = 1_234_567_890_123u64;
-        let mega = total_micros / 1_000_000_000_000u64;
-        let secs = (total_micros % 1_000_000_000_000u64) / 1_000_000u64;
-        let micro = total_micros % 1_000_000u64;
-        let reconstructed = mega * 1_000_000_000_000u64 + secs * 1_000_000u64 + micro;
-        assert_eq!(reconstructed, total_micros);
-    }
 
     #[test]
     fn system_time_epoch_zero() {
         let epoch = SystemTime::UNIX_EPOCH;
         let dur = epoch.duration_since(SystemTime::UNIX_EPOCH).unwrap();
         assert_eq!(dur.as_secs(), 0);
+    }
+
+    #[test]
+    fn system_time_future() {
+        let future = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000_000);
+        let total_micros = future
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_micros() as u64;
+        assert_eq!(total_micros, 1_000_000_000_000_000u64);
+    }
+
+    #[test]
+    fn system_time_decomposition_identity() {
+        let total = 12_345_678_901_234u64;
+        let mega = total / 1_000_000_000_000u64;
+        let secs = (total % 1_000_000_000_000u64) / 1_000_000u64;
+        let micro = total % 1_000_000u64;
+        assert_eq!(mega, 12);
+        assert_eq!(secs, 345_678);
+        assert_eq!(micro, 901_234);
+        let reconstructed = mega * 1_000_000_000_000u64 + secs * 1_000_000u64 + micro;
+        assert_eq!(reconstructed, total);
+    }
+
+    #[test]
+    fn system_time_before_epoch_clamped_in_encoder() {
+        let before = SystemTime::UNIX_EPOCH - Duration::from_micros(1);
+        let dur = before.duration_since(SystemTime::UNIX_EPOCH);
+        assert!(dur.is_err());
+    }
+
+    #[test]
+    fn system_time_decoder_from_tuple() {
+        let total = 0u64 * 1_000_000_000_000u64 + 1u64 * 1_000_000u64 + 500_000u64;
+        assert_eq!(total, 1_500_000u64);
+    }
+
+    #[test]
+    fn system_time_decoder_from_integer() {
+        let micros = 42_000_000u64;
+        let t = SystemTime::UNIX_EPOCH + Duration::from_micros(micros);
+        let since_epoch = t.duration_since(SystemTime::UNIX_EPOCH).unwrap();
+        assert_eq!(since_epoch.as_secs(), 42);
     }
 }

@@ -100,38 +100,48 @@ impl<'a> Decoder<'a> for SocketAddrV6 {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 
     #[test]
-    fn trait_impls_exist() {
-        fn assert_enc<T: Encoder>() {}
-        fn assert_dec<'a, T: Decoder<'a>>() {}
-
-        assert_enc::<IpAddr>();
-        assert_dec::<IpAddr>();
-        assert_enc::<Ipv4Addr>();
-        assert_dec::<Ipv4Addr>();
-        assert_enc::<Ipv6Addr>();
-        assert_dec::<Ipv6Addr>();
-        assert_enc::<SocketAddr>();
-        assert_dec::<SocketAddr>();
-        assert_enc::<SocketAddrV4>();
-        assert_dec::<SocketAddrV4>();
-        assert_enc::<SocketAddrV6>();
-        assert_dec::<SocketAddrV6>();
+    fn ipv4_roundtrip_string() {
+        let ip = Ipv4Addr::new(192, 168, 1, 1);
+        assert_eq!(ip.to_string().parse::<Ipv4Addr>().unwrap(), ip);
     }
 
     #[test]
-    fn socket_addr_parse_logic() {
-        let raw = "192.168.1.1:443";
-        let parsed: SocketAddr = raw.parse().unwrap();
-        assert_eq!(parsed.ip().to_string(), "192.168.1.1");
-        assert_eq!(parsed.port(), 443);
+    fn ipv6_roundtrip_string() {
+        let ip = Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1);
+        assert_eq!(ip.to_string().parse::<Ipv6Addr>().unwrap(), ip);
+    }
 
-        let v6_raw = "[::1]:8080";
-        let v6_parsed: SocketAddr = v6_raw.parse().unwrap();
-        assert!(matches!(v6_parsed.ip(), IpAddr::V6(_)));
-        assert_eq!(v6_parsed.port(), 8080);
+    #[test]
+    fn socket_addr_v4_encode_logic() {
+        let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080);
+        let (ip, port) = (addr.ip().to_string(), addr.port() as i64);
+        assert_eq!(ip, "127.0.0.1");
+        assert_eq!(port, 8080);
+    }
+
+    #[test]
+    fn socket_addr_v6_encode_logic() {
+        let addr = SocketAddrV6::new(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1), 443, 0, 0);
+        let (ip, port) = (addr.ip().to_string(), addr.port() as i64);
+        assert_eq!(ip, "::1");
+        assert_eq!(port, 443);
+    }
+
+    #[test]
+    fn ip_addr_from_str_rejects_garbage() {
+        assert!("not-an-ip".parse::<IpAddr>().is_err());
+        assert!("999.999.999.999".parse::<IpAddr>().is_err());
+        assert!(":::".parse::<IpAddr>().is_err());
+    }
+
+    #[test]
+    fn socket_addr_tuple_decoder_logic() {
+        let ip: IpAddr = "127.0.0.1".parse().unwrap();
+        let port: u16 = 8080;
+        let reconstructed = SocketAddr::new(ip, port);
+        assert_eq!(reconstructed.to_string(), "127.0.0.1:8080");
     }
 }

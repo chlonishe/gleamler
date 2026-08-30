@@ -280,6 +280,20 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> Result<String, String> {
                     }
                 }
 
+                "IpAddr" | "Ipv4Addr" | "Ipv6Addr" => Ok("String".into()),
+
+                "SocketAddr" | "SocketAddrV4" | "SocketAddrV6" => Ok("#(String, Int)".into()),
+
+                "HashSet" | "BTreeSet" | "VecDeque" | "LinkedList" => {
+                    if let Some(inner) = generic_args.first() {
+                        Ok(format!("List({})", type_to_gleam_ctx(inner, ctx)?))
+                    } else {
+                        Ok("List(Nil)".into())
+                    }
+                }
+
+                "SystemTime" => Ok("#(Int, Int, Int)".into()),
+
                 "ResourceArc" => Ok("Resource".into()),
 
                 "NifOutcome" => {
@@ -1019,5 +1033,32 @@ pub fn heavy(n: i64) -> i64 { n }
         assert_eq!(type_to_gleam(&ty), "dict.Dict(String, Int)");
         let ty: Type = parse_quote!(std::string::String);
         assert_eq!(type_to_gleam(&ty), "String");
+    }
+    #[test]
+    fn type_to_gleam_net_types() {
+        let ty: Type = parse_quote!(std::net::IpAddr);
+        assert_eq!(type_to_gleam(&ty), "String");
+        let ty: Type = parse_quote!(std::net::SocketAddr);
+        assert_eq!(type_to_gleam(&ty), "#(String, Int)");
+        let ty: Type = parse_quote!(std::net::SocketAddrV4);
+        assert_eq!(type_to_gleam(&ty), "#(String, Int)");
+    }
+
+    #[test]
+    fn type_to_gleam_collection_types() {
+        let ty: Type = parse_quote!(std::collections::HashSet<i32>);
+        assert_eq!(type_to_gleam(&ty), "List(Int)");
+        let ty: Type = parse_quote!(std::collections::BTreeSet<String>);
+        assert_eq!(type_to_gleam(&ty), "List(String)");
+        let ty: Type = parse_quote!(std::collections::VecDeque<i64>);
+        assert_eq!(type_to_gleam(&ty), "List(Int)");
+        let ty: Type = parse_quote!(std::collections::LinkedList<bool>);
+        assert_eq!(type_to_gleam(&ty), "List(Bool)");
+    }
+
+    #[test]
+    fn type_to_gleam_system_time() {
+        let ty: Type = parse_quote!(std::time::SystemTime);
+        assert_eq!(type_to_gleam(&ty), "#(Int, Int, Int)");
     }
 }
