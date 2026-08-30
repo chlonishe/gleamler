@@ -20,6 +20,11 @@ pub fn counter_new(target: i64) -> ResourceArc<Counter> {
 }
 
 #[gleam_nif]
+pub fn counter_read(counter: ResourceArc<Counter>) -> i64 {
+    counter.current.load(Ordering::SeqCst)
+}
+
+#[gleam_nif]
 pub fn cooperative_count(counter: ResourceArc<Counter>) -> NifOutcome<i64> {
     loop {
         let val = counter.current.fetch_add(1, Ordering::SeqCst);
@@ -33,6 +38,7 @@ pub fn cooperative_count(counter: ResourceArc<Counter>) -> NifOutcome<i64> {
 }
 
 fn on_load(env: Env, _info: Term) -> bool {
+    #[allow(unused_mut)]
     let mut ok = env.register::<Counter>().is_ok();
     #[cfg(feature = "stress")]
     {

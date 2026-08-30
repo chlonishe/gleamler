@@ -14,108 +14,75 @@ pub fn resource_dummy() -> Resource {
 
 @external(erlang, "gleamler_nif_ffi", "counter_new")
 pub fn rust_counter_new(target: Int) -> Resource
-
+@external(erlang, "gleamler_nif_ffi", "counter_read")
+pub fn rust_counter_read(counter: Resource) -> Int
 @external(erlang, "gleamler_nif_ffi", "cooperative_count")
 pub fn rust_cooperative_count(counter: Resource) -> Int
-
 @external(erlang, "gleamler_nif_ffi", "add")
 pub fn rust_add(a: Int, b: Int) -> Int
-
 @external(erlang, "gleamler_nif_ffi", "sub")
 pub fn rust_sub(a: Int, b: Int) -> Int
-
 @external(erlang, "gleamler_nif_ffi", "greet")
 pub fn rust_greet(name: String) -> String
-
 @external(erlang, "gleamler_nif_ffi", "double_list")
 pub fn rust_double_list(items: List(Int)) -> List(Int)
-
 @external(erlang, "gleamler_nif_ffi", "is_positive")
 pub fn rust_is_positive(n: Int) -> Bool
-
 @external(erlang, "gleamler_nif_ffi", "divide")
 pub fn rust_divide(a: Float, b: Float) -> Float
-
 @external(erlang, "gleamler_nif_ffi", "make_pair")
 pub fn rust_make_pair(a: Int, b: String) -> #(Int, String)
-
 @external(erlang, "gleamler_nif_ffi", "factorial")
 pub fn rust_factorial(n: Int) -> Int
-
 @external(erlang, "gleamler_nif_ffi", "fib")
 pub fn rust_fib(n: Int) -> Int
-
 @external(erlang, "gleamler_nif_ffi", "echo_i128")
 pub fn rust_echo_i128(n: Int) -> Int
-
 @external(erlang, "gleamler_nif_ffi", "echo_u128")
 pub fn rust_echo_u128(n: Int) -> Int
-
 @external(erlang, "gleamler_nif_ffi", "mul")
 pub fn rust_mul(a: Int, b: Int) -> Int
-
 @external(erlang, "gleamler_nif_ffi", "stress_i128_min")
 pub fn rust_stress_i128_min() -> Int
-
 @external(erlang, "gleamler_nif_ffi", "stress_i128_max")
 pub fn rust_stress_i128_max() -> Int
-
 @external(erlang, "gleamler_nif_ffi", "stress_u128_max")
 pub fn rust_stress_u128_max() -> Int
-
 @external(erlang, "gleamler_nif_ffi", "stress_i64_max")
 pub fn rust_stress_i64_max() -> Int
-
 @external(erlang, "gleamler_nif_ffi", "stress_u64_max")
 pub fn rust_stress_u64_max() -> Int
-
 @external(erlang, "gleamler_nif_ffi", "stress_add_wrap")
 pub fn rust_stress_add_wrap(a: Int, b: Int) -> Int
-
 @external(erlang, "gleamler_nif_ffi", "stress_mul_wrap")
 pub fn rust_stress_mul_wrap(a: Int, b: Int) -> Int
-
 @external(erlang, "gleamler_nif_ffi", "stress_repeat_string")
 pub fn rust_stress_repeat_string(s: String, n: Int) -> String
-
 @external(erlang, "gleamler_nif_ffi", "stress_string_len")
 pub fn rust_stress_string_len(s: String) -> Int
-
 @external(erlang, "gleamler_nif_ffi", "stress_sum_list")
 pub fn rust_stress_sum_list(items: List(Int)) -> Int
-
 @external(erlang, "gleamler_nif_ffi", "stress_reverse_list")
 pub fn rust_stress_reverse_list(items: List(Int)) -> List(Int)
-
 @external(erlang, "gleamler_nif_ffi", "stress_panic")
 pub fn rust_stress_panic(msg: String) -> Int
-
 @external(erlang, "gleamler_nif_ffi", "stress_dirty_cpu")
 pub fn rust_stress_dirty_cpu(n: Int) -> Int
-
 @external(erlang, "gleamler_nif_ffi", "stress_dirty_io")
 pub fn rust_stress_dirty_io(ms: Int) -> Int
-
 @external(erlang, "gleamler_nif_ffi", "stress_float_div")
 pub fn rust_stress_float_div(a: Float, b: Float) -> Float
-
 @external(erlang, "gleamler_nif_ffi", "stress_tuple_swap")
 pub fn rust_stress_tuple_swap(a: Int, b: String) -> #(String, Int)
-
 @external(erlang, "gleamler_nif_ffi", "stress_maybe_div")
 pub fn rust_stress_maybe_div(a: Float, b: Float) -> option.Option(Float)
-
 @external(erlang, "gleamler_nif_ffi", "stress_safe_sqrt")
 pub fn rust_stress_safe_sqrt(n: Float) -> Result(Float, String)
-
 @external(erlang, "gleamler_nif_ffi", "stress_now_ms")
 pub fn rust_stress_now_ms() -> Int
-
 @external(erlang, "gleamler_nif_ffi", "stress_float_is_special")
 pub fn rust_stress_float_is_special(n: Float) -> String
-
 @external(erlang, "gleamler_nif_ffi", "stress_resource_roundtrip")
 pub fn rust_stress_resource_roundtrip() -> Resource
-
 @external(erlang, "gleamler_nif_ffi", "stress_resource_intentional_leak")
 pub fn rust_stress_resource_intentional_leak() -> Nil
