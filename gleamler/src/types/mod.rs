@@ -7,6 +7,9 @@ pub use crate::types::atom::Atom;
 pub mod binary;
 pub use crate::types::binary::{Binary, NewBinary, OwnedBinary};
 
+pub mod duration;
+pub use self::duration::ErlangTimestamp;
+
 #[cfg(feature = "big_integer")]
 pub mod big_int;
 #[cfg(feature = "big_integer")]
