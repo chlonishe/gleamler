@@ -20,6 +20,10 @@ nif_version_2_18 = ["nif_version_2_17"]
 allocator = []
 big_integer = ["num-bigint"]
 
+uuid = ["dep:uuid"]
+rust_decimal = ["dep:rust_decimal"]
+bytes = ["dep:bytes"]
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 doctest = false
@@ -32,6 +36,9 @@ libc = "0.2"
 num-bigint = { version = "0.5", optional = true }
 ctor = "=0.6.0"
 thiserror = "2.0.20"
+uuid = { version = "1", optional = true }
+rust_decimal = { version = "1", optional = true }
+bytes = { version = "1", optional = true }
 
 [build-dependencies]
 regex-lite = "0.1"

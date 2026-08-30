@@ -10,6 +10,10 @@ pub use crate::types::binary::{Binary, NewBinary, OwnedBinary};
 pub mod duration;
 pub use self::duration::ErlangTimestamp;
 
+pub mod collections;
+pub mod net;
+pub mod time;
+
 #[cfg(feature = "big_integer")]
 pub mod big_int;
 #[cfg(feature = "big_integer")]
@@ -194,6 +198,39 @@ where
     }
 }
 
+impl<'a, K, V> Decoder<'a> for std::collections::BTreeMap<K, V>
+where
+    K: Decoder<'a> + Ord,
+    V: Decoder<'a>,
+{
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        let size = term.map_size()?;
+        let it = MapIterator::new(term).ok_or(Error::BadArg)?;
+        let mut map = std::collections::BTreeMap::new();
+        for (k, v) in it {
+            map.insert(k.decode()?, v.decode()?);
+        }
+        Ok(map)
+    }
+}
+
+impl<K, V> Encoder for std::collections::BTreeMap<K, V>
+where
+    K: Encoder + Ord,
+    V: Encoder,
+{
+    fn encode<'c>(&self, env: Env<'c>) -> Term<'c> {
+        let mut keys = Vec::with_capacity(self.len());
+        let mut values = Vec::with_capacity(self.len());
+        for (k, v) in self {
+            keys.push(k.encode(env).as_c_arg());
+            values.push(v.encode(env).as_c_arg());
+        }
+        Term::map_from_raw_arrays(env, &keys, &values)
+            .expect("enif_make_map_from_arrays failed (OOM or duplicate keys)")
+    }
+}
+
 impl Encoder for () {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
         unsafe { Term::new(env, crate::wrapper::list::make_list(env.as_c_arg(), &[])) }
@@ -207,5 +244,72 @@ impl<'a> Decoder<'a> for () {
         } else {
             Err(Error::BadArg)
         }
+    }
+}
+
+#[cfg(feature = "uuid")]
+impl Encoder for uuid::Uuid {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        let bytes = self.as_bytes();
+        let mut bin = crate::NewBinary::new(env, bytes.len());
+        bin.as_mut_slice().copy_from_slice(bytes);
+        bin.into()
+    }
+}
+
+#[cfg(feature = "uuid")]
+impl<'a> Decoder<'a> for uuid::Uuid {
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        let bin = crate::Binary::from_term(term)?;
+        uuid::Uuid::from_slice(bin.as_slice()).map_err(|_| Error::BadArg)
+    }
+}
+
+#[cfg(feature = "rust_decimal")]
+impl Encoder for rust_decimal::Decimal {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        self.to_string().encode(env)
+    }
+}
+
+#[cfg(feature = "rust_decimal")]
+impl<'a> Decoder<'a> for rust_decimal::Decimal {
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        let s: String = term.decode()?;
+        s.parse().map_err(|_| Error::BadArg)
+    }
+}
+
+#[cfg(feature = "bytes")]
+impl Encoder for bytes::Bytes {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        let mut bin = crate::NewBinary::new(env, self.len());
+        bin.as_mut_slice().copy_from_slice(self);
+        bin.into()
+    }
+}
+
+#[cfg(feature = "bytes")]
+impl<'a> Decoder<'a> for bytes::Bytes {
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        let bin = crate::Binary::from_term(term)?;
+        Ok(bytes::Bytes::copy_from_slice(bin.as_slice()))
+    }
+}
+
+#[cfg(test)]
+mod type_tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn btree_map_trait_impls_exist() {
+        fn assert_enc<T: Encoder>() {}
+        fn assert_dec<'a, T: Decoder<'a>>() {}
+
+        assert_enc::<BTreeMap<String, i64>>();
+        assert_dec::<BTreeMap<String, i64>>();
+        assert_enc::<BTreeMap<i64, String>>();
+        assert_dec::<BTreeMap<i64, String>>();
     }
 }
