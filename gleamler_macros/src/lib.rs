@@ -220,6 +220,7 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
 struct InitInput {
     module: Option<syn::LitStr>,
     load: Option<syn::ExprPath>,
+    upgrade: Option<syn::ExprPath>,
     names: Punctuated<Ident, Token![,]>,
 }
 
@@ -227,6 +228,7 @@ impl syn::parse::Parse for InitInput {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let mut module = None;
         let mut load = None;
+        let mut upgrade = None;
 
         if input.peek(syn::LitStr) {
             module = Some(input.parse()?);
@@ -236,11 +238,15 @@ impl syn::parse::Parse for InitInput {
         }
         if input.peek(Ident) && input.peek2(Token![=]) {
             let key: Ident = input.parse()?;
-            if key != "load" {
-                return Err(syn::Error::new(key.span(), "expected `load`"));
+            if key == "load" {
+                input.parse::<Token![=]>()?;
+                load = Some(input.parse::<syn::ExprPath>()?);
+            } else if key == "upgrade" {
+                input.parse::<Token![=]>()?;
+                upgrade = Some(input.parse::<syn::ExprPath>()?);
+            } else {
+                return Err(syn::Error::new(key.span(), "expected `load` or `upgrade`"));
             }
-            input.parse::<Token![=]>()?;
-            load = Some(input.parse::<syn::ExprPath>()?);
             if input.peek(Token![,]) {
                 input.parse::<Token![,]>()?;
             }
@@ -257,6 +263,7 @@ impl syn::parse::Parse for InitInput {
         Ok(Self {
             module,
             load,
+            upgrade,
             names,
         })
     }
@@ -337,6 +344,28 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
         }
     };
 
+    let upgrade_body = if let Some(upgrade_path) = &input.upgrade {
+        quote! {
+            Some({
+                unsafe extern "C" fn __gleamler_nif_upgrade(
+                    env: *mut ::gleamler::sys::ErlNifEnv,
+                    _priv_data: *mut *mut ::gleamler::sys::c_void,
+                    _old_priv_data: *mut *mut ::gleamler::sys::c_void,
+                    load_info: ::gleamler::sys::ERL_NIF_TERM,
+                ) -> ::gleamler::sys::c_int {
+                    unsafe {
+                        let env = ::gleamler::Env::new_init_env(&(), env);
+                        let load_info = ::gleamler::Term::new(env, load_info);
+                        ::gleamler::codegen_runtime::handle_nif_init_call(#upgrade_path, env, load_info)
+                    }
+                }
+                __gleamler_nif_upgrade
+            })
+        }
+    } else {
+        quote! { None }
+    };
+
     let entry_body = quote! {
         use ::gleamler::sys::{ErlNifFunc, ErlNifEntry, NIF_MAJOR_VERSION, NIF_MINOR_VERSION, ERL_NIF_ENTRY_OPTIONS};
         use ::gleamler::codegen_runtime::min_erts;
@@ -364,7 +393,7 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
                 __gleamler_nif_load
             }),
             reload: None,
-            upgrade: None,
+            upgrade: #upgrade_body,
             unload: None,
             vm_variant: b"beam.vanilla\0".as_ptr() as *const c_char,
             options: ERL_NIF_ENTRY_OPTIONS,
