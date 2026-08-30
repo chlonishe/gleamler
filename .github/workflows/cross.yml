@@ -1,0 +1,127 @@
+name: Cross Compile & Smoke Test
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-13
+            target: x86_64-apple-darwin
+            artifact: libgleamler.dylib
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: libgleamler.dylib
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: gleamler.dll
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+          components: rustfmt, clippy
+
+      - name: Build
+        run: cargo build -p gleamler --release --target ${{ matrix.target }} --features stress
+
+      - name: Check symbols
+        shell: bash
+        run: ./scripts/check_nif.sh ${{ matrix.target }} target/${{ matrix.target }}/release/${{ matrix.artifact }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gleamler-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/${{ matrix.artifact }}
+
+  build-cross:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - aarch64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-musl
+        include:
+          - target: aarch64-unknown-linux-gnu
+            packages: gcc-aarch64-linux-gnu
+            artifact: libgleamler.so
+            qemu: true
+          - target: x86_64-unknown-linux-musl
+            packages: musl-tools
+            artifact: libgleamler.so
+            qemu: false
+          - target: aarch64-unknown-linux-musl
+            packages: gcc-aarch64-linux-gnu musl-tools
+            artifact: libgleamler.so
+            qemu: true
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross-compiler & QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.packages }} qemu-user-static binfmt-support
+
+      - name: Build
+        run: cargo build -p gleamler --release --target ${{ matrix.target }} --features stress
+
+      - name: Check symbols
+        run: ./scripts/check_nif.sh ${{ matrix.target }} target/${{ matrix.target }}/release/${{ matrix.artifact }}
+
+      - name: Smoke test (QEMU aarch64)
+        if: matrix.qemu && !contains(matrix.target, 'musl')
+        uses: uraimo/run-on-arch-action@v2
+        with:
+          arch: aarch64
+          distro: ubuntu22.04
+          run: |
+            apt-get update && apt-get install -y erlang
+            mkdir -p priv
+            cp target/${{ matrix.target }}/release/${{ matrix.artifact }} priv/gleamler.so
+            erlc -o /tmp src/resource_leak_test.erl
+            erl +S 1:1 -noshell -pa /tmp -s resource_leak_test run -s init stop
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gleamler-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/${{ matrix.artifact }}
+
+  gleam-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27"
+          gleam-version: "1.5"
+          rebar3-version: "3"
+
+      - name: Build Rust NIF
+        run: cargo build -p gleamler --release --features stress
+
+      - name: Generate FFI stubs
+        run: |
+          cargo run -p gleamler_codegen -- gleamler src/gleamler_nif_ffi.erl src/gleamler_nif.gleam --with-stress
+
+      - name: Gleam build & test
+        run: |
+          gleam build
+          gleam test

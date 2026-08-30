@@ -2,78 +2,75 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    tags: ["v*"]
 
 permissions:
   contents: write
 
 jobs:
-  build-native:
+  build:
     strategy:
       fail-fast: false
       matrix:
         include:
+          # Linux
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            nif_src: target/x86_64-unknown-linux-gnu/release/libgleamler.so
-            nif_dst: gleamler-x86_64-linux.so
+            asset: gleamler-x86_64-linux.so
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            asset: gleamler-aarch64-linux.so
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            asset: gleamler-x86_64-linux-musl.so
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+            asset: gleamler-aarch64-linux-musl.so
+          # macOS
           - target: x86_64-apple-darwin
             os: macos-13
-            nif_src: target/x86_64-apple-darwin/release/libgleamler.dylib
-            nif_dst: gleamler-x86_64-macos.so
+            asset: gleamler-x86_64-macos.dylib
           - target: aarch64-apple-darwin
-            os: macos-14
-            nif_src: target/aarch64-apple-darwin/release/libgleamler.dylib
-            nif_dst: gleamler-aarch64-macos.so
+            os: macos-latest
+            asset: gleamler-aarch64-macos.dylib
+          # Windows
           - target: x86_64-pc-windows-msvc
             os: windows-latest
-            nif_src: target/x86_64-pc-windows-msvc/release/gleamler.dll
-            nif_dst: gleamler-x86_64-windows.dll
+            asset: gleamler-x86_64-windows.dll
 
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      - name: Build release NIF
-        run: cargo build -p gleamler --release --features stress --target ${{ matrix.target }}
-
-      - name: Stage artifact (Unix)
-        if: runner.os != 'Windows'
+      - name: Install Linux cross-compiler
+        if: contains(matrix.os, 'ubuntu')
         run: |
-          mkdir -p artifacts
-          cp ${{ matrix.nif_src }} artifacts/${{ matrix.nif_dst }}
+          sudo apt-get update
+          case "${{ matrix.target }}" in
+            aarch64-unknown-linux-gnu)  sudo apt-get install -y gcc-aarch64-linux-gnu ;;
+            x86_64-unknown-linux-musl)  sudo apt-get install -y musl-tools ;;
+            aarch64-unknown-linux-musl) sudo apt-get install -y gcc-aarch64-linux-gnu musl-tools ;;
+          esac
 
-      - name: Stage artifact (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
+      - name: Build
+        run: cargo build -p gleamler --release --target ${{ matrix.target }} --features stress
+
+      - name: Rename artifact
+        shell: bash
         run: |
-          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
-          Copy-Item ${{ matrix.nif_src }} artifacts\${{ matrix.nif_dst }}
+          case "${{ matrix.target }}" in
+            *windows*) SRC="gleamler.dll" ;;
+            *darwin*) SRC="libgleamler.dylib" ;;
+            *)         SRC="libgleamler.so" ;;
+          esac
+          cp "target/${{ matrix.target }}/release/$SRC" "${{ matrix.asset }}"
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
         with:
-          name: ${{ matrix.nif_dst }}
-          path: artifacts/*
-
-  release:
-    needs: build-native
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          merge-multiple: true
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: artifacts/*
-          generate_release_notes: true
+          files: ${{ matrix.asset }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
