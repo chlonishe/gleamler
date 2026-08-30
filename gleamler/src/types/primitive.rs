@@ -52,6 +52,24 @@ macro_rules! impl_number_transcoder {
     };
 }
 
+macro_rules! impl_nonzero {
+    ($nz:ty, $primitive:ty) => {
+        impl Encoder for $nz {
+            #[inline]
+            fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+                self.get().encode(env)
+            }
+        }
+        impl<'a> Decoder<'a> for $nz {
+            #[inline]
+            fn decode(term: Term<'a>) -> NifResult<Self> {
+                let inner: $primitive = term.decode()?;
+                Self::new(inner).ok_or(Error::BadArg)
+            }
+        }
+    };
+}
+
 // Base number types
 impl_number_transcoder!(i32, i32, enif_make_int, enif_get_int);
 impl_number_transcoder!(u32, u32, enif_make_uint, enif_get_uint);
@@ -64,6 +82,20 @@ impl_number_transcoder!(i8, i32, enif_make_int, enif_get_int);
 impl_number_transcoder!(u8, u32, enif_make_uint, enif_get_uint);
 impl_number_transcoder!(i16, i32, enif_make_int, enif_get_int);
 impl_number_transcoder!(u16, u32, enif_make_uint, enif_get_uint);
+
+// NonZero* types
+impl_nonzero!(std::num::NonZeroU8, u8);
+impl_nonzero!(std::num::NonZeroU16, u16);
+impl_nonzero!(std::num::NonZeroU32, u32);
+impl_nonzero!(std::num::NonZeroU64, u64);
+impl_nonzero!(std::num::NonZeroU128, u128);
+impl_nonzero!(std::num::NonZeroUsize, usize);
+impl_nonzero!(std::num::NonZeroI8, i8);
+impl_nonzero!(std::num::NonZeroI16, i16);
+impl_nonzero!(std::num::NonZeroI32, i32);
+impl_nonzero!(std::num::NonZeroI64, i64);
+impl_nonzero!(std::num::NonZeroI128, i128);
+impl_nonzero!(std::num::NonZeroIsize, isize);
 
 impl Encoder for usize {
     #[inline]
@@ -133,5 +165,27 @@ impl Encoder for bool {
 impl<'a> Decoder<'a> for bool {
     fn decode(term: Term<'a>) -> NifResult<bool> {
         atom::decode_bool(term)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nonzero_impls_exist() {
+        fn assert_encoder<T: Encoder>() {}
+        fn assert_decoder<'a, T: Decoder<'a>>() {}
+        assert_encoder::<std::num::NonZeroU64>();
+        assert_decoder::<std::num::NonZeroU64>();
+        assert_encoder::<std::num::NonZeroI32>();
+        assert_decoder::<std::num::NonZeroI32>();
+    }
+
+    #[test]
+    fn nonzero_decode_zero_would_fail() {
+        assert!(std::num::NonZeroU64::new(0).is_none());
+        assert!(std::num::NonZeroI32::new(0).is_none());
+        assert_eq!(std::num::NonZeroU64::new(42).unwrap().get(), 42);
     }
 }
