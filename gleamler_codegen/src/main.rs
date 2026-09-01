@@ -4,10 +4,10 @@ use std::path::Path;
 
 fn atomic_write(path: &std::path::Path, contents: impl AsRef<[u8]>) {
     let bytes = contents.as_ref();
-    if let Ok(existing) = std::fs::read(path) {
-        if existing == bytes {
-            return;
-        }
+    if let Ok(existing) = std::fs::read(path)
+        && existing == bytes
+    {
+        return;
     }
     let tmp = path.with_extension("tmp");
 

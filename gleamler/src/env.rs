@@ -164,6 +164,7 @@ impl<'a> Env<'a> {
     /// [enif\_send](https://www.erlang.org/doc/man/erl_nif.html#enif_send).
     #[inline]
     #[must_use]
+    #[allow(clippy::double_must_use)]
     pub fn send(self, pid: &LocalPid, message: impl Encoder) -> Result<(), SendError> {
         if !is_scheduler_thread() {
             return Err(SendError);
@@ -416,6 +417,7 @@ impl OwnedEnv {
     /// can only use this method on a thread that was created by other
     /// means. (This curious restriction is imposed by the Erlang VM.)
     ///
+    #[allow(clippy::double_must_use)]
     #[must_use]
     pub fn send_and_clear<'a, F, T>(
         &mut self,

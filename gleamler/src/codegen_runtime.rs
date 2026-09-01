@@ -40,6 +40,7 @@ pub unsafe trait NifReturnable {
 }
 
 thread_local! {
+    #[allow(clippy::type_complexity)]
     pub static CURRENT_NIF_CONTINUATION: Cell<Option<(
         *const c_char,                                // static name (\0-terminated)
         unsafe extern "C" fn(NIF_ENV, i32, *const NIF_TERM) -> NIF_TERM,
