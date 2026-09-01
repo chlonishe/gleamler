@@ -11,6 +11,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  CARGO_TARGET_DIR: target
 
 jobs:
   rust-checks:
@@ -30,17 +31,8 @@ jobs:
       - name: cargo clippy
         run: cargo clippy --workspace --all-targets -- -W warnings
 
-      - name: test gleamler (default)
-        run: cargo test -p gleamler
-
-      - name: test gleamler (stress)
-        run: cargo test -p gleamler --features stress
-
-      - name: test gleamler_codegen
-        run: cargo test -p gleamler_codegen
-
-      - name: test gleamler_macros
-        run: cargo test -p gleamler_macros
+      - name: Rust tests (via xtask)
+        run: cargo xtask test --rust
 
       - name: cargo deny
         uses: EmbarkStudios/cargo-deny-action@v2
@@ -85,28 +77,18 @@ jobs:
           - os: ubuntu-latest
             otp: "25"
             gleam: "1.14.0"
-            nif_src: target/release/libgleamler.so
-            nif_dst: priv/gleamler.so
           - os: ubuntu-latest
             otp: "26"
             gleam: "1.14.0"
-            nif_src: target/release/libgleamler.so
-            nif_dst: priv/gleamler.so
           - os: ubuntu-latest
             otp: "27"
             gleam: "1.14.0"
-            nif_src: target/release/libgleamler.so
-            nif_dst: priv/gleamler.so
           - os: macos-latest
             otp: "27"
             gleam: "1.14.0"
-            nif_src: target/release/libgleamler.dylib
-            nif_dst: priv/gleamler.so
           - os: windows-latest
             otp: "27"
             gleam: "1.14.0"
-            nif_src: target/release/gleamler.dll
-            nif_dst: priv/gleamler.dll
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -126,23 +108,8 @@ jobs:
         with:
           key: ${{ matrix.os }}-${{ matrix.otp }}-${{ matrix.gleam }}
 
-      - name: Build Rust NIF (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          cargo build -p gleamler --release --features stress
-          mkdir -p priv
-          cp ${{ matrix.nif_src }} ${{ matrix.nif_dst }}
-
-      - name: Build Rust NIF (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          cargo build -p gleamler --release --features stress
-          New-Item -ItemType Directory -Force -Path priv | Out-Null
-          Copy-Item ${{ matrix.nif_src }} ${{ matrix.nif_dst }}
-
-      - name: Generate Erlang / Gleam stubs
-        run: cargo run -p gleamler_codegen -- gleamler src/gleamler_nif_ffi.erl src/gleamler_nif.gleam --with-stress
+      - name: Build NIF + FFI stubs + Gleam
+        run: cargo xtask build --release --stress
 
       - name: Format generated code
         run: gleam format
@@ -214,8 +181,8 @@ jobs:
       - name: Install Valgrind
         run: sudo apt-get update && sudo apt-get install -y valgrind
 
-      - name: Build everything (make all)
-        run: make all
+      - name: Build everything
+        run: cargo xtask build --release --stress
 
       - name: Compile leak test module
         run: |

@@ -1,0 +1,19 @@
+[workspace]
+shared-version = true
+
+consolidate-commits = true
+tag = true
+tag-name = "{{version}}"
+tag-message = "Release {{version}}"
+pre-release-commit-message = "chore: release {{version}}"
+post-release-commit-message = "chore: start next development iteration"
+
+publish = false
+
+push = false
+
+pre-release-replacements = [
+    { file = "gleamler/Cargo.toml", search = "version = "{{prev_version}}"", replace = "version = "{{version}}"" },
+    { file = "gleamler_macros/Cargo.toml", search = "version = "{{prev_version}}"", replace = "version = "{{version}}"" },
+    { file = "gleamler_codegen/Cargo.toml", search = "version = "{{prev_version}}"", replace = "version = "{{version}}"" },
+]
