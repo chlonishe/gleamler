@@ -47,6 +47,7 @@ fn alloc_size_struct_with_padding() {
 }
 
 #[test]
+#[cfg(not(miri))]
 fn align_memory_for_struct() {
     let align = mem::align_of::<u64>();
     let base: usize = 0x1000;
@@ -57,6 +58,26 @@ fn align_memory_for_struct() {
         assert!(addr >= base + offset);
         assert!(addr < base + offset + align);
         assert_eq!(addr % align, 0, "alignment failed for offset {}", offset);
+    }
+}
+
+#[test]
+#[cfg(miri)]
+fn align_memory_for_struct() {
+    use std::alloc::{Layout, alloc, dealloc};
+    let align = mem::align_of::<u64>();
+    for offset in 0..align * 3 {
+        let layout = Layout::from_size_align(align * 4, align).unwrap();
+        let base = unsafe { alloc(layout) };
+        assert!(!base.is_null());
+        let misaligned = unsafe { base.add(offset) };
+        let aligned =
+            unsafe { align_alloced_mem_for_struct::<u64>(misaligned as *const _) as *mut u8 };
+        let addr = aligned as usize;
+        assert!(addr >= misaligned as usize);
+        assert!(addr < misaligned as usize + align);
+        assert_eq!(addr % align, 0, "alignment failed for offset {}", offset);
+        unsafe { dealloc(base, layout) };
     }
 }
 

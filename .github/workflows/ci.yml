@@ -137,6 +137,32 @@ jobs:
           ASAN_OPTIONS: detect_leaks=1:abort_on_error=1:print_stacktrace=1
         run: cargo +nightly test --target x86_64-unknown-linux-gnu -p gleamler --features stress
 
+  miri:
+    name: Miri (UB detection)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Miri setup
+        run: cargo miri setup
+
+      - name: Run Miri on gleamler
+        run: cargo miri test -p gleamler --no-default-features --features nif_version_2_17
+        env:
+          MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-tree-borrows"
+
+      - name: Run Miri on gleamler_codegen
+        run: cargo miri test -p gleamler_codegen
+
+      - name: Run Miri on gleamler_macros
+        run: cargo miri test -p gleamler_macros
+
   valgrind-rust:
     name: Valgrind (Rust unit tests)
     runs-on: ubuntu-latest
