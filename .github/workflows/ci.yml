@@ -143,12 +143,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: nightly
           components: miri
-
-      - name: Set nightly as default
-        run: rustup default nightly
 
       - uses: Swatinem/rust-cache@v2
 
@@ -156,18 +154,18 @@ jobs:
         run: rustup component list --installed --toolchain nightly | grep miri
 
       - name: Miri setup
-        run: cargo miri setup
+        run: cargo +nightly miri setup
 
       - name: Run Miri on gleamler
-        run: cargo miri test -p gleamler --no-default-features --features nif_version_2_17
+        run: cargo +nightly miri test -p gleamler --no-default-features --features nif_version_2_17
         env:
           MIRIFLAGS: "-Zmiri-disable-isolation -Zmiri-tree-borrows"
 
       - name: Run Miri on gleamler_codegen
-        run: cargo miri test -p gleamler_codegen
+        run: cargo +nightly miri test -p gleamler_codegen
 
       - name: Run Miri on gleamler_macros
-        run: cargo miri test -p gleamler_macros
+        run: cargo +nightly miri test -p gleamler_macros
 
   valgrind-rust:
     name: Valgrind (Rust unit tests)
