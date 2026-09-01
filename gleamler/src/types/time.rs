@@ -69,7 +69,7 @@ mod tests {
 
     #[test]
     fn system_time_decoder_from_tuple() {
-        let total = 0u64 * 1_000_000_000_000u64 + 1u64 * 1_000_000u64 + 500_000u64;
+        let total = 1_000_000u64 + 500_000u64;
         assert_eq!(total, 1_500_000u64);
     }
 

@@ -186,22 +186,22 @@ fn generate(opts: &GenerateOptions) -> String {
 /// See [enif_make_int64](http://www.erlang.org/doc/man/erl_nif.html#enif_make_int64) at erlang.org
 #[inline]
 pub unsafe fn enif_make_int64(env: *mut ErlNifEnv, i: i64) -> ERL_NIF_TERM
-    {{ enif_make_long(env, i) }}
+    {{ unsafe {{ enif_make_long(env, i) }} }}
 
 /// See [enif_make_uint64](http://www.erlang.org/doc/man/erl_nif.html#enif_make_uint64) at erlang.org
 #[inline]
 pub unsafe fn enif_make_uint64(env: *mut ErlNifEnv, i: u64) -> ERL_NIF_TERM
-    {{ enif_make_ulong(env, i) }}
+    {{ unsafe {{ enif_make_ulong(env, i) }} }}
 
 /// See [enif_get_int64](http://www.erlang.org/doc/man/erl_nif.html#enif_get_int64) at erlang.org
 #[inline]
 pub unsafe fn enif_get_int64(env: *mut ErlNifEnv, term: ERL_NIF_TERM, ip: *mut i64) -> c_int
-    {{ enif_get_long(env, term, ip) }}
+    {{ unsafe {{ enif_get_long(env, term, ip) }} }}
 
 /// See [enif_get_uint64](http://www.erlang.org/doc/man/erl_nif.html#enif_get_uint64) at erlang.org
 #[inline]
 pub unsafe fn enif_get_uint64(env: *mut ErlNifEnv, term: ERL_NIF_TERM, ip: *mut u64) -> c_int
-    {{ enif_get_ulong(env, term, ip) }}
+    {{ unsafe {{ enif_get_ulong(env, term, ip) }} }}
         "#).unwrap();
     }
 
