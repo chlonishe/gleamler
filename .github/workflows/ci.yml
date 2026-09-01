@@ -147,7 +147,13 @@ jobs:
         with:
           components: miri
 
+      - name: Set nightly as default
+        run: rustup default nightly
+
       - uses: Swatinem/rust-cache@v2
+
+      - name: Verify Miri installed
+        run: rustup component list --installed --toolchain nightly | grep miri
 
       - name: Miri setup
         run: cargo miri setup
