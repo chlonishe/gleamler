@@ -87,7 +87,7 @@ jobs:
 
       - name: Smoke test (QEMU aarch64)
         if: matrix.qemu && !contains(matrix.target, 'musl')
-        uses: uraimo/run-on-arch-action@v2
+        uses: uraimo/run-on-arch-action@v3
         with:
           arch: aarch64
           distro: ubuntu22.04
