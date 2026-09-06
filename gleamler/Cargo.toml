@@ -8,6 +8,7 @@ license = "MIT OR Apache-2.0"
 [features]
 default = ["nif_version_2_17"]
 stress = []
+serde = ["dep:serde"]
 
 # NIF version features form an implication chain: each higher version enables all lower ones
 # The build script selects the highest active version. If you explicitly enable multiple
@@ -39,6 +40,7 @@ thiserror = "2.0.20"
 uuid = { version = "1", optional = true }
 rust_decimal = { version = "1", optional = true }
 bytes = { version = "1", optional = true }
+serde = { version = "1", optional = true }
 
 [build-dependencies]
 regex-lite = "0.1"

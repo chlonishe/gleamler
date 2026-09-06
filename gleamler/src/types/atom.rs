@@ -359,4 +359,13 @@ atoms! {
     some,
 
     none,
+
+    /// The `nan` atom (used by serde for non-finite floats).
+    nan,
+
+    /// The `inf` atom (used by serde for +infinity).
+    inf,
+
+    /// The `neg_inf` atom (used by serde for -infinity).
+    neg_inf,
 }

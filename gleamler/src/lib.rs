@@ -28,6 +28,11 @@ pub mod nifs;
 pub mod stress_nifs;
 pub mod types;
 
+#[cfg(feature = "serde")]
+pub mod serde;
+#[cfg(feature = "serde")]
+pub use crate::serde::SerdeTerm;
+
 pub use crate::alloc::EnifAllocator;
 pub use crate::codegen_runtime::NifOutcome;
 pub use crate::dynamic::TermType;
