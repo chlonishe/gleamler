@@ -64,7 +64,7 @@ jobs:
 
       - run: cargo llvm-cov --workspace --lcov --output-path lcov.info --exclude hello --exclude counter --exclude dirty --exclude serde_demo
 
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v7
         with:
           files: lcov.info
           fail_ci_if_error: false
