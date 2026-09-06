@@ -16,14 +16,14 @@ mod dynamic;
 mod env;
 mod error;
 mod nif;
-mod resource;
-mod schedule;
 mod term;
 #[cfg(test)]
 mod tests;
 mod thread;
 
 pub mod nifs;
+pub mod resource;
+pub mod schedule;
 #[cfg(feature = "stress")]
 pub mod stress_nifs;
 pub mod types;

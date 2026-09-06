@@ -1,0 +1,11 @@
+[package]
+name = "serde_demo"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+gleamler = { path = "../../gleamler", features = ["serde"] }
+serde = { version = "1.0.229", features = ["derive"] }

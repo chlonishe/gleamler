@@ -1,4 +1,12 @@
 [workspace]
-members = ["gleamler", "gleamler_macros", "gleamler_codegen"]
+members = [
+    "gleamler",
+    "gleamler_macros",
+    "gleamler_codegen",
+    "examples/hello",
+    "examples/counter",
+    "examples/serde_demo",
+    "examples/dirty",
+]
 resolver = "2"
 exclude = ["xtask"]

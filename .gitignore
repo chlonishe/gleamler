@@ -10,3 +10,5 @@ src/gleamler_nif_ffi.erl
 src/gleamler_nif.gleam
 
 xtask/target/
+
+examples/collections/
