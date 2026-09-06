@@ -26,7 +26,7 @@ pub enum Error {
     /// Encodes an arbitrary Boxed Encoder and returns it as `{error, term}`
     /// (`Error(term)` in Gleam) from the NIF. Very useful for returning
     /// descriptive, context-full errors.
-    #[error("{{error, <term>}}")]
+    #[error("throw(<term>)")]
     RaiseTerm(Box<dyn Encoder>),
 
     #[error("{{error, <term>}}")]
