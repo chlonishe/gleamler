@@ -52,6 +52,7 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
                 );
             } else if meta.path().is_ident("safe") {
                 is_safe = true;
+            } else if meta.path().is_ident("no_prefix") {
             } else if meta.path().is_ident("alias") {
                 let expr: syn::Expr = meta
                     .require_name_value()

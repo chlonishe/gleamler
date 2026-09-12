@@ -16,6 +16,7 @@ pub struct NifFunc {
     pub arity: usize,
     pub docs: Vec<String>,
     pub is_safe: bool,
+    pub no_prefix: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -526,6 +527,14 @@ fn parse_nif_function(func: ItemFn) -> Result<NifFunc, String> {
         ret = format!("Result({}, GleamlerError)", ret);
     }
 
+    let no_prefix = func.attrs.iter().any(|a| {
+        if let syn::Meta::List(list) = &a.meta {
+            list.tokens.to_string().contains("no_prefix")
+        } else {
+            false
+        }
+    });
+
     Ok(NifFunc {
         name,
         alias,
@@ -534,6 +543,7 @@ fn parse_nif_function(func: ItemFn) -> Result<NifFunc, String> {
         arity,
         docs,
         is_safe,
+        no_prefix,
     })
 }
 
@@ -755,8 +765,12 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
             out.push_str(&f.docs.join("\n/// "));
             out.push('\n');
         }
-        let gleam_name = format!("rust_{}", f.alias.as_ref().unwrap_or(&f.name));
         let erl_name = f.alias.as_ref().unwrap_or(&f.name);
+        let gleam_name = if f.no_prefix {
+            clean_name(erl_name)
+        } else {
+            format!("rust_{}", clean_name(erl_name))
+        };
         let args: Vec<_> = f
             .args
             .iter()
@@ -1012,6 +1026,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 2,
             docs: vec![],
             is_safe: false,
+            no_prefix: false,
         }];
         let out = generate_erl(&funcs, DEFAULT_ERL_MODULE, DEFAULT_LIB_NAME);
         assert!(out.contains("-export([add/2])."));
@@ -1029,6 +1044,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 0,
             docs: vec![],
             is_safe: false,
+            no_prefix: false,
         }];
         let out = generate_erl(&funcs, "my_custom_ffi", "my_lib");
         assert!(out.contains("-module(my_custom_ffi)."));
@@ -1046,6 +1062,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 1,
             docs: vec![],
             is_safe: false,
+            no_prefix: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains(r#"@external(erlang, "gleamler_nif_ffi", "greet")"#));
@@ -1062,6 +1079,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 0,
             docs: vec![],
             is_safe: false,
+            no_prefix: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), "other_ffi_module");
         assert!(out.contains(r#"@external(erlang, "other_ffi_module", "ping")"#));
@@ -1080,6 +1098,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 2,
             docs: vec![],
             is_safe: false,
+            no_prefix: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("import gleam/option"));
@@ -1098,6 +1117,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 2,
             docs: vec![],
             is_safe: false,
+            no_prefix: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("#(Int, String)"));
@@ -1113,6 +1133,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 1,
             docs: vec![],
             is_safe: false,
+            no_prefix: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("dict.Dict(String, Int)"));
@@ -1128,6 +1149,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 1,
             docs: vec![],
             is_safe: false,
+            no_prefix: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("data: List(Int)"));
@@ -1145,6 +1167,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 1,
             docs: vec![],
             is_safe: false,
+            no_prefix: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("data: List(Int)"));
@@ -1163,6 +1186,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 2,
             docs: vec![],
             is_safe: false,
+            no_prefix: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("s: String"));
@@ -1179,6 +1203,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 1,
             docs: vec![],
             is_safe: false,
+            no_prefix: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("b: BitArray"));
@@ -1198,6 +1223,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 2,
             docs: vec![],
             is_safe: false,
+            no_prefix: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("x: Foo(T)"));
@@ -1214,6 +1240,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 0,
             docs: vec![],
             is_safe: false,
+            no_prefix: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("#(dict.Dict(String, Int), Bool)"));
