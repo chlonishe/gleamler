@@ -6,7 +6,7 @@ build = "build.rs"
 license = "MIT OR Apache-2.0"
 
 [features]
-default = ["nif_version_2_17", "nifs"]
+default = ["nif_version_2_17"]
 stress = []
 serde = ["dep:serde"]
 nifs = []

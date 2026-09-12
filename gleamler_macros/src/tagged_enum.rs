@@ -266,7 +266,7 @@ fn gen_unnamed_encoder(
         .map(|i| Ident::new(&format!("inner{i}"), Span::call_site()))
         .collect::<Vec<_>>();
     quote! {
-        #enum_name :: #variant_ident ( #(ref #inners),* ) => ::gleamler::Encoder::encode(&(#atom_fn(), #(#inners),*), env),
+        #enum_name :: #variant_ident ( #(#inners),* ) => ::gleamler::Encoder::encode(&(#atom_fn(), #(#inners),*), env),
     }
 }
 

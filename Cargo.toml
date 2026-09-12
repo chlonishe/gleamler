@@ -7,6 +7,7 @@ members = [
     "examples/counter",
     "examples/serde_demo",
     "examples/dirty",
+    "examples/async_worker",
 ]
 resolver = "2"
 exclude = ["xtask"]

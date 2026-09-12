@@ -50,7 +50,7 @@ pub use crate::term::Term;
 pub use crate::thread::{JobSpawner, ThreadSpawner, spawn};
 pub use crate::types::{
     Atom, Binary, BitArray, Decoder, Encoder, ErlOption, ListIterator, LocalPid, LocalPort,
-    MapIterator, NewBinary, OwnedBinary, Reference,
+    MapIterator, NewBinary, OwnedBinary, Reference, Subject,
 };
 
 pub type NifResult<T> = Result<T, Error>;
