@@ -406,9 +406,9 @@ fn artifact_names(target: Option<&str>, package: &str) -> (String, String) {
     };
 
     match os {
-        "windows" => (format!("{package}.dll"), "gleamler.dll".into()),
-        "macos" => (format!("lib{package}.dylib"), "gleamler.so".into()),
-        _ => (format!("lib{package}.so"), "gleamler.so".into()),
+        "windows" => (format!("{package}.dll"), format!("{package}.dll")),
+        "macos" => (format!("lib{package}.dylib"), format!("{package}.so")),
+        _ => (format!("lib{package}.so"), format!("{package}.so")),
     }
 }
 
