@@ -403,9 +403,12 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> Result<String, String> {
         }
 
         Type::Array(TypeArray { elem, .. }) => {
-            Ok(format!("List({})", type_to_gleam_ctx(elem, ctx)?))
+            if is_u8_type(elem) {
+                Ok("BitArray".into())
+            } else {
+                Ok(format!("List({})", type_to_gleam_ctx(elem, ctx)?))
+            }
         }
-
         _ => {
             use quote::ToTokens;
             Ok(ty
