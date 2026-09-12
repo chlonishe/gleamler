@@ -4,7 +4,8 @@ use thiserror::Error;
 
 use crate::codegen_runtime::{NifReturnable, NifReturned};
 use crate::types::atom;
-use crate::{Encoder, Env, types};
+use crate::types::atom::Atom;
+use crate::{Decoder, Encoder, Env, NifResult, Term, types};
 
 /// Represents usual errors that can happen in a nif. This enables you
 /// to return an error from anywhere, even places where you don't have
@@ -96,5 +97,49 @@ impl fmt::Debug for Error {
             Error::Term(_) => write!(fmt, "{{error, <term>}}"),
             Error::Panic(s) => write!(fmt, "panic({s})"),
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GleamlerError {
+    BadArg,
+    Panic(String),
+    Custom(String),
+}
+
+impl Encoder for GleamlerError {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        match self {
+            GleamlerError::BadArg => Atom::from_str(env, "bad_arg").unwrap().to_term(env),
+            GleamlerError::Panic(msg) => {
+                let tag = Atom::from_str(env, "panic").unwrap();
+                (tag, msg.as_str()).encode(env)
+            }
+            GleamlerError::Custom(msg) => {
+                let tag = Atom::from_str(env, "custom").unwrap();
+                (tag, msg.as_str()).encode(env)
+            }
+        }
+    }
+}
+
+impl<'a> Decoder<'a> for GleamlerError {
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        if let Ok(atom) = term.decode::<Atom>()
+            && let Ok(s) = atom.to_term(term.get_env()).atom_to_string()
+            && (s == "bad_arg" || s == "badarg")
+        {
+            return Ok(GleamlerError::BadArg);
+        }
+        if let Ok((tag, msg)) = term.decode::<(Atom, String)>()
+            && let Ok(s) = tag.to_term(term.get_env()).atom_to_string()
+        {
+            if s == "panic" {
+                return Ok(GleamlerError::Panic(msg));
+            } else if s == "custom" {
+                return Ok(GleamlerError::Custom(msg));
+            }
+        }
+        Err(Error::BadArg)
     }
 }

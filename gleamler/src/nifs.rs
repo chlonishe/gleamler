@@ -1,3 +1,4 @@
+use crate::GleamlerError;
 use crate::schedule::SchedulerFlags;
 #[cfg(feature = "stress")]
 use crate::stress_nifs::ValgrindTestResource;
@@ -214,3 +215,20 @@ pub fn time_system_time_roundtrip(t: SystemTime) -> SystemTime {
 }
 
 init_nifs!(load = on_load);
+
+#[gleam_nif(safe)]
+pub fn safe_div(a: f64, b: f64) -> Result<f64, GleamlerError> {
+    if b == 0.0 {
+        Err(GleamlerError::Custom("division by zero".to_string()))
+    } else {
+        Ok(a / b)
+    }
+}
+
+#[gleam_nif(safe)]
+pub fn safe_panic_recovery(trigger: bool) -> i64 {
+    if trigger {
+        panic!("something went wrong in Rust!");
+    }
+    42
+}

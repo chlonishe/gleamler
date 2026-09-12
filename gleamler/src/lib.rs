@@ -40,7 +40,7 @@ pub use crate::dynamic::TermType;
 pub use crate::env::NifOption;
 pub use crate::env::UniqueIntegerFlags;
 pub use crate::env::{Env, OwnedEnv};
-pub use crate::error::Error;
+pub use crate::error::{Error, GleamlerError};
 pub use crate::nif::Nif;
 pub use crate::resource::{Monitor, Resource, ResourceArc, ResourceInitError};
 pub use crate::schedule::SelectFlags;

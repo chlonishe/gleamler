@@ -13,6 +13,12 @@ pub fn resource_dummy() -> Resource {
   Resource
 }
 
+pub type GleamlerError {
+  BadArg
+  Panic(String)
+  Custom(String)
+}
+
 /// A user record synchronized between Rust and Gleam
 pub type User {
   User(id: Int, name: String, is_active: Bool)
@@ -110,6 +116,12 @@ pub fn rust_collections_btreemap_roundtrip(
 
 @external(erlang, "gleamler_nif_ffi", "time_system_time_roundtrip")
 pub fn rust_time_system_time_roundtrip(t: #(Int, Int, Int)) -> #(Int, Int, Int)
+
+@external(erlang, "gleamler_nif_ffi", "safe_div")
+pub fn rust_safe_div(a: Float, b: Float) -> Result(Float, GleamlerError)
+
+@external(erlang, "gleamler_nif_ffi", "safe_panic_recovery")
+pub fn rust_safe_panic_recovery(trigger: Bool) -> Result(Int, GleamlerError)
 
 @external(erlang, "gleamler_nif_ffi", "stress_i128_min")
 pub fn rust_stress_i128_min() -> Int

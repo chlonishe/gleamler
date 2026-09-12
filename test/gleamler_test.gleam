@@ -179,3 +179,21 @@ pub fn typegen_unit_enum_test() {
   gleamler_nif.rust_is_user_banned(gleamler_nif.Active)
   |> should.equal(False)
 }
+
+pub fn safe_div_success_test() {
+  gleamler_nif.rust_safe_div(10.0, 2.0)
+  |> should.equal(Ok(5.0))
+}
+
+pub fn safe_div_by_zero_test() {
+  gleamler_nif.rust_safe_div(10.0, 0.0)
+  |> should.equal(Error(gleamler_nif.Custom("division by zero")))
+}
+
+pub fn safe_panic_recovery_test() {
+  gleamler_nif.rust_safe_panic_recovery(True)
+  |> should.equal(Error(gleamler_nif.Panic("something went wrong in Rust!")))
+
+  gleamler_nif.rust_safe_panic_recovery(False)
+  |> should.equal(Ok(42))
+}

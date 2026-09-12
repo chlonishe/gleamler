@@ -31,12 +31,14 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let mut nif_flags = quote!(0);
     let mut alias: Option<syn::LitStr> = None;
+    let mut is_safe = false;
 
     if !attr.is_empty() {
         use syn::parse::Parser;
         let parser = syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated;
-        let metas = parser.parse(attr)
-            .expect("gleam_nif attributes must be comma-separated meta items, e.g. dirty_cpu, alias = \"name\"");
+        let metas = parser
+            .parse(attr)
+            .expect("gleam_nif attributes must be comma-separated meta items");
         for meta in metas {
             if meta.path().is_ident("dirty_cpu") {
                 nif_flags = quote!(
@@ -48,6 +50,8 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
                     ::gleamler::schedule::SchedulerFlags::DirtyIo
                         as ::gleamler::codegen_runtime::c_uint
                 );
+            } else if meta.path().is_ident("safe") {
+                is_safe = true;
             } else if meta.path().is_ident("alias") {
                 let expr: syn::Expr = meta
                     .require_name_value()
@@ -97,6 +101,18 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
             _ => false,
         }
     }
+
+    fn is_result_return_type(output: &syn::ReturnType) -> bool {
+        if let syn::ReturnType::Type(_, ty) = output
+            && let syn::Type::Path(p) = &**ty
+            && let Some(seg) = p.path.segments.last()
+        {
+            return seg.ident == "Result";
+        }
+        false
+    }
+
+    let is_result = is_result_return_type(&input_fn.sig.output);
 
     for arg in &input_fn.sig.inputs {
         let pat_type = match arg {
@@ -156,6 +172,71 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let arity = nif_arg_idx as u32;
 
+    let body_execution = if is_safe {
+        let encode_success = if is_result {
+            quote! {
+                use ::gleamler::Encoder;
+                val.encode(env).as_c_arg()
+            }
+        } else {
+            quote! {
+                use ::gleamler::Encoder;
+                (::gleamler::types::atom::ok(), val).encode(env).as_c_arg()
+            }
+        };
+
+        quote! {
+            if (argc as usize) != (#arity as usize) {
+                use ::gleamler::Encoder;
+                let err_tuple = (::gleamler::types::atom::error(), ::gleamler::GleamlerError::BadArg).encode(env);
+                return err_tuple.as_c_arg();
+            }
+
+            let result = std::panic::catch_unwind(move || {
+                #(#args_decoding)*
+                Ok(#fn_name(#(#args_names),*))
+            });
+
+            match result {
+                Ok(Ok(val)) => {
+                    #encode_success
+                }
+                Ok(Err(_)) => {
+                    use ::gleamler::Encoder;
+                    let err_tuple = (::gleamler::types::atom::error(), ::gleamler::GleamlerError::BadArg).encode(env);
+                    err_tuple.as_c_arg()
+                }
+                Err(panic_err) => {
+                    use ::gleamler::Encoder;
+                    let msg = if let Some(s) = panic_err.downcast_ref::<String>() {
+                        s.clone()
+                    } else if let Some(&s) = panic_err.downcast_ref::<&'static str>() {
+                        s.to_string()
+                    } else {
+                        "NIF panicked".to_string()
+                    };
+                    let err_tuple = (::gleamler::types::atom::error(), ::gleamler::GleamlerError::Panic(msg)).encode(env);
+                    err_tuple.as_c_arg()
+                }
+            }
+        }
+    } else {
+        quote! {
+            if (argc as usize) != (#arity as usize) {
+                return unsafe { ::gleamler::codegen_runtime::NifReturned::BadArg.apply(env) };
+            }
+
+            let result: std::thread::Result<Result<_, ::gleamler::Error>> =
+                std::panic::catch_unwind(move || {
+                    #(#args_decoding)*
+                    Ok(#fn_name(#(#args_names),*))
+                });
+
+            let nif_returned = ::gleamler::codegen_runtime::handle_nif_result(result, env);
+            unsafe { nif_returned.apply(env) }
+        }
+    };
+
     let expanded = quote! {
         #input_fn
 
@@ -190,17 +271,7 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
             };
             let args: &[::gleamler::Term] = &terms;
 
-            if (argc as usize) != (#arity as usize) {
-                return unsafe { ::gleamler::codegen_runtime::NifReturned::BadArg.apply(env) };
-            }
-            let result: std::thread::Result<Result<_, ::gleamler::Error>> =
-                std::panic::catch_unwind(move || {
-                    #(#args_decoding)*
-                    Ok(#fn_name(#(#args_names),*))
-                });
-
-            let nif_returned = ::gleamler::codegen_runtime::handle_nif_result(result, env);
-            unsafe { nif_returned.apply(env) }
+            #body_execution
         }
 
         #[doc(hidden)]

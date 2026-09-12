@@ -15,6 +15,7 @@ pub struct NifFunc {
     pub ret: String,
     pub arity: usize,
     pub docs: Vec<String>,
+    pub is_safe: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -338,6 +339,8 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> Result<String, String> {
                 "Reference" => Ok("dynamic.Dynamic".into()),
                 "Monitor" => Ok("dynamic.Dynamic".into()),
 
+                "GleamlerError" => Ok("GleamlerError".into()),
+
                 _ => {
                     if generic_args.is_empty() {
                         Ok(ident_str)
@@ -403,12 +406,7 @@ fn parse_nif_function(func: ItemFn) -> Result<NifFunc, String> {
             args.push((arg_name, ty));
         }
     }
-    let ret = match &func.sig.output {
-        ReturnType::Default => "Nil".into(),
-        ReturnType::Type(_, ty) => {
-            type_to_gleam_ctx(ty, &name).map_err(|e| format!("in fn `{name}` return type: {e}"))?
-        }
-    };
+
     let alias = func
         .attrs
         .iter()
@@ -470,6 +468,25 @@ fn parse_nif_function(func: ItemFn) -> Result<NifFunc, String> {
         })
         .collect();
 
+    let is_safe = func.attrs.iter().any(|a| {
+        if let syn::Meta::List(list) = &a.meta {
+            list.tokens.to_string().contains("safe")
+        } else {
+            false
+        }
+    });
+
+    let mut ret = match &func.sig.output {
+        ReturnType::Default => "Nil".into(),
+        ReturnType::Type(_, ty) => {
+            type_to_gleam_ctx(ty, &name).map_err(|e| format!("in fn `{name}` return type: {e}"))?
+        }
+    };
+
+    if is_safe && !ret.contains("GleamlerError") {
+        ret = format!("Result({}, GleamlerError)", ret);
+    }
+
     Ok(NifFunc {
         name,
         alias,
@@ -477,6 +494,7 @@ fn parse_nif_function(func: ItemFn) -> Result<NifFunc, String> {
         ret,
         arity,
         docs,
+        is_safe,
     })
 }
 
@@ -551,6 +569,9 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
     let mut has_dict = false;
     let mut has_resource = false;
     let mut has_dynamic = false;
+    let has_gleamler_error = funcs
+        .iter()
+        .any(|f| f.ret.contains("GleamlerError") || f.is_safe);
 
     let check_type_str =
         |t: &str, opt: &mut bool, dict: &mut bool, res: &mut bool, dyn_: &mut bool| {
@@ -615,6 +636,11 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
         out.push_str(
             "\npub opaque type Resource {\n  Resource\n}\n\n\
             @internal\npub fn resource_dummy() -> Resource {\n  Resource\n}\n",
+        );
+    }
+    if has_gleamler_error {
+        out.push_str(
+            "pub type GleamlerError {\n  BadArg\n  Panic(String)\n  Custom(String)\n}\n\n",
         );
     }
     out.push('\n');
@@ -709,14 +735,13 @@ fn gleam_type_mentions(gleam_ty: &str, name: &str) -> bool {
 
 fn has_derive(attrs: &[syn::Attribute], derive_name: &str) -> bool {
     attrs.iter().any(|attr| {
-        if attr.path().is_ident("derive") {
-            if let syn::Meta::List(ref meta_list) = attr.meta {
-                if let Ok(punctuated) = meta_list.parse_args_with(
-                    syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated,
-                ) {
-                    return punctuated.iter().any(|p| p.is_ident(derive_name));
-                }
-            }
+        if attr.path().is_ident("derive")
+            && let syn::Meta::List(ref meta_list) = attr.meta
+            && let Ok(punctuated) = meta_list.parse_args_with(
+                syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated,
+            )
+        {
+            return punctuated.iter().any(|p| p.is_ident(derive_name));
         }
         false
     })
@@ -911,6 +936,7 @@ pub fn heavy(n: i64) -> i64 { n }
             ret: "Int".into(),
             arity: 2,
             docs: vec![],
+            is_safe: false,
         }];
         let out = generate_erl(&funcs, DEFAULT_ERL_MODULE, DEFAULT_LIB_NAME);
         assert!(out.contains("-export([add/2])."));
@@ -927,6 +953,7 @@ pub fn heavy(n: i64) -> i64 { n }
             ret: "String".into(),
             arity: 0,
             docs: vec![],
+            is_safe: false,
         }];
         let out = generate_erl(&funcs, "my_custom_ffi", "my_lib");
         assert!(out.contains("-module(my_custom_ffi)."));
@@ -943,6 +970,7 @@ pub fn heavy(n: i64) -> i64 { n }
             ret: "String".into(),
             arity: 1,
             docs: vec![],
+            is_safe: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains(r#"@external(erlang, "gleamler_nif_ffi", "greet")"#));
@@ -958,6 +986,7 @@ pub fn heavy(n: i64) -> i64 { n }
             ret: "Nil".into(),
             arity: 0,
             docs: vec![],
+            is_safe: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), "other_ffi_module");
         assert!(out.contains(r#"@external(erlang, "other_ffi_module", "ping")"#));
@@ -975,6 +1004,7 @@ pub fn heavy(n: i64) -> i64 { n }
             ret: "Result(String, Int)".into(),
             arity: 2,
             docs: vec![],
+            is_safe: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("import gleam/option"));
@@ -992,6 +1022,7 @@ pub fn heavy(n: i64) -> i64 { n }
             ret: "#(Int, String)".into(),
             arity: 2,
             docs: vec![],
+            is_safe: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("#(Int, String)"));
@@ -1006,6 +1037,7 @@ pub fn heavy(n: i64) -> i64 { n }
             ret: "Nil".into(),
             arity: 1,
             docs: vec![],
+            is_safe: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("dict.Dict(String, Int)"));
@@ -1020,6 +1052,7 @@ pub fn heavy(n: i64) -> i64 { n }
             ret: "List(Int)".into(),
             arity: 1,
             docs: vec![],
+            is_safe: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("data: List(Int)"));
@@ -1036,6 +1069,7 @@ pub fn heavy(n: i64) -> i64 { n }
             ret: "Nil".into(),
             arity: 1,
             docs: vec![],
+            is_safe: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("data: List(Int)"));
@@ -1053,6 +1087,7 @@ pub fn heavy(n: i64) -> i64 { n }
             ret: "Nil".into(),
             arity: 2,
             docs: vec![],
+            is_safe: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("s: String"));
@@ -1068,6 +1103,7 @@ pub fn heavy(n: i64) -> i64 { n }
             ret: "BitArray".into(),
             arity: 1,
             docs: vec![],
+            is_safe: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("b: BitArray"));
@@ -1086,6 +1122,7 @@ pub fn heavy(n: i64) -> i64 { n }
             ret: "Nil".into(),
             arity: 2,
             docs: vec![],
+            is_safe: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("x: Foo(T)"));
@@ -1101,6 +1138,7 @@ pub fn heavy(n: i64) -> i64 { n }
             ret: "#(dict.Dict(String, Int), Bool)".into(),
             arity: 0,
             docs: vec![],
+            is_safe: false,
         }];
         let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("#(dict.Dict(String, Int), Bool)"));
