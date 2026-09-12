@@ -255,19 +255,15 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> Result<String, String> {
                     Gleam has no built-in Atom type — use String instead"
                 )),
 
-                "Binary" | "OwnedBinary" | "NewBinary" => Ok("BitArray".into()),
-
-                "Bytes" => Ok("BitArray".into()),
+                "BitArray" | "Binary" | "OwnedBinary" | "NewBinary" | "Bytes" => {
+                    Ok("BitArray".into())
+                }
 
                 "BigInt" => Ok("Int".into()),
 
                 "Vec" => {
                     if let Some(inner) = generic_args.first() {
-                        if is_u8_type(inner) {
-                            Ok("BitArray".into())
-                        } else {
-                            Ok(format!("List({})", type_to_gleam_ctx(inner, ctx)?))
-                        }
+                        Ok(format!("List({})", type_to_gleam_ctx(inner, ctx)?))
                     } else {
                         Ok("List(Nil)".into())
                     }

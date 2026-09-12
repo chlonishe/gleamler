@@ -49,8 +49,8 @@ pub use crate::schedule::{SchedulerFlags, consume_timeslice};
 pub use crate::term::Term;
 pub use crate::thread::{JobSpawner, ThreadSpawner, spawn};
 pub use crate::types::{
-    Atom, Binary, Decoder, Encoder, ErlOption, ListIterator, LocalPid, LocalPort, MapIterator,
-    NewBinary, OwnedBinary, Reference,
+    Atom, Binary, BitArray, Decoder, Encoder, ErlOption, ListIterator, LocalPid, LocalPort,
+    MapIterator, NewBinary, OwnedBinary, Reference,
 };
 
 pub type NifResult<T> = Result<T, Error>;

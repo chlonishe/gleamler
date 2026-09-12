@@ -583,3 +583,60 @@ impl<'a> Decoder<'a> for &'a [u8] {
         Ok(binary.as_slice())
     }
 }
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct BitArray(pub Vec<u8>);
+
+impl BitArray {
+    pub fn new(vec: Vec<u8>) -> Self {
+        BitArray(vec)
+    }
+
+    pub fn as_slice(&self) -> &[u8] {
+        &self.0
+    }
+
+    pub fn into_vec(self) -> Vec<u8> {
+        self.0
+    }
+}
+
+impl std::ops::Deref for BitArray {
+    type Target = [u8];
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for BitArray {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl From<Vec<u8>> for BitArray {
+    fn from(vec: Vec<u8>) -> Self {
+        BitArray(vec)
+    }
+}
+
+impl From<BitArray> for Vec<u8> {
+    fn from(b: BitArray) -> Self {
+        b.0
+    }
+}
+
+impl Encoder for BitArray {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        let mut bin = NewBinary::new(env, self.0.len());
+        bin.as_mut_slice().copy_from_slice(&self.0);
+        bin.into()
+    }
+}
+
+impl<'a> Decoder<'a> for BitArray {
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        let bin = Binary::from_term(term)?;
+        Ok(BitArray(bin.as_slice().to_vec()))
+    }
+}

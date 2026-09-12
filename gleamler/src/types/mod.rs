@@ -5,7 +5,7 @@ pub mod atom;
 pub use crate::types::atom::Atom;
 
 pub mod binary;
-pub use crate::types::binary::{Binary, NewBinary, OwnedBinary};
+pub use crate::types::binary::{Binary, BitArray, NewBinary, OwnedBinary};
 
 pub mod duration;
 pub use self::duration::ErlangTimestamp;
