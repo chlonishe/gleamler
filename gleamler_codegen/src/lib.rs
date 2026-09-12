@@ -421,15 +421,24 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> Result<String, String> {
 fn parse_nif_function(func: ItemFn) -> Result<NifFunc, String> {
     let name = func.sig.ident.to_string();
     let mut args = Vec::new();
+    let mut seen_args = std::collections::HashSet::new();
+
     for (idx, arg) in func.sig.inputs.iter().enumerate() {
         if let FnArg::Typed(pat_type) = arg {
             if is_env_type(&pat_type.ty) {
                 continue;
             }
-            let arg_name = match pat_type.pat.as_ref() {
+            let raw_name = match pat_type.pat.as_ref() {
                 Pat::Ident(ident) => ident.ident.to_string(),
                 _ => format!("arg{}", idx),
             };
+
+            let mut arg_name = clean_name(&raw_name);
+            if arg_name == "arg" || seen_args.contains(&arg_name) {
+                arg_name = format!("arg{}", idx);
+            }
+            seen_args.insert(arg_name.clone());
+
             let ty = type_to_gleam_ctx(&pat_type.ty, &name)
                 .map_err(|e| format!("in fn `{name}` argument `{arg_name}`: {e}"))?;
             args.push((arg_name, ty));
@@ -845,7 +854,7 @@ pub fn parse_nif_types(source: &str) -> Vec<GleamCustomType> {
                     let field_name = f
                         .ident
                         .as_ref()
-                        .map(|id| id.to_string())
+                        .map(|id| clean_name(&id.to_string()))
                         .or_else(|| Some(format!("field_{idx}")));
                     if let Ok(gleam_ty) = type_to_gleam_ctx(&f.ty, &struct_name) {
                         fields.push(GleamTypeField {
@@ -882,13 +891,17 @@ pub fn parse_nif_types(source: &str) -> Vec<GleamCustomType> {
                     let mut fields = Vec::new();
 
                     for (idx, f) in v.fields.iter().enumerate() {
-                        let field_name = f.ident.as_ref().map(|id| id.to_string()).or_else(|| {
-                            if matches!(v.fields, syn::Fields::Unnamed(_)) {
-                                None
-                            } else {
-                                Some(format!("field_{idx}"))
-                            }
-                        });
+                        let field_name = f
+                            .ident
+                            .as_ref()
+                            .map(|id| clean_name(&id.to_string()))
+                            .or_else(|| {
+                                if matches!(v.fields, syn::Fields::Unnamed(_)) {
+                                    None
+                                } else {
+                                    Some(format!("field_{idx}"))
+                                }
+                            });
 
                         if let Ok(gleam_ty) = type_to_gleam_ctx(&f.ty, &enum_name) {
                             fields.push(GleamTypeField {
