@@ -54,7 +54,10 @@ pub use crate::types::{
 
 pub type NifResult<T> = Result<T, Error>;
 
-pub use gleamler_macros::{gleam_nif, init_nifs};
+pub use gleamler_macros::{
+    NifMap, NifRecord, NifTaggedEnum, NifTuple, NifUnitEnum, NifUntaggedEnum, gleam_nif, init_nifs,
+    resource_impl,
+};
 
 #[macro_export]
 macro_rules! term_map {

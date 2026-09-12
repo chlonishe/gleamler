@@ -2,6 +2,7 @@ use crate::schedule::SchedulerFlags;
 #[cfg(feature = "stress")]
 use crate::stress_nifs::ValgrindTestResource;
 use crate::{Env, NifOutcome, Resource, ResourceArc, Term, gleam_nif, init_nifs};
+use crate::{NifRecord, NifUnitEnum};
 use std::collections::{BTreeMap, BTreeSet, HashSet, LinkedList, VecDeque};
 use std::net::{IpAddr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::sync::atomic::{AtomicI64, Ordering};
@@ -13,6 +14,42 @@ pub struct Counter {
 }
 
 impl Resource for Counter {}
+
+/// A user record synchronized between Rust and Gleam
+#[derive(NifRecord, Debug, PartialEq, Clone)]
+#[tag = "user"]
+pub struct User {
+    pub id: i64,
+    pub name: String,
+    pub is_active: bool,
+}
+
+/// Status enum synchronized between Rust and Gleam
+#[derive(NifUnitEnum, Debug, PartialEq, Eq, Copy, Clone)]
+pub enum UserStatus {
+    Pending,
+    Active,
+    Banned,
+}
+
+#[gleam_nif]
+pub fn make_user(id: i64, name: String) -> User {
+    User {
+        id,
+        name,
+        is_active: true,
+    }
+}
+
+#[gleam_nif]
+pub fn user_get_name(user: User) -> String {
+    user.name
+}
+
+#[gleam_nif]
+pub fn is_user_banned(status: UserStatus) -> bool {
+    matches!(status, UserStatus::Banned)
+}
 
 #[gleam_nif]
 pub fn counter_new(target: i64) -> ResourceArc<Counter> {

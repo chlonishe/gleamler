@@ -69,23 +69,33 @@ fn main() {
 
     let nifs_source = fs::read_to_string(&nifs_rs)
         .unwrap_or_else(|e| panic!("failed to read {}: {}", nifs_rs.display(), e));
-    let nifs_functions = gleamler_codegen::parse_nif_functions(&nifs_source);
 
-    let stress_functions = if with_stress && stress_nifs_rs.exists() {
+    let nifs_functions = gleamler_codegen::parse_nif_functions(&nifs_source);
+    let nifs_types = gleamler_codegen::parse_nif_types(&nifs_source);
+
+    let (stress_functions, stress_types) = if with_stress && stress_nifs_rs.exists() {
         let stress_source = fs::read_to_string(&stress_nifs_rs)
             .unwrap_or_else(|e| panic!("failed to read {}: {}", stress_nifs_rs.display(), e));
-        gleamler_codegen::parse_nif_functions(&stress_source)
+        (
+            gleamler_codegen::parse_nif_functions(&stress_source),
+            gleamler_codegen::parse_nif_types(&stress_source),
+        )
     } else {
-        Vec::new()
+        (Vec::new(), Vec::new())
     };
 
     let mut functions = Vec::with_capacity(nifs_functions.len() + stress_functions.len());
     functions.extend(nifs_functions.clone());
     functions.extend(stress_functions.clone());
 
+    let mut custom_types = Vec::with_capacity(nifs_types.len() + stress_types.len());
+    custom_types.extend(nifs_types);
+    custom_types.extend(stress_types);
+
     eprintln!(
-        "Generated {} function(s){}\n  → {}\n  → {}",
+        "Generated {} function(s) and {} custom type(s){}\n  → {}\n  → {}",
         functions.len(),
+        custom_types.len(),
         if with_stress { " (with stress)" } else { "" },
         erl_out,
         gleam_out
@@ -132,7 +142,8 @@ fn main() {
     }
 
     let erl_contents = gleamler_codegen::generate_erl(&functions, &erl_module, &lib_name);
-    let gleam_contents = gleamler_codegen::generate_gleam(&functions, &erl_module);
+
+    let gleam_contents = gleamler_codegen::generate_gleam(&functions, &custom_types, &erl_module);
 
     atomic_write(std::path::Path::new(erl_out), erl_contents);
     atomic_write(std::path::Path::new(gleam_out), gleam_contents);

@@ -161,3 +161,21 @@ pub fn time_system_time_roundtrip_test() {
   gleamler_nif.rust_time_system_time_roundtrip(#(0, 1, 500_000))
   |> should.equal(#(0, 1, 500_000))
 }
+
+pub fn typegen_record_roundtrip_test() {
+  let user = gleamler_nif.rust_make_user(1, "Alice")
+  user.id |> should.equal(1)
+  user.name |> should.equal("Alice")
+  user.is_active |> should.equal(True)
+
+  gleamler_nif.rust_user_get_name(user)
+  |> should.equal("Alice")
+}
+
+pub fn typegen_unit_enum_test() {
+  gleamler_nif.rust_is_user_banned(gleamler_nif.Banned)
+  |> should.equal(True)
+
+  gleamler_nif.rust_is_user_banned(gleamler_nif.Active)
+  |> should.equal(False)
+}

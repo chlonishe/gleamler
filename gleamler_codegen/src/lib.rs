@@ -17,6 +17,34 @@ pub struct NifFunc {
     pub docs: Vec<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GleamTypeField {
+    pub name: Option<String>,
+    pub gleam_type: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GleamVariant {
+    pub name: String,
+    pub fields: Vec<GleamTypeField>,
+    pub docs: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GleamTypeKind {
+    Record,
+    UnitEnum,
+    TaggedEnum,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GleamCustomType {
+    pub name: String,
+    pub kind: GleamTypeKind,
+    pub variants: Vec<GleamVariant>,
+    pub docs: Vec<String>,
+}
+
 struct InitNifsInput {
     #[allow(dead_code)]
     module: Option<LitStr>,
@@ -518,32 +546,58 @@ const GLEAM_KEYWORDS: &[&str] = &[
     "use",
 ];
 
-pub fn generate_gleam(funcs: &[NifFunc], erl_module: &str) -> String {
+pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: &str) -> String {
     let mut has_option = false;
     let mut has_dict = false;
     let mut has_resource = false;
     let mut has_dynamic = false;
 
+    let check_type_str =
+        |t: &str, opt: &mut bool, dict: &mut bool, res: &mut bool, dyn_: &mut bool| {
+            if t.contains("option.Option") {
+                *opt = true;
+            }
+            if t.contains("dict.Dict") {
+                *dict = true;
+            }
+            if gleam_type_mentions(t, "Resource") {
+                *res = true;
+            }
+            if t.contains("dynamic.Dynamic") {
+                *dyn_ = true;
+            }
+        };
+
     for f in funcs {
-        if f.ret.contains("option.Option")
-            || f.args.iter().any(|(_, t)| t.contains("option.Option"))
-        {
-            has_option = true;
+        check_type_str(
+            &f.ret,
+            &mut has_option,
+            &mut has_dict,
+            &mut has_resource,
+            &mut has_dynamic,
+        );
+        for (_, t) in &f.args {
+            check_type_str(
+                t,
+                &mut has_option,
+                &mut has_dict,
+                &mut has_resource,
+                &mut has_dynamic,
+            );
         }
-        if f.ret.contains("dict.Dict") || f.args.iter().any(|(_, t)| t.contains("dict.Dict")) {
-            has_dict = true;
-        }
-        if gleam_type_mentions(&f.ret, "Resource")
-            || f.args
-                .iter()
-                .any(|(_, t)| gleam_type_mentions(t, "Resource"))
-        {
-            has_resource = true;
-        }
-        if f.ret.contains("dynamic.Dynamic")
-            || f.args.iter().any(|(_, t)| t.contains("dynamic.Dynamic"))
-        {
-            has_dynamic = true;
+    }
+
+    for custom_ty in types {
+        for v in &custom_ty.variants {
+            for f in &v.fields {
+                check_type_str(
+                    &f.gleam_type,
+                    &mut has_option,
+                    &mut has_dict,
+                    &mut has_resource,
+                    &mut has_dynamic,
+                );
+            }
         }
     }
 
@@ -564,6 +618,39 @@ pub fn generate_gleam(funcs: &[NifFunc], erl_module: &str) -> String {
         );
     }
     out.push('\n');
+
+    for custom_ty in types {
+        if !custom_ty.docs.is_empty() {
+            out.push_str("/// ");
+            out.push_str(&custom_ty.docs.join("\n/// "));
+            out.push('\n');
+        }
+        out.push_str(&format!("pub type {} {{\n", custom_ty.name));
+        for v in &custom_ty.variants {
+            if !v.docs.is_empty() {
+                out.push_str("  /// ");
+                out.push_str(&v.docs.join("\n  /// "));
+                out.push('\n');
+            }
+            if v.fields.is_empty() {
+                out.push_str(&format!("  {}\n", v.name));
+            } else {
+                let field_strs: Vec<String> = v
+                    .fields
+                    .iter()
+                    .map(|f| {
+                        if let Some(ref name) = f.name {
+                            format!("{}: {}", clean_name(name), f.gleam_type)
+                        } else {
+                            f.gleam_type.clone()
+                        }
+                    })
+                    .collect();
+                out.push_str(&format!("  {}({})\n", v.name, field_strs.join(", ")));
+            }
+        }
+        out.push_str("}\n\n");
+    }
 
     for (i, f) in funcs.iter().enumerate() {
         if i > 0 {
@@ -618,6 +705,141 @@ fn gleam_type_mentions(gleam_ty: &str, name: &str) -> bool {
         }
     }
     buf == name
+}
+
+fn has_derive(attrs: &[syn::Attribute], derive_name: &str) -> bool {
+    attrs.iter().any(|attr| {
+        if attr.path().is_ident("derive") {
+            if let syn::Meta::List(ref meta_list) = attr.meta {
+                if let Ok(punctuated) = meta_list.parse_args_with(
+                    syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated,
+                ) {
+                    return punctuated.iter().any(|p| p.is_ident(derive_name));
+                }
+            }
+        }
+        false
+    })
+}
+
+fn extract_docs(attrs: &[syn::Attribute]) -> Vec<String> {
+    attrs
+        .iter()
+        .filter_map(|a| {
+            if a.path().is_ident("doc")
+                && let syn::Meta::NameValue(nv) = &a.meta
+                && let syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(s),
+                    ..
+                }) = &nv.value
+            {
+                let text = s.value();
+                let trimmed = text.strip_prefix(' ').unwrap_or(&text);
+                return Some(trimmed.to_string());
+            }
+            None
+        })
+        .collect()
+}
+
+pub fn parse_nif_types(source: &str) -> Vec<GleamCustomType> {
+    let Ok(file) = parse_file(source) else {
+        return Vec::new();
+    };
+    let mut types = Vec::new();
+
+    for item in file.items {
+        match item {
+            Item::Struct(s) => {
+                let is_record = has_derive(&s.attrs, "NifRecord");
+                if !is_record {
+                    continue;
+                }
+                let struct_name = s.ident.to_string();
+                let mut fields = Vec::new();
+
+                for (idx, f) in s.fields.iter().enumerate() {
+                    let field_name = f
+                        .ident
+                        .as_ref()
+                        .map(|id| id.to_string())
+                        .or_else(|| Some(format!("field_{idx}")));
+                    if let Ok(gleam_ty) = type_to_gleam_ctx(&f.ty, &struct_name) {
+                        fields.push(GleamTypeField {
+                            name: field_name,
+                            gleam_type: gleam_ty,
+                        });
+                    }
+                }
+
+                types.push(GleamCustomType {
+                    name: struct_name.clone(),
+                    kind: GleamTypeKind::Record,
+                    variants: vec![GleamVariant {
+                        name: struct_name,
+                        fields,
+                        docs: Vec::new(),
+                    }],
+                    docs: extract_docs(&s.attrs),
+                });
+            }
+            Item::Enum(e) => {
+                let is_unit_enum = has_derive(&e.attrs, "NifUnitEnum");
+                let is_tagged_enum = has_derive(&e.attrs, "NifTaggedEnum");
+
+                if !is_unit_enum && !is_tagged_enum {
+                    continue;
+                }
+
+                let enum_name = e.ident.to_string();
+                let mut variants = Vec::new();
+
+                for v in e.variants {
+                    let variant_name = v.ident.to_string();
+                    let mut fields = Vec::new();
+
+                    for (idx, f) in v.fields.iter().enumerate() {
+                        let field_name = f.ident.as_ref().map(|id| id.to_string()).or_else(|| {
+                            if matches!(v.fields, syn::Fields::Unnamed(_)) {
+                                None
+                            } else {
+                                Some(format!("field_{idx}"))
+                            }
+                        });
+
+                        if let Ok(gleam_ty) = type_to_gleam_ctx(&f.ty, &enum_name) {
+                            fields.push(GleamTypeField {
+                                name: field_name,
+                                gleam_type: gleam_ty,
+                            });
+                        }
+                    }
+
+                    variants.push(GleamVariant {
+                        name: variant_name,
+                        fields,
+                        docs: extract_docs(&v.attrs),
+                    });
+                }
+
+                let kind = if is_unit_enum {
+                    GleamTypeKind::UnitEnum
+                } else {
+                    GleamTypeKind::TaggedEnum
+                };
+
+                types.push(GleamCustomType {
+                    name: enum_name,
+                    kind,
+                    variants,
+                    docs: extract_docs(&e.attrs),
+                });
+            }
+            _ => {}
+        }
+    }
+
+    types
 }
 
 #[cfg(test)]
@@ -722,7 +944,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 1,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
+        let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains(r#"@external(erlang, "gleamler_nif_ffi", "greet")"#));
         assert!(out.contains("pub fn rust_greet(name: String) -> String"));
     }
@@ -737,7 +959,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 0,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs, "other_ffi_module");
+        let out = generate_gleam(&funcs, &Vec::new(), "other_ffi_module");
         assert!(out.contains(r#"@external(erlang, "other_ffi_module", "ping")"#));
     }
 
@@ -754,7 +976,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 2,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
+        let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("import gleam/option"));
         assert!(out.contains("items: List(Int)"));
         assert!(out.contains("flag: option.Option(Bool)"));
@@ -771,7 +993,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 2,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
+        let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("#(Int, String)"));
     }
 
@@ -785,7 +1007,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 1,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
+        let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("dict.Dict(String, Int)"));
     }
 
@@ -799,7 +1021,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 1,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
+        let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("data: List(Int)"));
         assert!(out.contains("-> List(Int)"));
         assert!(!out.contains("BitArray"));
@@ -815,7 +1037,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 1,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
+        let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("data: List(Int)"));
     }
 
@@ -832,7 +1054,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 2,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
+        let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("s: String"));
         assert!(out.contains("b: List(Int)"));
     }
@@ -847,7 +1069,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 1,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
+        let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("b: BitArray"));
         assert!(out.contains("-> BitArray"));
     }
@@ -865,7 +1087,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 2,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
+        let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("x: Foo(T)"));
         assert!(out.contains("y: Bar(T, U)"));
     }
@@ -880,7 +1102,7 @@ pub fn heavy(n: i64) -> i64 { n }
             arity: 0,
             docs: vec![],
         }];
-        let out = generate_gleam(&funcs, DEFAULT_ERL_MODULE);
+        let out = generate_gleam(&funcs, &Vec::new(), DEFAULT_ERL_MODULE);
         assert!(out.contains("#(dict.Dict(String, Int), Bool)"));
     }
 

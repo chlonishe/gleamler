@@ -13,6 +13,27 @@ pub fn resource_dummy() -> Resource {
   Resource
 }
 
+/// A user record synchronized between Rust and Gleam
+pub type User {
+  User(id: Int, name: String, is_active: Bool)
+}
+
+/// Status enum synchronized between Rust and Gleam
+pub type UserStatus {
+  Pending
+  Active
+  Banned
+}
+
+@external(erlang, "gleamler_nif_ffi", "make_user")
+pub fn rust_make_user(id: Int, name: String) -> User
+
+@external(erlang, "gleamler_nif_ffi", "user_get_name")
+pub fn rust_user_get_name(user: User) -> String
+
+@external(erlang, "gleamler_nif_ffi", "is_user_banned")
+pub fn rust_is_user_banned(status: UserStatus) -> Bool
+
 @external(erlang, "gleamler_nif_ffi", "counter_new")
 pub fn rust_counter_new(target: Int) -> Resource
 
