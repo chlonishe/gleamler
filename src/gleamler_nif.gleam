@@ -4,13 +4,21 @@
 import gleam/dict
 import gleam/option
 
-pub opaque type Resource {
+pub opaque type Resource(a) {
   Resource
 }
 
 @internal
-pub fn resource_dummy() -> Resource {
+pub fn resource_dummy() -> Resource(a) {
   Resource
+}
+
+pub type Counter {
+  Counter
+}
+
+pub type ValgrindTestResource {
+  ValgrindTestResource
 }
 
 pub type GleamlerError {
@@ -41,13 +49,13 @@ pub fn rust_user_get_name(user: User) -> String
 pub fn rust_is_user_banned(status: UserStatus) -> Bool
 
 @external(erlang, "gleamler_nif_ffi", "counter_new")
-pub fn rust_counter_new(target: Int) -> Resource
+pub fn rust_counter_new(target: Int) -> Resource(Counter)
 
 @external(erlang, "gleamler_nif_ffi", "counter_read")
-pub fn rust_counter_read(counter: Resource) -> Int
+pub fn rust_counter_read(counter: Resource(Counter)) -> Int
 
 @external(erlang, "gleamler_nif_ffi", "cooperative_count")
-pub fn rust_cooperative_count(counter: Resource) -> Int
+pub fn rust_cooperative_count(counter: Resource(Counter)) -> Int
 
 @external(erlang, "gleamler_nif_ffi", "add")
 pub fn rust_add(a: Int, b: Int) -> Int
@@ -184,7 +192,7 @@ pub fn rust_stress_now_ms() -> Int
 pub fn rust_stress_float_is_special(n: Float) -> String
 
 @external(erlang, "gleamler_nif_ffi", "stress_resource_roundtrip")
-pub fn rust_stress_resource_roundtrip() -> Resource
+pub fn rust_stress_resource_roundtrip() -> Resource(ValgrindTestResource)
 
 @external(erlang, "gleamler_nif_ffi", "stress_resource_intentional_leak")
 pub fn rust_stress_resource_intentional_leak() -> Nil

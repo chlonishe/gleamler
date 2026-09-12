@@ -51,6 +51,9 @@ pub mod path;
 pub mod erlang_option;
 pub use self::erlang_option::ErlOption;
 
+pub mod subject;
+pub use self::subject::Subject;
+
 pub trait Encoder {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a>;
 }

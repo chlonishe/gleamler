@@ -4,7 +4,7 @@ use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 use std::cmp::Ordering;
 use std::mem::MaybeUninit;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct LocalPid {
     c: ErlNifPid,
 }
