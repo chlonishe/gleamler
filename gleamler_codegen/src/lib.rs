@@ -409,6 +409,7 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> Result<String, String> {
                 Ok(format!("List({})", type_to_gleam_ctx(elem, ctx)?))
             }
         }
+
         _ => {
             use quote::ToTokens;
             Ok(ty
