@@ -13,9 +13,7 @@ pub fn callbacks() -> &'static DynNifCallbacks {
 }
 
 pub unsafe fn internal_set_symbols(callbacks: DynNifCallbacks) {
-    if DYN_NIF_CALLBACKS.set(callbacks).is_err() {
-        panic!("gleamler: NIF callbacks already initialized");
-    }
+    let _ = DYN_NIF_CALLBACKS.set(callbacks);
 }
 
 #[cfg(not(target_os = "windows"))]
