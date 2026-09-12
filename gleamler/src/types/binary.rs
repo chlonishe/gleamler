@@ -575,3 +575,11 @@ impl DerefMut for NewBinary<'_> {
         self.as_mut_slice()
     }
 }
+
+impl<'a> Decoder<'a> for &'a [u8] {
+    #[inline]
+    fn decode(term: Term<'a>) -> Result<Self, Error> {
+        let binary = Binary::from_term(term)?;
+        Ok(binary.as_slice())
+    }
+}

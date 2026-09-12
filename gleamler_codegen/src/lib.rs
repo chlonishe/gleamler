@@ -256,6 +256,10 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> Result<String, String> {
 
                 "Binary" | "OwnedBinary" | "NewBinary" => Ok("BitArray".into()),
 
+                "Bytes" => Ok("BitArray".into()),
+
+                "BigInt" => Ok("Int".into()),
+
                 "Vec" => {
                     if let Some(inner) = generic_args.first() {
                         if is_u8_type(inner) {
@@ -355,7 +359,14 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> Result<String, String> {
             }
         }
 
-        Type::Reference(TypeReference { elem, .. }) => type_to_gleam_ctx(elem, ctx),
+        Type::Reference(TypeReference { elem, .. }) => {
+            if let Type::Slice(TypeSlice { elem: inner, .. }) = &**elem
+                && is_u8_type(inner)
+            {
+                return Ok("BitArray".into());
+            }
+            type_to_gleam_ctx(elem, ctx)
+        }
 
         Type::Tuple(TypeTuple { elems, .. }) => {
             if elems.is_empty() {
@@ -1215,7 +1226,7 @@ pub fn heavy(n: i64) -> i64 { n }
         let ty: Type = parse_quote!(&[i32]);
         assert_eq!(type_to_gleam(&ty), "List(Int)");
         let ty: Type = parse_quote!(&[u8]);
-        assert_eq!(type_to_gleam(&ty), "List(Int)");
+        assert_eq!(type_to_gleam(&ty), "BitArray");
     }
 
     #[test]
@@ -1265,7 +1276,7 @@ pub fn heavy(n: i64) -> i64 { n }
     "#;
         let funcs = parse_nif_functions(src);
         assert_eq!(funcs.len(), 1);
-        assert_eq!(funcs[0].args[0].1, "List(Int)");
+        assert_eq!(funcs[0].args[0].1, "BitArray");
     }
 
     #[test]
