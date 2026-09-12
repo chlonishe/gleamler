@@ -40,7 +40,7 @@ jobs:
         shell: bash
         run: ./scripts/check_nif.sh ${{ matrix.target }} target/${{ matrix.target }}/release/${{ matrix.artifact }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: gleamler-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/${{ matrix.artifact }}
@@ -71,7 +71,7 @@ jobs:
       - name: Check symbols
         run: ./scripts/check_nif.sh ${{ matrix.target }} target/${{ matrix.target }}/release/libgleamler.so
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: gleamler-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/libgleamler.so
