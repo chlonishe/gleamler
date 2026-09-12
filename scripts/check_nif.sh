@@ -28,14 +28,13 @@ case "$TARGET" in
     }
     ;;
   *windows*)
-    if command -v dumpbin &> /dev/null; then
-      dumpbin /EXPORTS "$LIB" | grep -i "nif_init" || exit 1
-    elif command -v llvm-nm &> /dev/null; then
-      llvm-nm "$LIB" | grep "nif_init" || exit 1
-    elif command -v nm &> /dev/null; then
-      nm "$LIB" | grep "nif_init" || exit 1
+    if objdump -p "$LIB" 2>/dev/null | grep -E "nif_init" >/dev/null; then
+      echo "Found nif_init in PE export table"
+    elif strings "$LIB" 2>/dev/null | grep -E "nif_init" >/dev/null; then
+      echo "Found nif_init in binary exports"
     else
-      echo "Warning: No dumpbin or nm found on Windows, skipping symbol inspection"
+      echo "ERROR: nif_init not found in Windows DLL"
+      exit 1
     fi
     ;;
 esac
