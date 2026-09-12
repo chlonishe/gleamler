@@ -8,4 +8,4 @@ license = "MIT OR Apache-2.0"
 crate-type = ["cdylib"]
 
 [dependencies]
-gleamler = { path = "../../gleamler" }
+gleamler = { path = "../../gleamler", default-features = false, features = ["nif_version_2_17"] }

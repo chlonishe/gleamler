@@ -350,6 +350,32 @@ impl syn::parse::Parse for InitInput {
 pub fn init_nifs(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as InitInput);
 
+    let module_str = input
+        .module
+        .as_ref()
+        .map(|m| m.value())
+        .unwrap_or_else(|| "gleamler_nif_ffi".to_string());
+    let module_name = format!("{}\0", module_str);
+    let module_name_lit = syn::LitStr::new(&module_name, proc_macro2::Span::call_site());
+    let erl_init_fn = syn::Ident::new(
+        &format!("{module_str}_nif_init"),
+        proc_macro2::Span::call_site(),
+    );
+
+    let fallback = if std::env::var("CARGO_CRATE_NAME").as_deref() == Ok("gleamler") {
+        quote! {
+            {
+                #[cfg(feature = "nifs")]
+                let s: &'static [::gleamler::sys::ErlNifFunc] = ::gleamler::nifs::__generated_registry::NIFS;
+                #[cfg(not(feature = "nifs"))]
+                let s: &'static [::gleamler::sys::ErlNifFunc] = &[];
+                s
+            }
+        }
+    } else {
+        quote! { &[] }
+    };
+
     let (funcs_static, num_of_funcs) = if input.names.is_empty() {
         (
             quote! {
@@ -366,7 +392,7 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
                 let funcs_slice: &'static [::gleamler::sys::ErlNifFunc] = if !collected.is_empty() {
                     Box::leak(collected.into_boxed_slice())
                 } else {
-                    ::gleamler::nifs::__generated_registry::NIFS
+                    #fallback
                 };
 
                 let funcs_ptr = funcs_slice.as_ptr();
@@ -404,13 +430,6 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
             quote! { num_of_funcs },
         )
     };
-
-    let module_name = input
-        .module
-        .as_ref()
-        .map(|m| format!("{}\0", m.value()))
-        .unwrap_or_else(|| "gleamler_nif_ffi\0".to_string());
-    let module_name_lit = syn::LitStr::new(&module_name, proc_macro2::Span::call_site());
 
     let load_body = if let Some(load_path) = &input.load {
         quote! {
@@ -502,6 +521,7 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
             proc_macro2::Span::call_site(),
         )
     };
+
     let primary = std::env::var("GLEAMLER_DISABLE_NIF_INIT").is_err();
     let maybe_primary = if primary {
         quote! {
@@ -516,6 +536,15 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
             #[cfg(target_os = "windows")]
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn nif_init(
+                callbacks: *mut ::gleamler::codegen_runtime::DynNifCallbacks,
+            ) -> *const ::gleamler::sys::ErlNifEntry {
+                unsafe { #init_fn_name(callbacks) }
+            }
+
+            #[cfg(not(test))]
+            #[cfg(target_os = "windows")]
+            #[unsafe(no_mangle)]
+            pub unsafe extern "C" fn #erl_init_fn(
                 callbacks: *mut ::gleamler::codegen_runtime::DynNifCallbacks,
             ) -> *const ::gleamler::sys::ErlNifEntry {
                 unsafe { #init_fn_name(callbacks) }

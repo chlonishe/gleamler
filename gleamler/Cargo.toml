@@ -6,9 +6,10 @@ build = "build.rs"
 license = "MIT OR Apache-2.0"
 
 [features]
-default = ["nif_version_2_17"]
+default = ["nif_version_2_17", "nifs"]
 stress = []
 serde = ["dep:serde"]
+nifs = []
 
 # NIF version features form an implication chain: each higher version enables all lower ones
 # The build script selects the highest active version. If you explicitly enable multiple

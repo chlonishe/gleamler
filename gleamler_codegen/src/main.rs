@@ -64,7 +64,14 @@ fn main() {
     let erl_out = &positional[1];
     let gleam_out = &positional[2];
 
-    let nifs_rs = Path::new(crate_dir).join("src/nifs.rs");
+    let nifs_rs = {
+        let p_nifs = Path::new(crate_dir).join("src/nifs.rs");
+        if p_nifs.exists() {
+            p_nifs
+        } else {
+            Path::new(crate_dir).join("src/lib.rs")
+        }
+    };
     let stress_nifs_rs = Path::new(crate_dir).join("src/stress_nifs.rs");
 
     let nifs_source = fs::read_to_string(&nifs_rs)

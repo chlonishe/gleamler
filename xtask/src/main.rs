@@ -136,9 +136,9 @@ fn build(
     if release {
         args.push("--release");
     }
-    if stress {
+    if stress || package == "gleamler" {
         args.push("--features");
-        args.push("stress");
+        args.push(if stress { "stress" } else { "nifs" });
     }
     if let Some(t) = target {
         args.push("--target");
@@ -168,25 +168,57 @@ fn build(
 }
 
 fn build_example(sh: &Shell, name: &str, release: bool) -> Result<()> {
-    let example_path = Path::new("examples").join(name);
-    if !example_path.exists() {
+    let example_dir = format!("examples/{name}");
+    if !Path::new(&example_dir).exists() {
         bail!("Example '{name}' not found in examples/ directory!");
     }
 
-    println!("==> Activating example '{name}'...");
-    build(sh, name, release, false, None)?;
-    println!("\nExample '{name}' is ready! You can now run:\n  gleam run");
+    println!("==> Building Rust example '{name}'...");
+    let mut args = vec!["build", "-p", name];
+    if release {
+        args.push("--release");
+    }
+    cmd!(sh, "cargo {args...}").run()?;
+
+    let (src_name, dst_name) = artifact_names(None, name);
+    let target_dir = resolve_target_dir(None);
+    let profile = if release { "release" } else { "debug" };
+    let src = target_dir.join(profile).join(&src_name);
+
+    println!("==> Installing NIF -> priv/{dst_name}");
+    sh.create_dir("priv")?;
+    sh.copy_file(&src, format!("priv/{dst_name}"))?;
+
+    println!("==> Generating standalone FFI for {name}...");
+    let erl_out = format!("{example_dir}/{name}_ffi.erl");
+    let gleam_out = format!("{example_dir}/{name}.gleam");
+    cmd!(
+        sh,
+        "cargo run -p gleamler_codegen -- {example_dir} {erl_out} {gleam_out}"
+    )
+    .run()?;
+
+    println!("\n[OK] Example '{name}' is ready!");
+    println!("Generated standalone files:");
+    println!("  -> {erl_out}");
+    println!("  -> {gleam_out}");
     Ok(())
 }
 
 fn codegen(sh: &Shell, crate_dir: &str, with_stress: bool) -> Result<()> {
-    println!("==> Generating FFI stubs for {crate_dir}...");
+    let resolved_dir = if Path::new(crate_dir).exists() {
+        crate_dir.to_string()
+    } else {
+        format!("examples/{crate_dir}")
+    };
+
+    println!("==> Generating FFI stubs for {resolved_dir}...");
     let mut args = vec![
         "run",
         "-p",
         "gleamler_codegen",
         "--",
-        crate_dir,
+        &resolved_dir,
         "src/gleamler_nif_ffi.erl",
         "src/gleamler_nif.gleam",
     ];
@@ -264,10 +296,9 @@ fn test_rust(sh: &Shell) -> Result<()> {
 }
 
 fn test_gleam(sh: &Shell) -> Result<()> {
-    if !Path::new("priv").exists() {
-        println!("priv/ missing, building first...");
-        build(sh, "gleamler", true, true, None)?;
-    }
+    println!("==> Ensuring main NIF is built...");
+    build(sh, "gleamler", true, true, None)?;
+
     println!("==> Running Gleam tests...");
     cmd!(sh, "gleam test").run()?;
     Ok(())
