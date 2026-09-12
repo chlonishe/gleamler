@@ -411,8 +411,7 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
             proc_macro2::Span::call_site(),
         )
     };
-    let primary = std::env::var("GLEAMLER_PRIMARY_NIF_INIT").is_ok()
-        || std::env::var("CARGO_PRIMARY_PACKAGE").is_ok();
+    let primary = std::env::var("GLEAMLER_DISABLE_NIF_INIT").is_err();
     let maybe_primary = if primary {
         quote! {
             #[cfg(not(target_os = "windows"))]

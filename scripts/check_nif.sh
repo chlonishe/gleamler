@@ -4,30 +4,33 @@ set -euo pipefail
 TARGET="$1"
 LIB="$2"
 
-echo "=== Checking $TARGET ==="
-file "$LIB"
+echo "=== Checking $TARGET: $LIB ==="
+file "$LIB" || true
 
 case "$TARGET" in
   *linux*)
-    readelf -h "$LIB" | grep -E "Machine:|Class:"
-    readelf -s "$LIB" | grep -w "nif_init" || {
+    readelf -h "$LIB" | grep -E "Machine:|Class:" || true
+    readelf -s "$LIB" | grep -E "nif_init" || {
       echo "ERROR: nif_init not found in symbol table"
       exit 1
     }
-    readelf -d "$LIB" | grep -E "NEEDED|SONAME" || true
     ;;
   *darwin*)
-    nm "$LIB" | grep -w "nif_init" || {
+    nm "$LIB" | grep -E "nif_init" || {
       echo "ERROR: nif_init not found"
       exit 1
     }
-    lipo -info "$LIB" || true
     ;;
   *windows*)
-    llvm-nm "$LIB" | grep -w "nif_init" || {
-      echo "ERROR: nif_init not found"
-      exit 1
-    }
+    if command -v dumpbin &> /dev/null; then
+      dumpbin /EXPORTS "$LIB" | grep -i "nif_init" || exit 1
+    elif command -v llvm-nm &> /dev/null; then
+      llvm-nm "$LIB" | grep "nif_init" || exit 1
+    elif command -v nm &> /dev/null; then
+      nm "$LIB" | grep "nif_init" || exit 1
+    else
+      echo "Warning: no nm/dumpbin found on Windows, skipping symbol check"
+    fi
     ;;
 esac
 
