@@ -1,6 +1,7 @@
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 use std::env;
+use std::fs;
 use std::path::{Path, PathBuf};
 use xshell::{cmd, Shell};
 
@@ -20,6 +21,16 @@ enum Commands {
         stress: bool,
         #[arg(long)]
         target: Option<String>,
+    },
+
+    Example {
+        name: String,
+        #[arg(long)]
+        release: bool,
+    },
+
+    New {
+        name: String,
     },
 
     Codegen {
@@ -62,10 +73,16 @@ fn main() -> Result<()> {
             stress,
             target,
         } => {
-            build(&sh, release, stress, target.as_deref())?;
+            build(&sh, "gleamler", release, stress, target.as_deref())?;
+        }
+        Commands::Example { name, release } => {
+            build_example(&sh, &name, release)?;
+        }
+        Commands::New { name } => {
+            scaffold_new_nif(&name)?;
         }
         Commands::Codegen { with_stress } => {
-            codegen(&sh, with_stress)?;
+            codegen(&sh, "gleamler", with_stress)?;
         }
         Commands::Test {
             rust,
@@ -107,9 +124,15 @@ fn workspace_root() -> Result<PathBuf> {
         .map(|p| p.to_path_buf())
 }
 
-fn build(sh: &Shell, release: bool, stress: bool, target: Option<&str>) -> Result<()> {
-    println!("==> Building Rust NIF...");
-    let mut args = vec!["build", "-p", "gleamler"];
+fn build(
+    sh: &Shell,
+    package: &str,
+    release: bool,
+    stress: bool,
+    target: Option<&str>,
+) -> Result<()> {
+    println!("==> Building Rust NIF ({package})...");
+    let mut args = vec!["build", "-p", package];
     if release {
         args.push("--release");
     }
@@ -123,7 +146,7 @@ fn build(sh: &Shell, release: bool, stress: bool, target: Option<&str>) -> Resul
     }
     cmd!(sh, "cargo {args...}").run()?;
 
-    let (src_name, dst_name) = artifact_names(target);
+    let (src_name, dst_name) = artifact_names(target, package);
     let target_dir = resolve_target_dir(target);
     let profile = if release { "release" } else { "debug" };
     let src = target_dir.join(profile).join(&src_name);
@@ -136,22 +159,34 @@ fn build(sh: &Shell, release: bool, stress: bool, target: Option<&str>) -> Resul
     sh.create_dir("priv")?;
     sh.copy_file(&src, format!("priv/{dst_name}"))?;
 
-    codegen(sh, stress)?;
+    codegen(sh, package, stress)?;
     println!("==> Building Gleam...");
     cmd!(sh, "gleam build").run()?;
 
-    println!("==> Build complete");
+    println!("==> Build complete for {package}!");
     Ok(())
 }
 
-fn codegen(sh: &Shell, with_stress: bool) -> Result<()> {
-    println!("==> Generating FFI stubs...");
+fn build_example(sh: &Shell, name: &str, release: bool) -> Result<()> {
+    let example_path = Path::new("examples").join(name);
+    if !example_path.exists() {
+        bail!("Example '{name}' not found in examples/ directory!");
+    }
+
+    println!("==> Activating example '{name}'...");
+    build(sh, name, release, false, None)?;
+    println!("\nExample '{name}' is ready! You can now run:\n  gleam run");
+    Ok(())
+}
+
+fn codegen(sh: &Shell, crate_dir: &str, with_stress: bool) -> Result<()> {
+    println!("==> Generating FFI stubs for {crate_dir}...");
     let mut args = vec![
         "run",
         "-p",
         "gleamler_codegen",
         "--",
-        "gleamler",
+        crate_dir,
         "src/gleamler_nif_ffi.erl",
         "src/gleamler_nif.gleam",
     ];
@@ -160,29 +195,78 @@ fn codegen(sh: &Shell, with_stress: bool) -> Result<()> {
     }
     cmd!(sh, "cargo {args...}").run()?;
 
-    cmd!(sh, "gleam format src/gleamler_nif.gleam").run()?;
+    let _ = cmd!(sh, "gleam format src/gleamler_nif.gleam").run();
+    Ok(())
+}
+
+fn scaffold_new_nif(name: &str) -> Result<()> {
+    let path = PathBuf::from(name);
+    let crate_name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("my_nif");
+
+    if path.exists() {
+        bail!("Directory '{}' already exists!", path.display());
+    }
+
+    fs::create_dir_all(path.join("src"))?;
+
+    let cargo_toml = format!(
+        r#"[package]
+name = "{crate_name}"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+test = false
+
+[dependencies]
+gleamler = {{ path = "../../gleamler" }}
+"#
+    );
+
+    let lib_rs = r#"use gleamler::{gleam_nif, init_nifs};
+
+/// Adds two integers
+#[gleam_nif]
+fn add(a: i64, b: i64) -> i64 {
+    a + b
+}
+
+/// Greets by name
+#[gleam_nif]
+fn greet(name: String) -> String {
+    format!("Hello from {}!", name)
+}
+
+init_nifs!();
+"#;
+
+    fs::write(path.join("Cargo.toml"), cargo_toml)?;
+    fs::write(path.join("src/lib.rs"), lib_rs)?;
+
+    println!("==> Created new Gleamler NIF crate at: {}", path.display());
+    println!("To build it, add it to your workspace Cargo.toml and run:");
+    println!("  cargo xtask example {}", crate_name);
     Ok(())
 }
 
 fn test_rust(sh: &Shell) -> Result<()> {
-    println!("==> Testing gleamler (default)...");
-    cmd!(sh, "cargo test -p gleamler").run()?;
+    println!("==> Testing all Rust workspace crates...");
+    cmd!(sh, "cargo test --workspace").run()?;
 
-    println!("==> Testing gleamler (stress)...");
+    println!("==> Testing gleamler with --features stress...");
     cmd!(sh, "cargo test -p gleamler --features stress").run()?;
-
-    println!("==> Testing gleamler_codegen...");
-    cmd!(sh, "cargo test -p gleamler_codegen").run()?;
-
-    println!("==> Testing gleamler_macros...");
-    cmd!(sh, "cargo test -p gleamler_macros").run()?;
     Ok(())
 }
 
 fn test_gleam(sh: &Shell) -> Result<()> {
     if !Path::new("priv").exists() {
         println!("priv/ missing, building first...");
-        build(sh, true, true, None)?;
+        build(sh, "gleamler", true, true, None)?;
     }
     println!("==> Running Gleam tests...");
     cmd!(sh, "gleam test").run()?;
@@ -192,7 +276,7 @@ fn test_gleam(sh: &Shell) -> Result<()> {
 fn test_leak(sh: &Shell) -> Result<()> {
     if !Path::new("priv").exists() {
         println!("priv/ missing, building first...");
-        build(sh, true, true, None)?;
+        build(sh, "gleamler", true, true, None)?;
     }
     println!("==> Running resource leak test...");
     let ebin = "build/dev/erlang/gleamler/ebin";
@@ -210,7 +294,7 @@ fn test_leak(sh: &Shell) -> Result<()> {
 fn test_valgrind(sh: &Shell) -> Result<()> {
     if !Path::new("priv/gleamler.so").exists() {
         println!("NIF not found, building first...");
-        build(sh, true, true, None)?;
+        build(sh, "gleamler", true, true, None)?;
     }
     println!("==> Running Valgrind...");
 
@@ -260,12 +344,12 @@ fn ci(sh: &Shell, fast: bool) -> Result<()> {
             println!("==> CI: feature powerset");
             cmd!(sh, "cargo hack check -p gleamler --feature-powerset --at-least-one-of nif_version_2_14,nif_version_2_15,nif_version_2_16,nif_version_2_17,nif_version_2_18 --lib").run()?;
         } else {
-            println!("==> CI: `cargo-hack` not installed, skipping feature powerset (install via `cargo install cargo-hack`)");
+            println!("==> CI: `cargo-hack` not installed, skipping feature powerset");
         }
     }
 
     println!("==> CI: gleam build + format + test");
-    build(sh, true, true, None)?;
+    build(sh, "gleamler", true, true, None)?;
     cmd!(sh, "gleam format --check").run()?;
     test_gleam(sh)?;
 
@@ -274,7 +358,7 @@ fn ci(sh: &Shell, fast: bool) -> Result<()> {
             println!("==> CI: cargo deny");
             cmd!(sh, "cargo deny check all").run()?;
         } else {
-            println!("==> CI: `cargo-deny` not installed, skipping cargo deny (install via `cargo install cargo-deny`)");
+            println!("==> CI: `cargo-deny` not installed, skipping cargo deny");
         }
     }
 
@@ -282,7 +366,7 @@ fn ci(sh: &Shell, fast: bool) -> Result<()> {
     Ok(())
 }
 
-fn artifact_names(target: Option<&str>) -> (String, String) {
+fn artifact_names(target: Option<&str>, package: &str) -> (String, String) {
     let os = match target {
         Some(t) if t.contains("windows") => "windows",
         Some(t) if t.contains("darwin") || t.contains("apple") => "macos",
@@ -291,9 +375,9 @@ fn artifact_names(target: Option<&str>) -> (String, String) {
     };
 
     match os {
-        "windows" => ("gleamler.dll".into(), "gleamler.dll".into()),
-        "macos" => ("libgleamler.dylib".into(), "gleamler.so".into()),
-        _ => ("libgleamler.so".into(), "gleamler.so".into()),
+        "windows" => (format!("{package}.dll"), "gleamler.dll".into()),
+        "macos" => (format!("lib{package}.dylib"), "gleamler.so".into()),
+        _ => (format!("lib{package}.so"), "gleamler.so".into()),
     }
 }
 
