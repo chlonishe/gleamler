@@ -5,6 +5,12 @@ TARGET="$1"
 LIB="$2"
 
 echo "=== Checking $TARGET: $LIB ==="
+
+if [ ! -f "$LIB" ]; then
+  echo "ERROR: Artifact $LIB does not exist!"
+  exit 1
+fi
+
 file "$LIB" || true
 
 case "$TARGET" in
@@ -29,7 +35,7 @@ case "$TARGET" in
     elif command -v nm &> /dev/null; then
       nm "$LIB" | grep "nif_init" || exit 1
     else
-      echo "Warning: no nm/dumpbin found on Windows, skipping symbol check"
+      echo "Warning: No dumpbin or nm found on Windows, skipping symbol inspection"
     fi
     ;;
 esac

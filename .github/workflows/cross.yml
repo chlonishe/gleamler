@@ -28,6 +28,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -39,7 +40,7 @@ jobs:
         shell: bash
         run: ./scripts/check_nif.sh ${{ matrix.target }} target/${{ matrix.target }}/release/${{ matrix.artifact }}
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v4
         with:
           name: gleamler-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/${{ matrix.artifact }}
@@ -49,59 +50,46 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - target: aarch64-unknown-linux-gnu
-            packages: gcc-aarch64-linux-gnu
-            linker_var: CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER
-            linker: aarch64-linux-gnu-gcc
-            artifact: libgleamler.so
-          - target: x86_64-unknown-linux-musl
-            packages: musl-tools
-            linker_var: CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER
-            linker: musl-gcc
-            artifact: libgleamler.so
-          - target: aarch64-unknown-linux-musl
-            packages: gcc-aarch64-linux-gnu musl-tools
-            linker_var: CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER
-            linker: aarch64-linux-gnu-gcc
-            artifact: libgleamler.so
+        target:
+          - aarch64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
 
     steps:
       - uses: actions/checkout@v5
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install cross-compiler
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ${{ matrix.packages }}
+      - uses: taiki-e/install-action@cross
 
-      - name: Build
+      - name: Build with cross
         env:
-          ${{ matrix.linker_var }}: ${{ matrix.linker }}
-        run: cargo build -p gleamler --release --target ${{ matrix.target }} --features stress
+          RUSTFLAGS: "-C target-feature=-crt-static"
+        run: cross build -p gleamler --release --target ${{ matrix.target }} --features stress
 
       - name: Check symbols
-        run: ./scripts/check_nif.sh ${{ matrix.target }} target/${{ matrix.target }}/release/${{ matrix.artifact }}
+        run: ./scripts/check_nif.sh ${{ matrix.target }} target/${{ matrix.target }}/release/libgleamler.so
 
       - uses: actions/upload-artifact@v4
         with:
           name: gleamler-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/${{ matrix.artifact }}
+          path: target/${{ matrix.target }}/release/libgleamler.so
 
   gleam-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
       - uses: dtolnay/rust-toolchain@stable
+
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "27"
           gleam-version: "latest"
           rebar3-version: "3"
 
-      - name: Build NIF & Gleam (via xtask)
+      - name: Build NIF & Gleam
         run: cargo xtask build --release --stress
 
       - name: Gleam test
