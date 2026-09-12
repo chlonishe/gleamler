@@ -226,3 +226,5 @@ pub const fn min_erts() -> &'static [u8] {
         b"OTP-21.0\0"
     }
 }
+
+inventory::collect!(NifRegistration);

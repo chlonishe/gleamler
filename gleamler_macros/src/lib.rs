@@ -283,6 +283,12 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
             flags: #nif_flags,
             raw_func: #ffi_fn_name,
         };
+
+        ::gleamler::codegen_runtime::inventory::submit! {
+            ::gleamler::codegen_runtime::NifRegistration {
+                nif: &#nif_const_name,
+            }
+        }
     };
 
     TokenStream::from(expanded)
@@ -347,10 +353,24 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
     let (funcs_static, num_of_funcs) = if input.names.is_empty() {
         (
             quote! {
-                let funcs: &'static [::gleamler::sys::ErlNifFunc] =
-                    ::gleamler::nifs::__generated_registry::NIFS;
-                let funcs_ptr = funcs.as_ptr();
-                let num_of_funcs = funcs.len() as i32;
+                let mut collected: Vec<::gleamler::sys::ErlNifFunc> = Vec::new();
+                for reg in ::gleamler::codegen_runtime::inventory::iter::<::gleamler::codegen_runtime::NifRegistration>() {
+                    collected.push(::gleamler::sys::ErlNifFunc {
+                        name: reg.nif.name,
+                        arity: reg.nif.arity,
+                        flags: reg.nif.flags,
+                        function: reg.nif.raw_func,
+                    });
+                }
+
+                let funcs_slice: &'static [::gleamler::sys::ErlNifFunc] = if !collected.is_empty() {
+                    Box::leak(collected.into_boxed_slice())
+                } else {
+                    ::gleamler::nifs::__generated_registry::NIFS
+                };
+
+                let funcs_ptr = funcs_slice.as_ptr();
+                let num_of_funcs = funcs_slice.len() as i32;
             },
             quote! { num_of_funcs },
         )
