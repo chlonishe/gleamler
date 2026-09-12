@@ -1300,9 +1300,25 @@ pub fn heavy(n: i64) -> i64 { n }
     #[test]
     fn type_to_gleam_array() {
         let ty: Type = parse_quote!([u8; 4]);
-        assert_eq!(type_to_gleam(&ty), "List(Int)");
+        assert_eq!(type_to_gleam(&ty), "BitArray");
         let ty: Type = parse_quote!([String; 10]);
         assert_eq!(type_to_gleam(&ty), "List(String)");
+    }
+
+    #[test]
+    fn parse_untagged_enum() {
+        let src = r#"
+        #[derive(NifUntaggedEnum)]
+        pub enum Value {
+            Int(i64),
+            Str(String),
+        }
+        "#;
+        let types = parse_nif_types(src);
+        assert_eq!(types.len(), 1);
+        assert_eq!(types[0].name, "Value");
+        assert_eq!(types[0].kind, GleamTypeKind::UntaggedEnum);
+        assert_eq!(types[0].variants.len(), 2);
     }
 
     #[test]
