@@ -7,3 +7,6 @@ pub struct Nif {
     pub raw_func:
         unsafe extern "C" fn(nif_env: NIF_ENV, argc: c_int, argv: *const NIF_TERM) -> NIF_TERM,
 }
+
+unsafe impl Sync for Nif {}
+unsafe impl Send for Nif {}
