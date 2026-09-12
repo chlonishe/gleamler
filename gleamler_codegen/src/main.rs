@@ -1,6 +1,6 @@
 use std::env;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 fn atomic_write(path: &std::path::Path, contents: impl AsRef<[u8]>) {
     let bytes = contents.as_ref();
@@ -22,7 +22,7 @@ fn atomic_write(path: &std::path::Path, contents: impl AsRef<[u8]>) {
     std::fs::write(&tmp, bytes)
         .unwrap_or_else(|e| panic!("failed to write temp file {}: {}", tmp.display(), e));
     if cfg!(windows) {
-        let _ = std::fs::remove_file(path);
+        let _ = fs::remove_file(path);
     }
     std::fs::rename(&tmp, path).unwrap_or_else(|e| {
         panic!(
@@ -34,12 +34,32 @@ fn atomic_write(path: &std::path::Path, contents: impl AsRef<[u8]>) {
     });
 }
 
+fn collect_rs_files(dir: &Path, with_stress: bool) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                files.extend(collect_rs_files(&path, with_stress));
+            } else if path.extension().is_some_and(|ext| ext == "rs") {
+                let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                if file_name == "stress_nifs.rs" && !with_stress {
+                    continue;
+                }
+                files.push(path);
+            }
+        }
+    }
+    files.sort();
+    files
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 4 {
         eprintln!(
-            "Usage: {} <gleamler_crate_dir> <erl_out> <gleam_out> [--with-stress] [erl_module] [lib_name]",
+            "Usage: {} <crate_or_src_dir> <erl_out> <gleam_out> [--with-stress] [erl_module] [lib_name]",
             args[0]
         );
         std::process::exit(1);
@@ -60,82 +80,72 @@ fn main() {
         std::process::exit(1);
     }
 
-    let crate_dir = &positional[0];
+    let input_dir = Path::new(&positional[0]);
     let erl_out = &positional[1];
     let gleam_out = &positional[2];
 
-    let nifs_rs = {
-        let p_nifs = Path::new(crate_dir).join("src/nifs.rs");
-        if p_nifs.exists() {
-            p_nifs
-        } else {
-            Path::new(crate_dir).join("src/lib.rs")
-        }
-    };
-    let stress_nifs_rs = Path::new(crate_dir).join("src/stress_nifs.rs");
-
-    let nifs_source = fs::read_to_string(&nifs_rs)
-        .unwrap_or_else(|e| panic!("failed to read {}: {}", nifs_rs.display(), e));
-
-    let nifs_functions = gleamler_codegen::parse_nif_functions(&nifs_source);
-    let nifs_types = gleamler_codegen::parse_nif_types(&nifs_source);
-
-    let (stress_functions, stress_types) = if with_stress && stress_nifs_rs.exists() {
-        let stress_source = fs::read_to_string(&stress_nifs_rs)
-            .unwrap_or_else(|e| panic!("failed to read {}: {}", stress_nifs_rs.display(), e));
-        (
-            gleamler_codegen::parse_nif_functions(&stress_source),
-            gleamler_codegen::parse_nif_types(&stress_source),
-        )
+    let search_dir = if input_dir.join("src").exists() {
+        input_dir.join("src")
     } else {
-        (Vec::new(), Vec::new())
+        input_dir.to_path_buf()
     };
 
-    let mut functions = Vec::with_capacity(nifs_functions.len() + stress_functions.len());
-    functions.extend(nifs_functions.clone());
-    functions.extend(stress_functions.clone());
-
-    let mut custom_types = Vec::with_capacity(nifs_types.len() + stress_types.len());
-    custom_types.extend(nifs_types);
-    custom_types.extend(stress_types);
-
-    eprintln!(
-        "Generated {} function(s) and {} custom type(s){}\n  → {}\n  → {}",
-        functions.len(),
-        custom_types.len(),
-        if with_stress { " (with stress)" } else { "" },
-        erl_out,
-        gleam_out
-    );
-
-    let registered = gleamler_codegen::parse_init_nifs_list(&nifs_source);
-    let warnings =
-        gleamler_codegen::validate_nif_registry(&registered, &nifs_functions, &stress_functions);
-    for w in warnings {
-        eprintln!("warning: {w}");
+    let rs_files = collect_rs_files(&search_dir, with_stress);
+    if rs_files.is_empty() {
+        eprintln!("warning: no .rs files found in {}", search_dir.display());
     }
 
-    const RESERVED_ERL_NAMES: &[&str] = &["init", "module_info", "record_info"];
+    let mut all_functions = Vec::new();
+    let mut all_custom_types = Vec::new();
+    let mut registered_names = Vec::new();
+    let mut discovered_module = None;
 
-    let mut erl_names = std::collections::BTreeSet::new();
+    for file_path in &rs_files {
+        let Ok(source) = fs::read_to_string(file_path) else {
+            continue;
+        };
+
+        let funcs = gleamler_codegen::parse_nif_functions(&source);
+        let types = gleamler_codegen::parse_nif_types(&source);
+        let reg = gleamler_codegen::parse_init_nifs_list(&source);
+
+        if discovered_module.is_none() {
+            discovered_module = gleamler_codegen::parse_init_nifs_module(&source);
+        }
+
+        all_functions.extend(funcs);
+        all_custom_types.extend(types);
+        registered_names.extend(reg);
+    }
+
+    let mut unique_types = Vec::new();
+    let mut seen_types = std::collections::HashSet::new();
+    for ct in all_custom_types {
+        if seen_types.insert(ct.name.clone()) {
+            unique_types.push(ct);
+        }
+    }
 
     let erl_module = positional
         .get(3)
         .cloned()
-        .or_else(|| gleamler_codegen::parse_init_nifs_module(&nifs_source))
+        .or(discovered_module)
         .unwrap_or_else(|| "gleamler_nif_ffi".to_string());
+
     let lib_name = positional
         .get(4)
         .cloned()
         .unwrap_or_else(|| "gleamler".to_string());
 
-    for func in &functions {
+    const RESERVED_ERL_NAMES: &[&str] = &["init", "module_info", "record_info"];
+    let mut erl_names = std::collections::BTreeSet::new();
+
+    for func in &all_functions {
         let erl_name = func.alias.clone().unwrap_or_else(|| func.name.clone());
 
         if RESERVED_ERL_NAMES.contains(&erl_name.as_str()) {
             panic!(
-                "gleamler_codegen: NIF name '{}' conflicts with a reserved Erlang function name \
-                 in module '{}' (names like init, module_info cannot be used as NIF aliases)",
+                "gleamler_codegen: NIF name '{}' conflicts with a reserved Erlang function name in module '{}'",
                 erl_name, erl_module
             );
         }
@@ -148,9 +158,24 @@ fn main() {
         }
     }
 
-    let erl_contents = gleamler_codegen::generate_erl(&functions, &erl_module, &lib_name);
+    let warnings = gleamler_codegen::validate_nif_registry(&registered_names, &all_functions, &[]);
+    for w in warnings {
+        eprintln!("warning: {w}");
+    }
 
-    let gleam_contents = gleamler_codegen::generate_gleam(&functions, &custom_types, &erl_module);
+    eprintln!(
+        "Scanned {} file(s) in {}: generated {} function(s), {} type(s)\n  → {}\n  → {}",
+        rs_files.len(),
+        search_dir.display(),
+        all_functions.len(),
+        unique_types.len(),
+        erl_out,
+        gleam_out
+    );
+
+    let erl_contents = gleamler_codegen::generate_erl(&all_functions, &erl_module, &lib_name);
+    let gleam_contents =
+        gleamler_codegen::generate_gleam(&all_functions, &unique_types, &erl_module);
 
     atomic_write(std::path::Path::new(erl_out), erl_contents);
     atomic_write(std::path::Path::new(gleam_out), gleam_contents);

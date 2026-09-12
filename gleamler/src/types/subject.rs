@@ -43,6 +43,18 @@ impl<'a, T> Subject<'a, T> {
         let payload = (self.tag, message);
         env.send(&self.pid, payload)
     }
+
+    pub fn send_from_owned(
+        pid: &LocalPid,
+        tag: &crate::env::SavedTerm,
+        owned_env: &mut crate::OwnedEnv,
+        message: T,
+    ) -> Result<(), SendError>
+    where
+        T: Encoder,
+    {
+        owned_env.send_and_clear(pid, |env| (tag.load(env), message).encode(env))
+    }
 }
 
 impl<'a, T: 'a> Decoder<'a> for Subject<'a, T> {
