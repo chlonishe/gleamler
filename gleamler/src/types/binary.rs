@@ -92,7 +92,7 @@ use crate::{
     wrapper::binary::{ErlNifBinary, alloc, new_binary, realloc},
 };
 use std::{
-    borrow::{Borrow, BorrowMut},
+    borrow::{Borrow, BorrowMut, Cow},
     hash::{Hash, Hasher},
     mem::MaybeUninit,
     ops::{Deref, DerefMut},
@@ -638,5 +638,22 @@ impl<'a> Decoder<'a> for BitArray {
     fn decode(term: Term<'a>) -> NifResult<Self> {
         let bin = Binary::from_term(term)?;
         Ok(BitArray(bin.as_slice().to_vec()))
+    }
+}
+
+impl<'a> Decoder<'a> for Cow<'a, [u8]> {
+    #[inline]
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        let bin = Binary::from_term(term)?;
+        Ok(Cow::Borrowed(bin.as_slice()))
+    }
+}
+
+impl<'a> Encoder for Cow<'a, [u8]> {
+    #[inline]
+    fn encode<'b>(&self, env: Env<'b>) -> Term<'b> {
+        let mut bin = NewBinary::new(env, self.len());
+        bin.as_mut_slice().copy_from_slice(self.as_ref());
+        bin.into()
     }
 }

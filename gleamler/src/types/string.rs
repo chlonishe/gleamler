@@ -1,6 +1,8 @@
 use super::binary::{Binary, OwnedBinary};
 use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 
+use std::borrow::Cow;
+
 impl<'a> Decoder<'a> for String {
     #[inline]
     fn decode(term: Term<'a>) -> NifResult<Self> {
@@ -39,5 +41,20 @@ impl Encoder for str {
 impl Encoder for String {
     fn encode<'b>(&self, env: Env<'b>) -> Term<'b> {
         self.as_str().encode(env)
+    }
+}
+
+impl<'a> Decoder<'a> for Cow<'a, str> {
+    #[inline]
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        let s: &'a str = term.decode()?;
+        Ok(Cow::Borrowed(s))
+    }
+}
+
+impl<'a> Encoder for Cow<'a, str> {
+    #[inline]
+    fn encode<'b>(&self, env: Env<'b>) -> Term<'b> {
+        self.as_ref().encode(env)
     }
 }
