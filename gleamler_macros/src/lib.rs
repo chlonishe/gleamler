@@ -505,12 +505,14 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
     let primary = std::env::var("GLEAMLER_DISABLE_NIF_INIT").is_err();
     let maybe_primary = if primary {
         quote! {
+            #[cfg(not(test))]
             #[cfg(not(target_os = "windows"))]
             #[unsafe(no_mangle)]
             pub extern "C" fn nif_init() -> *const ::gleamler::sys::ErlNifEntry {
                 #init_fn_name()
             }
 
+            #[cfg(not(test))]
             #[cfg(target_os = "windows")]
             #[unsafe(no_mangle)]
             pub unsafe extern "C" fn nif_init(

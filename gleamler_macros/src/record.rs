@@ -1,3 +1,4 @@
+use heck::ToSnakeCase;
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, quote_spanned};
 
@@ -173,5 +174,5 @@ fn get_tag(ctx: &Context) -> String {
             GleamlerAttr::Tag(tag) => Some(tag.clone()),
             _ => None,
         })
-        .expect("NifRecord requires a 'tag' attribute")
+        .unwrap_or_else(|| ctx.ident.to_string().to_snake_case())
 }
