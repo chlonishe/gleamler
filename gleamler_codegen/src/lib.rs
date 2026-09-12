@@ -327,7 +327,14 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> Result<String, String> {
 
                 "SystemTime" => Ok("#(Int, Int, Int)".into()),
 
-                "ResourceArc" => Ok("Resource".into()),
+                "ResourceArc" => {
+                    if let Some(inner) = generic_args.first() {
+                        let inner_ty = type_to_gleam_ctx(inner, ctx)?;
+                        Ok(format!("Resource({})", inner_ty))
+                    } else {
+                        Ok("Resource(Nil)".into())
+                    }
+                }
 
                 "NifOutcome" => {
                     if let Some(inner) = generic_args.first() {
@@ -645,8 +652,8 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
     }
     if has_resource {
         out.push_str(
-            "\npub opaque type Resource {\n  Resource\n}\n\n\
-            @internal\npub fn resource_dummy() -> Resource {\n  Resource\n}\n",
+            "\npub opaque type Resource(a) {\n  Resource\n}\n\n\
+            @internal\npub fn resource_dummy() -> Resource(a) {\n  Resource\n}\n",
         );
     }
     if has_gleamler_error {
