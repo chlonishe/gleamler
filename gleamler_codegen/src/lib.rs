@@ -36,6 +36,7 @@ pub enum GleamTypeKind {
     Record,
     UnitEnum,
     TaggedEnum,
+    UntaggedEnum,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -882,8 +883,9 @@ pub fn parse_nif_types(source: &str) -> Vec<GleamCustomType> {
             Item::Enum(e) => {
                 let is_unit_enum = has_derive(&e.attrs, "NifUnitEnum");
                 let is_tagged_enum = has_derive(&e.attrs, "NifTaggedEnum");
+                let is_untagged_enum = has_derive(&e.attrs, "NifUntaggedEnum");
 
-                if !is_unit_enum && !is_tagged_enum {
+                if !is_unit_enum && !is_tagged_enum && !is_untagged_enum {
                     continue;
                 }
 
@@ -924,8 +926,10 @@ pub fn parse_nif_types(source: &str) -> Vec<GleamCustomType> {
 
                 let kind = if is_unit_enum {
                     GleamTypeKind::UnitEnum
-                } else {
+                } else if is_tagged_enum {
                     GleamTypeKind::TaggedEnum
+                } else {
+                    GleamTypeKind::UntaggedEnum
                 };
 
                 types.push(GleamCustomType {
