@@ -7,6 +7,7 @@ use crate::sys::{c_void, enif_alloc, enif_free, enif_realloc};
 pub struct EnifAllocator;
 
 // OTP's enif_alloc guarantees alignment suitable for any C variable, which formally means
+// `align_of::<max_align_t>()`. On 64-bit Unix (x86_64 and aarch64), this is 16 bytes.
 const ENIF_MAX_ALIGN: usize = if cfg!(all(
     unix,
     any(target_arch = "x86_64", target_arch = "aarch64")

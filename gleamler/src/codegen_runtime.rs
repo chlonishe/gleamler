@@ -74,26 +74,23 @@ where
     unsafe fn into_returned(self, env: Env) -> NifReturned {
         match self {
             NifOutcome::Done(v) => unsafe { v.into_returned(env) },
-            NifOutcome::Yield(flags) => {
-                CURRENT_NIF_CONTINUATION.with(|c| {
-                    let (name, fun, argc, argv) = c.get().expect(
-                        "NifOutcome::Yield may only be used inside a #[gleam_nif] function",
-                    );
+            NifOutcome::Yield(flags) => CURRENT_NIF_CONTINUATION.with(|c| {
+                let (name, fun, argc, argv) = c
+                    .get()
+                    .expect("NifOutcome::Yield may only be used inside a #[gleam_nif] function");
 
-                    // name создан макросом как статическая строка с \0 на конце
-                    let cstr = unsafe { CStr::from_ptr(name) };
-                    let fun_name = CString::from(cstr);
+                let cstr = unsafe { CStr::from_ptr(name) };
+                let fun_name = CString::from(cstr);
 
-                    let args = unsafe { std::slice::from_raw_parts(argv, argc as usize).to_vec() };
+                let args = unsafe { std::slice::from_raw_parts(argv, argc as usize).to_vec() };
 
-                    NifReturned::Reschedule {
-                        fun_name,
-                        flags,
-                        fun,
-                        args,
-                    }
-                })
-            }
+                NifReturned::Reschedule {
+                    fun_name,
+                    flags,
+                    fun,
+                    args,
+                }
+            }),
         }
     }
 }

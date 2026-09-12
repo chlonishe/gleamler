@@ -159,6 +159,8 @@ fn codegen(sh: &Shell, with_stress: bool) -> Result<()> {
         args.push("--with-stress");
     }
     cmd!(sh, "cargo {args...}").run()?;
+
+    cmd!(sh, "gleam format src/gleamler_nif.gleam").run()?;
     Ok(())
 }
 
@@ -236,6 +238,13 @@ fn clean(sh: &Shell) -> Result<()> {
     Ok(())
 }
 
+fn has_cargo_subcommand(sh: &Shell, cmd: &str) -> bool {
+    cmd!(sh, "cargo {cmd} --version")
+        .ignore_stderr()
+        .read()
+        .is_ok()
+}
+
 fn ci(sh: &Shell, fast: bool) -> Result<()> {
     println!("==> CI: cargo fmt check");
     cmd!(sh, "cargo fmt --all -- --check").run()?;
@@ -247,8 +256,12 @@ fn ci(sh: &Shell, fast: bool) -> Result<()> {
     test_rust(sh)?;
 
     if !fast {
-        println!("==> CI: feature powerset");
-        cmd!(sh, "cargo hack check -p gleamler --feature-powerset --at-least-one-of nif_version_2_14,nif_version_2_15,nif_version_2_16,nif_version_2_17,nif_version_2_18 --lib").run()?;
+        if has_cargo_subcommand(sh, "hack") {
+            println!("==> CI: feature powerset");
+            cmd!(sh, "cargo hack check -p gleamler --feature-powerset --at-least-one-of nif_version_2_14,nif_version_2_15,nif_version_2_16,nif_version_2_17,nif_version_2_18 --lib").run()?;
+        } else {
+            println!("==> CI: `cargo-hack` not installed, skipping feature powerset (install via `cargo install cargo-hack`)");
+        }
     }
 
     println!("==> CI: gleam build + format + test");
@@ -257,8 +270,12 @@ fn ci(sh: &Shell, fast: bool) -> Result<()> {
     test_gleam(sh)?;
 
     if !fast {
-        println!("==> CI: cargo deny");
-        cmd!(sh, "cargo deny check all").run()?;
+        if has_cargo_subcommand(sh, "deny") {
+            println!("==> CI: cargo deny");
+            cmd!(sh, "cargo deny check all").run()?;
+        } else {
+            println!("==> CI: `cargo-deny` not installed, skipping cargo deny (install via `cargo install cargo-deny`)");
+        }
     }
 
     println!("==> CI dry-run complete!");

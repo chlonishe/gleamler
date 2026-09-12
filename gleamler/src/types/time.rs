@@ -1,28 +1,34 @@
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
-use crate::{Decoder, Encoder, Env, NifResult, Term};
+use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 
 impl Encoder for SystemTime {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
         let duration = self
             .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_else(|_| std::time::Duration::from_secs(0));
-        let total_micros = duration.as_micros() as u64;
-        let mega = total_micros / 1_000_000_000_000u64;
-        let secs = (total_micros % 1_000_000_000_000u64) / 1_000_000u64;
-        let micro = total_micros % 1_000_000u64;
-        (mega, secs, micro).encode(env)
+            .unwrap_or_else(|_| Duration::from_secs(0));
+        let secs = duration.as_secs();
+        let mega = secs / 1_000_000;
+        let rem_secs = secs % 1_000_000;
+        let micro = duration.subsec_micros() as u64;
+        (mega, rem_secs, micro).encode(env)
     }
 }
 
 impl<'a> Decoder<'a> for SystemTime {
     fn decode(term: Term<'a>) -> NifResult<Self> {
         if let Ok((mega, secs, micro)) = term.decode::<(u64, u64, u64)>() {
-            let total = mega * 1_000_000_000_000u64 + secs * 1_000_000u64 + micro;
-            return Ok(SystemTime::UNIX_EPOCH + std::time::Duration::from_micros(total));
+            let total_secs = mega
+                .checked_mul(1_000_000)
+                .and_then(|s| s.checked_add(secs))
+                .ok_or(Error::BadArg)?;
+            let dur = Duration::from_secs(total_secs)
+                .checked_add(Duration::from_micros(micro))
+                .ok_or(Error::BadArg)?;
+            return Ok(SystemTime::UNIX_EPOCH + dur);
         }
         let micros: u64 = term.decode()?;
-        Ok(SystemTime::UNIX_EPOCH + std::time::Duration::from_micros(micros))
+        Ok(SystemTime::UNIX_EPOCH + Duration::from_micros(micros))
     }
 }
 

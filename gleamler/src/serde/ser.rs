@@ -3,7 +3,7 @@ use std::io::Write;
 use crate::serde::{atoms, error::Error};
 use crate::wrapper::list::make_list;
 use crate::{Encoder, Env, OwnedBinary, Term, types::tuple};
-use serde::ser::{self, Serialize};
+use ::serde::ser::{self, Serialize};
 
 #[inline]
 pub fn to_term<T>(env: Env, value: T) -> Result<Term, Error>
@@ -191,7 +191,7 @@ impl<'a> ser::Serializer for Serializer<'a> {
         _variant_index: u32,
         variant: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
-        Ok(atoms::str_to_term(self.env, variant)?)
+        atoms::str_to_term(self.env, variant)
     }
 
     #[inline]

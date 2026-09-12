@@ -359,14 +359,23 @@ impl<'a> Binary<'a> {
             return Err(Error::BadArg);
         }
 
-        let binary = unsafe { binary.assume_init() };
+        let mut binary = unsafe { binary.assume_init() };
         let size = binary.size;
 
-        let mut owned = OwnedBinary::new(size).ok_or(Error::BadArg)?;
+        let mut owned = match OwnedBinary::new(size) {
+            Some(b) => b,
+            None => {
+                unsafe { enif_release_binary(&mut binary) };
+                return Err(Error::BadArg);
+            }
+        };
+
         if size > 0 {
             let slice = unsafe { ::std::slice::from_raw_parts(binary.data, size) };
             owned.as_mut_slice().copy_from_slice(slice);
         }
+
+        unsafe { enif_release_binary(&mut binary) };
 
         Ok(owned.release(env))
     }

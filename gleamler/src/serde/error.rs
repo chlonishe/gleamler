@@ -1,5 +1,5 @@
 use crate::Error as NifError;
-use serde::{de, ser};
+use ::serde::{de, ser};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 #[derive(Debug)]

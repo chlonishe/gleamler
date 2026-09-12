@@ -30,11 +30,15 @@ pub fn counter_read(counter: ResourceArc<Counter>) -> i64 {
 #[gleam_nif]
 pub fn cooperative_count(counter: ResourceArc<Counter>) -> NifOutcome<i64> {
     loop {
-        let val = counter.current.fetch_add(1, Ordering::SeqCst);
+        let val = counter.current.load(Ordering::SeqCst);
         if val >= counter.target {
             return NifOutcome::Done(val);
         }
-        if val % 500 == 0 {
+        let next = counter.current.fetch_add(1, Ordering::SeqCst) + 1;
+        if next >= counter.target {
+            return NifOutcome::Done(next);
+        }
+        if next % 500 == 0 {
             return NifOutcome::Yield(SchedulerFlags::Normal);
         }
     }

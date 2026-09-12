@@ -1,10 +1,10 @@
-import gleeunit
-import gleeunit/should
-import gleam/option
-import gleamler_nif
 import gleam/dict
 import gleam/int
 import gleam/list
+import gleam/option
+import gleamler_nif
+import gleeunit
+import gleeunit/should
 
 @external(erlang, "gleamler_stress_ffi", "rescue_panic")
 fn rescue_panic() -> Result(Int, String)
@@ -123,8 +123,7 @@ pub fn collections_linkedlist_roundtrip_test() {
 }
 
 pub fn collections_btreemap_roundtrip_test() {
-  let input =
-    dict.from_list([#("x", 1), #("y", 2), #("z", 3)])
+  let input = dict.from_list([#("x", 1), #("y", 2), #("z", 3)])
   gleamler_nif.rust_collections_btreemap_roundtrip(input)
   |> should.equal(input)
 }

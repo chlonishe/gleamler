@@ -3,7 +3,7 @@ use crate::{
     Encoder, Term, TermType,
     types::{ListIterator, MapIterator},
 };
-use serde::{
+use ::serde::{
     de::{
         self, Deserialize, DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess,
         Visitor,

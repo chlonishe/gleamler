@@ -1,7 +1,7 @@
-use crate::{Decoder, Encoder, Env, NifResult, Term};
+use crate::{Decoder, Encoder, Env, Error, NifResult, Term};
 use std::time::Duration;
 
-/// Encodes `Duration` as microseconds (u64). Decodes from any integer term
+/// Encodes `Duration` as microseconds (u128). Decodes from any integer term.
 impl Encoder for Duration {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
         self.as_micros().encode(env)
@@ -20,19 +20,25 @@ pub struct ErlangTimestamp(pub Duration);
 
 impl Encoder for ErlangTimestamp {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
-        let total_micros = self.0.as_micros() as u64;
-        let mega = total_micros / 1_000_000_000_000u64;
-        let secs = (total_micros % 1_000_000_000_000u64) / 1_000_000u64;
-        let micro = total_micros % 1_000_000u64;
-        (mega, secs, micro).encode(env)
+        let secs = self.0.as_secs();
+        let mega = secs / 1_000_000;
+        let rem_secs = secs % 1_000_000;
+        let micro = self.0.subsec_micros() as u64;
+        (mega, rem_secs, micro).encode(env)
     }
 }
 
 impl<'a> Decoder<'a> for ErlangTimestamp {
     fn decode(term: Term<'a>) -> NifResult<Self> {
         let (mega, secs, micro): (u64, u64, u64) = term.decode()?;
-        let total = mega * 1_000_000_000_000u64 + secs * 1_000_000u64 + micro;
-        Ok(ErlangTimestamp(Duration::from_micros(total)))
+        let total_secs = mega
+            .checked_mul(1_000_000)
+            .and_then(|s| s.checked_add(secs))
+            .ok_or(Error::BadArg)?;
+        let dur = Duration::from_secs(total_secs)
+            .checked_add(Duration::from_micros(micro))
+            .ok_or(Error::BadArg)?;
+        Ok(ErlangTimestamp(dur))
     }
 }
 

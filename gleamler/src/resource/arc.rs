@@ -41,7 +41,13 @@ where
     /// implemented for it. See module documentation for info on this.
     pub fn new(data: T) -> Self {
         let alloc_size = get_alloc_size_struct::<T>();
-        let resource_type = T::get_resource_type().unwrap();
+        let resource_type = T::get_resource_type().unwrap_or_else(|| {
+            panic!(
+                "Resource type `{}` has not been registered. Register it during `on_load` via `env.register::<{}>()`.",
+                std::any::type_name::<T>(),
+                std::any::type_name::<T>()
+            );
+        });
         let mem_raw = unsafe { enif_alloc_resource(resource_type, alloc_size) };
         if mem_raw.is_null() {
             panic!("enif_alloc_resource returned null (out of memory)");
@@ -169,7 +175,7 @@ where
 
     /// Monitor an OS event (file descriptor / handle) associated with this resource.
     ///
-    /// Available since NIF version 2.12 (OTP 22).  
+    /// Available since NIF version 2.12 (OTP 22).
     /// See [`enif_select`](https://www.erlang.org/doc/man/erl_nif.html#enif_select).
     #[allow(clippy::not_unsafe_ptr_arg_deref)] // ErlNifEvent is an opaque handle
     pub fn select(
