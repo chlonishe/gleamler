@@ -214,10 +214,10 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
                 return err_tuple.as_c_arg();
             }
 
-            let result = std::panic::catch_unwind(move || {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
                 #(#args_decoding)*
                 Ok(#fn_name(#(#args_names),*))
-            });
+            }));
 
             match result {
                 Ok(Ok(val)) => {
@@ -249,10 +249,10 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
 
             let result: std::thread::Result<Result<_, ::gleamler::Error>> =
-                std::panic::catch_unwind(move || {
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
                     #(#args_decoding)*
                     Ok(#fn_name(#(#args_names),*))
-                });
+                }));
 
             let nif_returned = ::gleamler::codegen_runtime::handle_nif_result(result, env);
             unsafe { nif_returned.apply(env) }
