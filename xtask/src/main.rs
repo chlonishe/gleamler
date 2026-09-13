@@ -195,7 +195,8 @@ fn build_example(sh: &Shell, name: &str, release: bool) -> Result<()> {
     println!("==> Generating standalone FFI for {name}...");
     let erl_out = format!("{example_dir}/{name}_ffi.erl");
     let gleam_out = format!("{example_dir}/{name}.gleam");
-    cmd!(sh, "cargo run -p gleamler_codegen -- {example_dir} {erl_out} {gleam_out}").run()?;
+    let erl_module = "gleamler_nif_ffi";
+    cmd!(sh, "cargo run -p gleamler_codegen -- {example_dir} {erl_out} {gleam_out} {erl_module} {name}").run()?;
     let _ = cmd!(sh, "gleam format {gleam_out}").run();
 
     println!("\n[OK] Example '{name}' is ready!");
