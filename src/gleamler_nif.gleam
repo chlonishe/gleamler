@@ -71,15 +71,27 @@ pub fn decode_map_field(
   }
 }
 
+@external(erlang, "gleamler_nif_ffi", "atom_or_string_to_string")
+@internal
+pub fn atom_or_string_to_string(term: dynamic.Dynamic) -> Result(String, Nil)
+
+@internal
+pub fn check_tag(
+  tag_dyn: dynamic.Dynamic,
+  expected: String,
+  next: fn(Nil) -> decode.Decoder(a),
+) -> decode.Decoder(a) {
+  case atom_or_string_to_string(tag_dyn) {
+    Ok(tag) if tag == expected -> next(Nil)
+    _ -> decode.failure(coerce(Nil), expected)
+  }
+}
+
 pub type GleamlerError {
   BadArg
   Panic(String)
   Custom(String)
 }
-
-@external(erlang, "gleamler_nif_ffi", "atom_or_string_to_string")
-@internal
-pub fn atom_or_string_to_string(term: dynamic.Dynamic) -> Result(String, Nil)
 
 /// A user record synchronized between Rust and Gleam
 pub type User {
@@ -89,6 +101,8 @@ pub type User {
 pub fn user_decoder() -> decode.Decoder(User) {
   decode.one_of(
     {
+      use tag_dyn <- decode.field(0, decode.dynamic)
+      use _ <- check_tag(tag_dyn, "user")
       use id <- decode.field(1, decode.int)
       use name <- decode.field(2, decode.string)
       use is_active <- decode.field(3, decode.bool)

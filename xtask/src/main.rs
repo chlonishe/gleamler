@@ -4,6 +4,9 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use xshell::{cmd, Shell};
+use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use std::sync::mpsc::channel;
+use std::time::{Duration, Instant};
 
 #[derive(Parser, Debug)]
 #[command(name = "xtask", about = "Gleamler build & test automation")]
@@ -58,6 +61,14 @@ enum Commands {
         #[arg(long)]
         fast: bool,
     },
+
+    /// Watch for Rust & Gleam changes, recompile NIF, run codegen and tests
+    Watch {
+        #[arg(long, default_value = "gleamler")]
+        package: String,
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        stress: bool,
+    },
 }
 
 fn main() -> Result<()> {
@@ -110,6 +121,9 @@ fn main() -> Result<()> {
         }
         Commands::Ci { fast } => {
             ci(&sh, fast)?;
+        }
+        Commands::Watch { package, stress } => {
+            watch(&sh, &package, stress)?;
         }
     }
 
@@ -426,4 +440,78 @@ fn resolve_target_dir(target: Option<&str>) -> PathBuf {
         p.push(t);
     }
     p
+}
+
+fn watch(sh: &Shell, package: &str, stress: bool) -> Result<()> {
+    println!("==> Starting Gleamler Watch Mode for `{package}`...");
+    println!("==> Watching for changes in `.rs` and `.gleam` files (ignoring build/, target/, priv/)...");
+
+    run_watch_cycle(sh, package, stress);
+
+    let (tx, rx) = channel();
+    let mut watcher = RecommendedWatcher::new(tx, Config::default())?;
+
+    watcher.watch(Path::new("gleamler"), RecursiveMode::Recursive)?;
+    watcher.watch(Path::new("src"), RecursiveMode::Recursive)?;
+    watcher.watch(Path::new("test"), RecursiveMode::Recursive)?;
+    if Path::new("examples").exists() {
+        watcher.watch(Path::new("examples"), RecursiveMode::Recursive)?;
+    }
+
+    let debounce_duration = Duration::from_millis(300);
+    let mut last_run = Instant::now();
+
+    loop {
+        match rx.recv() {
+            Ok(Ok(event)) => {
+                if !matches!(
+                    event.kind,
+                    EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_)
+                ) {
+                    continue;
+                }
+
+                let should_trigger = event.paths.iter().any(|path| {
+                    let s = path.to_string_lossy();
+                    if s.contains("target") || s.contains("build") || s.contains("priv") || s.contains(".git") {
+                        return false;
+                    }
+                    s.ends_with(".rs") || s.ends_with(".gleam")
+                });
+
+                if should_trigger && last_run.elapsed() >= debounce_duration {
+                    while rx.try_recv().is_ok() {}
+
+                    println!("\n--------------------------------------------------");
+                    println!("==> File change detected! Rebuilding...");
+                    run_watch_cycle(sh, package, stress);
+                    last_run = Instant::now();
+                }
+            }
+            Ok(Err(e)) => eprintln!("Watch error: {e}"),
+            Err(_) => break,
+        }
+    }
+
+    Ok(())
+}
+
+fn run_watch_cycle(sh: &Shell, package: &str, stress: bool) {
+    let start = Instant::now();
+
+    if let Err(e) = build(sh, package, false, stress, None) {
+        eprintln!("[FAIL] NIF Build / Codegen error:\n{e}");
+        return;
+    }
+
+    println!("==> Running `gleam test`...");
+    match cmd!(sh, "gleam test").run() {
+        Ok(_) => {
+            let elapsed = start.elapsed().as_millis();
+            println!("\x1b[32m[SUCCESS] All tests passed! ({elapsed}ms)\x1b[0m");
+        }
+        Err(e) => {
+            eprintln!("\x1b[31m[FAIL] Gleam tests failed:\x1b[0m\n{e}");
+        }
+    }
 }

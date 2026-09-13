@@ -685,17 +685,10 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
     });
 
     let has_unit_enum = types.iter().any(|ct| ct.kind == GleamTypeKind::UnitEnum);
-    if has_unit_enum {
-        has_dynamic = true;
-    }
-
-    let has_map = types.iter().any(|ct| ct.kind == GleamTypeKind::Map);
-    if has_map {
-        has_dynamic = true;
-    }
-
     let has_record = types.iter().any(|ct| ct.kind == GleamTypeKind::Record);
-    if has_unit_enum || has_record {
+    let has_map = types.iter().any(|ct| ct.kind == GleamTypeKind::Map);
+
+    if has_unit_enum || has_record || has_map {
         has_dynamic = true;
     }
 
@@ -837,24 +830,32 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
         }
     }
 
-    if has_yielder {
+    let needs_coerce = has_yielder || has_map || has_record;
+    let needs_atom_helper = has_unit_enum || has_record;
+
+    if needs_coerce {
         out.push_str(&format!(
-            "@internal\n@external(erlang, \"{erl_module}\", \"identity\")\npub fn coerce(a: a) -> b\n\n\
-             /// Wraps a Rust `Yielder` resource into a native Gleam `yielder.Yielder` stream.\n\
-             pub fn to_yielder(resource: Resource(Yielder)) -> yielder.Yielder(a) {{\n\
-             \x20\x20yielder.unfold(resource, fn(r) {{\n\
-             \x20\x20\x20\x20case rust_yielder_next(r) {{\n\
+            "\n@internal\n@external(erlang, \"{erl_module}\", \"identity\")\npub fn coerce(a: a) -> b\n"
+        ));
+    }
+
+    if has_yielder {
+        out.push_str(
+            "\n/// Wraps a Rust `Yielder` resource into a native Gleam `yielder.Yielder` stream.\n\
+             pub fn to_yielder(resource: Resource(Yielder)) -> yielder.Yielder(a) {\n\
+             \x20\x20yielder.unfold(resource, fn(r) {\n\
+             \x20\x20\x20\x20case rust_yielder_next(r) {\n\
              \x20\x20\x20\x20\x20\x20option.Some(item) -> yielder.Next(coerce(item), r)\n\
              \x20\x20\x20\x20\x20\x20option.None -> yielder.Done\n\
-             \x20\x20\x20\x20}}\n\
-             \x20\x20}})\n\
-             }}\n\n"
-        ));
+             \x20\x20\x20\x20}\n\
+             \x20\x20})\n\
+             }\n",
+        );
     }
 
     if has_map {
         out.push_str(&format!(
-            "@internal\n@external(erlang, \"{erl_module}\", \"get_map_field\")\npub fn get_map_field(map: dynamic.Dynamic, key: String) -> Result(dynamic.Dynamic, Nil)\n\n\
+            "\n@internal\n@external(erlang, \"{erl_module}\", \"get_map_field\")\npub fn get_map_field(map: dynamic.Dynamic, key: String) -> Result(dynamic.Dynamic, Nil)\n\n\
              @internal\npub fn decode_map_field(\n  key: String,\n  field_decoder: decode.Decoder(a),\n  next: fn(a) -> decode.Decoder(b),\n) -> decode.Decoder(b) {{\n\
              \x20\x20use dyn <- decode.then(decode.dynamic)\n\
              \x20\x20case get_map_field(dyn, key) {{\n\
@@ -866,14 +867,20 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
              \x20\x20\x20\x20}}\n\
              \x20\x20\x20\x20Error(_) -> decode.failure(coerce(Nil), key)\n\
              \x20\x20}}\n\
-             }}\n\n"
+             }}\n"
         ));
     }
 
-    if has_unit_enum || has_record {
+    if needs_atom_helper {
         out.push_str(&format!(
-            "@internal\n@external(erlang, \"{erl_module}\", \"atom_or_string_to_string\")\npub fn atom_or_string_to_string(term: dynamic.Dynamic) -> Result(String, Nil)\n\n"
+            "\n@internal\n@external(erlang, \"{erl_module}\", \"atom_or_string_to_string\")\npub fn atom_or_string_to_string(term: dynamic.Dynamic) -> Result(String, Nil)\n"
         ));
+    }
+
+    if has_record {
+        out.push_str(
+            "\n@internal\npub fn check_tag(\n  tag_dyn: dynamic.Dynamic,\n  expected: String,\n  next: fn(Nil) -> decode.Decoder(a),\n) -> decode.Decoder(a) {\n  case atom_or_string_to_string(tag_dyn) {\n    Ok(tag) if tag == expected -> next(Nil)\n    _ -> decode.failure(coerce(Nil), expected)\n  }\n}\n",
+        );
     }
 
     if has_gleamler_error {
@@ -882,11 +889,6 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
         );
     }
 
-    if has_unit_enum {
-        out.push_str(&format!(
-            "@internal\n@external(erlang, \"{erl_module}\", \"atom_or_string_to_string\")\npub fn atom_or_string_to_string(term: dynamic.Dynamic) -> Result(String, Nil)\n\n"
-        ));
-    }
     out.push('\n');
 
     for custom_ty in types {
@@ -1262,11 +1264,7 @@ fn generate_record_decoder(out: &mut String, ty: &GleamCustomType) {
     // 1. Erlang tuple record branch (1-based index)
     out.push_str(&format!(
         "      use tag_dyn <- decode.field(0, decode.dynamic)\n\
-         \x20\x20\x20\x20\x20\x20case atom_or_string_to_string(tag_dyn) {{\n\
-         \x20\x20\x20\x20\x20\x20\x20\x20Ok(\"{expected_tag}\") -> decode.success(Nil)\n\
-         \x20\x20\x20\x20\x20\x20\x20\x20_ -> decode.failure(Nil, \"{type_name}\")\n\
-         \x20\x20\x20\x20\x20\x20}}\n\
-         \x20\x20\x20\x20\x20\x20use _ <- decode.then\n"
+         \x20\x20\x20\x20\x20\x20use _ <- check_tag(tag_dyn, \"{expected_tag}\")\n"
     ));
 
     for (idx, field) in variant.fields.iter().enumerate() {

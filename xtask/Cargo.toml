@@ -8,3 +8,4 @@ publish = false
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 xshell = "0.2"
+notify = "8.2.0"
