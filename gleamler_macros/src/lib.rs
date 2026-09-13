@@ -277,6 +277,7 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
                     argv,
                 );
             }
+            let _continuation_guard = ::gleamler::codegen_runtime::ContinuationGuard;
 
             let lifetime = ();
             let env = unsafe { ::gleamler::Env::new(&lifetime, nif_env) };

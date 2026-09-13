@@ -49,6 +49,15 @@ thread_local! {
     )>> = const { Cell::new(None) };
 }
 
+pub struct ContinuationGuard;
+
+impl Drop for ContinuationGuard {
+    #[inline]
+    fn drop(&mut self) {
+        CURRENT_NIF_CONTINUATION.with(|c| c.set(None));
+    }
+}
+
 /// # Safety
 /// `name` must point to a null-terminated string with static lifetime.
 pub unsafe fn set_nif_continuation(
@@ -65,6 +74,13 @@ pub unsafe fn set_nif_continuation(
 pub enum NifOutcome<T> {
     Done(T),
     Yield(SchedulerFlags),
+    YieldWith(SchedulerFlags, Vec<crate::wrapper::NIF_TERM>),
+}
+
+impl<T> NifOutcome<T> {
+    pub fn yield_with(flags: SchedulerFlags, terms: &[Term]) -> Self {
+        NifOutcome::YieldWith(flags, terms.iter().map(|t| t.as_c_arg()).collect())
+    }
 }
 
 unsafe impl<T> NifReturnable for NifOutcome<T>
@@ -89,6 +105,21 @@ where
                     flags,
                     fun,
                     args,
+                }
+            }),
+            NifOutcome::YieldWith(flags, new_args) => CURRENT_NIF_CONTINUATION.with(|c| {
+                let (name, fun, _, _) = c
+                    .get()
+                    .expect("NifOutcome::YieldWith may only be used inside a #[gleam_nif] function");
+
+                let cstr = unsafe { CStr::from_ptr(name) };
+                let fun_name = CString::from(cstr);
+
+                NifReturned::Reschedule {
+                    fun_name,
+                    flags,
+                    fun,
+                    args: new_args,
                 }
             }),
         }
