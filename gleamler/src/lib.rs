@@ -22,6 +22,7 @@ mod tests;
 mod thread;
 
 pub mod cancellation;
+pub mod log;
 #[cfg(any(feature = "nifs", feature = "stress", test))]
 pub mod nifs;
 pub mod resource;
@@ -45,6 +46,7 @@ pub use crate::env::NifOption;
 pub use crate::env::UniqueIntegerFlags;
 pub use crate::env::{Env, OwnedEnv};
 pub use crate::error::{Error, GleamlerError};
+pub use crate::log::Level as LogLevel;
 pub use crate::nif::Nif;
 pub use crate::resource::{Monitor, Resource, ResourceArc, ResourceInitError};
 pub use crate::schedule::SelectFlags;

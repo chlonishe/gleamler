@@ -87,3 +87,10 @@ fn error_debug_formatting() {
     let e = Error::BadArg;
     assert_eq!(format!("{:?}", e), "{error, badarg}");
 }
+
+#[test]
+fn test_logging_macros() {
+    crate::info!("Testing info log: {}", 42);
+    crate::warn!("Testing warn log: {}", "warning");
+    crate::error!("Testing error log: {}", true);
+}
