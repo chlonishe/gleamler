@@ -15,6 +15,9 @@ fn rescue_panic() -> Result(Int, String)
 @external(erlang, "gleamler_stress_ffi", "to_dynamic")
 fn to_dynamic(a: a) -> dynamic.Dynamic
 
+@external(erlang, "gleamler_nif_ffi", "identity")
+fn unsafe_coerce(a: a) -> b
+
 @external(erlang, "gleamler_stress_ffi", "test_process_monitor_cancellation")
 fn test_process_monitor_cancellation(
   create_fn: fn() ->
@@ -294,4 +297,19 @@ pub fn typegen_nif_map_test() {
   let res_map =
     decode.run(to_dynamic(map), gleamler_nif.server_config_decoder())
   res_map |> should.equal(Ok(gleamler_nif.ServerConfig("0.0.0.0", 80)))
+}
+
+pub fn safe_div_invalid_arg_test() {
+  let bad_arg: Float = unsafe_coerce("not_a_number")
+  let res = gleamler_nif.rust_safe_div(10.0, bad_arg)
+
+  case res {
+    Error(gleamler_nif.Custom(msg)) -> {
+      msg
+      |> should.equal(
+        "Invalid argument 'b' at position 2: failed to decode into f64",
+      )
+    }
+    _ -> panic
+  }
 }

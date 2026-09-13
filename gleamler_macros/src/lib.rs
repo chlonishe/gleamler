@@ -182,13 +182,34 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
             continue;
         }
 
+        let arg_pos = nif_arg_idx + 1;
         args_names.push(arg_ident.clone());
-        args_decoding.push(quote! {
-            let #arg_ident: #arg_type = match args[#nif_arg_idx].decode() {
-                Ok(v) => v,
-                Err(_) => return Err(::gleamler::Error::BadArg),
-            };
-        });
+
+        if is_safe {
+            args_decoding.push(quote! {
+                let #arg_ident: #arg_type = match args[#nif_arg_idx].decode() {
+                    Ok(v) => v,
+                    Err(_) => return Err(::gleamler::GleamlerError::Custom(format!(
+                        "Invalid argument '{}' at position {}: failed to decode into {}",
+                        stringify!(#arg_ident),
+                        #arg_pos,
+                        stringify!(#arg_type),
+                    ))),
+                };
+            });
+        } else {
+            args_decoding.push(quote! {
+                let #arg_ident: #arg_type = match args[#nif_arg_idx].decode() {
+                    Ok(v) => v,
+                    Err(_) => return Err(::gleamler::Error::RaiseTerm(Box::new(format!(
+                        "Invalid argument '{}' at position {}: failed to decode into {}",
+                        stringify!(#arg_ident),
+                        #arg_pos,
+                        stringify!(#arg_type),
+                    )))),
+                };
+            });
+        }
         nif_arg_idx += 1;
     }
 
@@ -223,9 +244,9 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
                 Ok(Ok(val)) => {
                     #encode_success
                 }
-                Ok(Err(_)) => {
+                Ok(Err(err)) => {
                     use ::gleamler::Encoder;
-                    let err_tuple = (::gleamler::types::atom::error(), ::gleamler::GleamlerError::BadArg).encode(env);
+                    let err_tuple = (::gleamler::types::atom::error(), err).encode(env);
                     err_tuple.as_c_arg()
                 }
                 Err(panic_err) => {
