@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 
 [features]
 default = ["nif_version_2_17"]
-stress = []
+stress = ["nifs"]
 serde = ["dep:serde"]
 nifs = []
 

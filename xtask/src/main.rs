@@ -136,9 +136,12 @@ fn build(
     if release {
         args.push("--release");
     }
-    if stress || package == "gleamler" {
+    if package == "gleamler" {
         args.push("--features");
-        args.push(if stress { "stress" } else { "nifs" });
+        args.push(if stress { "nifs,stress" } else { "nifs" });
+    } else if stress {
+        args.push("--features");
+        args.push("stress");
     }
     if let Some(t) = target {
         args.push("--target");
@@ -192,11 +195,8 @@ fn build_example(sh: &Shell, name: &str, release: bool) -> Result<()> {
     println!("==> Generating standalone FFI for {name}...");
     let erl_out = format!("{example_dir}/{name}_ffi.erl");
     let gleam_out = format!("{example_dir}/{name}.gleam");
-    cmd!(
-        sh,
-        "cargo run -p gleamler_codegen -- {example_dir} {erl_out} {gleam_out}"
-    )
-    .run()?;
+    cmd!(sh, "cargo run -p gleamler_codegen -- {example_dir} {erl_out} {gleam_out}").run()?;
+    let _ = cmd!(sh, "gleam format {gleam_out}").run();
 
     println!("\n[OK] Example '{name}' is ready!");
     println!("Generated standalone files:");

@@ -21,7 +21,7 @@ mod term;
 mod tests;
 mod thread;
 
-#[cfg(any(feature = "nifs", test))]
+#[cfg(any(feature = "nifs", feature = "stress", test))]
 pub mod nifs;
 pub mod resource;
 pub mod schedule;

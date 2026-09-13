@@ -366,9 +366,9 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
     let fallback = if std::env::var("CARGO_CRATE_NAME").as_deref() == Ok("gleamler") {
         quote! {
             {
-                #[cfg(feature = "nifs")]
+                #[cfg(any(feature = "nifs", feature = "stress"))]
                 let s: &'static [::gleamler::sys::ErlNifFunc] = ::gleamler::nifs::__generated_registry::NIFS;
-                #[cfg(not(feature = "nifs"))]
+                #[cfg(not(any(feature = "nifs", feature = "stress")))]
                 let s: &'static [::gleamler::sys::ErlNifFunc] = &[];
                 s
             }
