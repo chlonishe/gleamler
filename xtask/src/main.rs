@@ -9,7 +9,7 @@ use std::sync::mpsc::channel;
 use std::time::{Duration, Instant};
 
 #[derive(Parser, Debug)]
-#[command(name = "xtask", about = "Gleamler build & test automation")]
+#[command(name = "xtask", about = "Gleamler build & test automation", default_subcommand = "build")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -17,6 +17,8 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    /// Build Rust NIF, install to priv/, and generate Gleam stubs
+    #[command(alias = "b")]
     Build {
         #[arg(long)]
         release: bool,
@@ -26,21 +28,28 @@ enum Commands {
         target: Option<String>,
     },
 
+    /// Build a standalone example from examples/
+    #[command(alias = "ex")]
     Example {
         name: String,
         #[arg(long)]
         release: bool,
     },
 
+    /// Scaffold a new NIF crate template
     New {
         name: String,
     },
 
+    /// Regenerate Gleam FFI and decoder stubs
+    #[command(alias = "gen")]
     Codegen {
         #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
         with_stress: bool,
     },
 
+    /// Run test suites (Rust, Gleam, leak, valgrind)
+    #[command(alias = "t")]
     Test {
         #[arg(long, group = "test_group")]
         rust: bool,
@@ -55,14 +64,18 @@ enum Commands {
         all: bool,
     },
 
+    /// Clean priv/, build/, and cargo target/
+    #[command(alias = "c")]
     Clean,
 
+    /// Run full CI checks (fmt, clippy, tests, examples)
     Ci {
         #[arg(long)]
         fast: bool,
     },
 
-    /// Watch for Rust & Gleam changes, recompile NIF, run codegen and tests
+    /// Watch for changes, recompile NIF, run codegen and tests
+    #[command(alias = "w")]
     Watch {
         #[arg(long, default_value = "gleamler")]
         package: String,

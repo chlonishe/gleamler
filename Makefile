@@ -1,7 +1,10 @@
-.PHONY: all test clean leak-test valgrind-test ci
+.PHONY: all test clean leak-test valgrind-test ci watch
 
 all:
 	cargo xtask build --release --stress
+
+watch:
+	cargo xtask watch
 
 test: all
 	cargo xtask test --gleam

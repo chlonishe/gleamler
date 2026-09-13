@@ -1,5 +1,6 @@
 [alias]
 xtask = "run --manifest-path ./xtask/Cargo.toml --"
+x = "run --manifest-path ./xtask/Cargo.toml --"
 gleam-build = "build -p gleamler --release --features stress"
 gleam-test = "test -p gleamler --features stress"
 

@@ -1,5 +1,6 @@
 param(
     [switch]$Run,
+    [switch]$Watch,
     [switch]$Valgrind,
     [switch]$LeakTest,
     [switch]$DrMemory
@@ -12,7 +13,8 @@ if ($DrMemory) {
     exit 1
 }
 
-$subcmd = if ($Valgrind) { "test --valgrind" }
+$subcmd = if ($Watch) { "watch" }
+          elseif ($Valgrind) { "test --valgrind" }
           elseif ($LeakTest) { "test --leak" }
           elseif ($Run) { "test --gleam" }
           else { "build --release --stress" }
