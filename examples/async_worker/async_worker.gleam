@@ -10,6 +10,7 @@ pub type WorkerMsg {
 }
 
 /// Starts a long-running task in an OS background thread.
-/// Returns immediately to Gleam without blocking the BEAM scheduler
+/// Returns immediately to Gleam without blocking the BEAM scheduler.
+/// Automatically cancels the background thread if the calling Gleam actor dies.
 @external(erlang, "gleamler_nif_ffi", "start_work")
 pub fn rust_start_work(subject: process.Subject(WorkerMsg), steps: Int) -> Bool
