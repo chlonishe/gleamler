@@ -1,3 +1,4 @@
+use heck::ToSnakeCase;
 use syn::{
     AngleBracketedGenericArguments, ExprPath, FnArg, GenericArgument, Ident, Item, ItemFn, LitStr,
     Pat, PathArguments, ReturnType, Token, Type, TypeArray, TypePath, TypeReference, TypeSlice,
@@ -38,6 +39,7 @@ pub enum GleamTypeKind {
     UnitEnum,
     TaggedEnum,
     UntaggedEnum,
+    Tuple,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -364,6 +366,14 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> Result<String, String> {
                     }
                 }
 
+                "Cow" => {
+                    if let Some(inner) = generic_args.first() {
+                        type_to_gleam_ctx(inner, ctx)
+                    } else {
+                        Ok("Nil".into())
+                    }
+                }
+
                 "Term" => Ok("dynamic.Dynamic".into()),
                 "LocalPid" => Ok("dynamic.Dynamic".into()),
                 "LocalPort" => Ok("dynamic.Dynamic".into()),
@@ -408,7 +418,11 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> Result<String, String> {
         }
 
         Type::Slice(TypeSlice { elem, .. }) => {
-            Ok(format!("List({})", type_to_gleam_ctx(elem, ctx)?))
+            if is_u8_type(elem) {
+                Ok("BitArray".into())
+            } else {
+                Ok(format!("List({})", type_to_gleam_ctx(elem, ctx)?))
+            }
         }
 
         Type::Array(TypeArray { elem, .. }) => {
@@ -764,6 +778,18 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
             out.push_str(&custom_ty.docs.join("\n/// "));
             out.push('\n');
         }
+        if custom_ty.kind == GleamTypeKind::Tuple {
+            if let Some(v) = custom_ty.variants.first() {
+                let field_tys: Vec<String> =
+                    v.fields.iter().map(|f| f.gleam_type.clone()).collect();
+                out.push_str(&format!(
+                    "pub type {} = #({})\n\n",
+                    custom_ty.name,
+                    field_tys.join(", ")
+                ));
+            }
+            continue;
+        }
         out.push_str(&format!("pub type {} {{\n", custom_ty.name));
         for v in &custom_ty.variants {
             if !v.docs.is_empty() {
@@ -801,10 +827,11 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
             out.push('\n');
         }
         let erl_name = f.alias.as_ref().unwrap_or(&f.name);
+        let base_name = clean_name(erl_name).to_snake_case();
         let gleam_name = if f.no_prefix {
-            clean_name(erl_name)
+            base_name
         } else {
-            format!("rust_{}", clean_name(erl_name))
+            format!("rust_{}", base_name)
         };
         let args: Vec<_> = f
             .args
@@ -894,18 +921,22 @@ pub fn parse_nif_types(source: &str) -> Vec<GleamCustomType> {
         match item {
             Item::Struct(s) => {
                 let is_record = has_derive(&s.attrs, "NifRecord");
-                if !is_record {
+                let is_tuple = has_derive(&s.attrs, "NifTuple");
+                if !is_record && !is_tuple {
                     continue;
                 }
                 let struct_name = s.ident.to_string();
                 let mut fields = Vec::new();
 
                 for (idx, f) in s.fields.iter().enumerate() {
-                    let field_name = f
-                        .ident
-                        .as_ref()
-                        .map(|id| clean_name(&id.to_string()))
-                        .or_else(|| Some(format!("field_{idx}")));
+                    let field_name = if is_tuple {
+                        None
+                    } else {
+                        f.ident
+                            .as_ref()
+                            .map(|id| clean_name(&id.to_string()))
+                            .or_else(|| Some(format!("field_{idx}")))
+                    };
                     if let Ok(gleam_ty) = type_to_gleam_ctx(&f.ty, &struct_name) {
                         fields.push(GleamTypeField {
                             name: field_name,
@@ -914,16 +945,29 @@ pub fn parse_nif_types(source: &str) -> Vec<GleamCustomType> {
                     }
                 }
 
-                types.push(GleamCustomType {
-                    name: struct_name.clone(),
-                    kind: GleamTypeKind::Record,
-                    variants: vec![GleamVariant {
+                if is_record {
+                    types.push(GleamCustomType {
+                        name: struct_name.clone(),
+                        kind: GleamTypeKind::Record,
+                        variants: vec![GleamVariant {
+                            name: struct_name,
+                            fields,
+                            docs: Vec::new(),
+                        }],
+                        docs: extract_docs(&s.attrs),
+                    });
+                } else if is_tuple {
+                    types.push(GleamCustomType {
                         name: struct_name,
-                        fields,
-                        docs: Vec::new(),
-                    }],
-                    docs: extract_docs(&s.attrs),
-                });
+                        kind: GleamTypeKind::Tuple,
+                        variants: vec![GleamVariant {
+                            name: String::new(),
+                            fields,
+                            docs: Vec::new(),
+                        }],
+                        docs: extract_docs(&s.attrs),
+                    });
+                }
             }
             Item::Enum(e) => {
                 let is_unit_enum = has_derive(&e.attrs, "NifUnitEnum");
@@ -1476,5 +1520,46 @@ pub fn heavy(n: i64) -> i64 { n }
     fn type_to_gleam_system_time() {
         let ty: Type = parse_quote!(std::time::SystemTime);
         assert_eq!(type_to_gleam(&ty), "#(Int, Int, Int)");
+    }
+
+    #[test]
+    fn type_to_gleam_cow() {
+        let ty: Type = parse_quote!(Cow<'a, str>);
+        assert_eq!(type_to_gleam(&ty), "String");
+        let ty: Type = parse_quote!(Cow<'a, [u8]>);
+        assert_eq!(type_to_gleam(&ty), "BitArray");
+    }
+
+    #[test]
+    fn parse_nif_tuple_struct() {
+        let src = r#"
+        #[derive(NifTuple)]
+        pub struct Point {
+            pub x: f64,
+            pub y: f64,
+        }
+        "#;
+        let types = parse_nif_types(src);
+        assert_eq!(types.len(), 1);
+        assert_eq!(types[0].name, "Point");
+        assert_eq!(types[0].kind, GleamTypeKind::Tuple);
+        let out = generate_gleam(&[], &types, "my_ffi");
+        assert!(out.contains("pub type Point = #(Float, Float)"));
+    }
+
+    #[test]
+    fn test_gleam_function_name_casing() {
+        let funcs = vec![NifFunc {
+            name: "calculateTotal".into(),
+            alias: None,
+            args: vec![],
+            ret: "Int".into(),
+            arity: 0,
+            docs: vec![],
+            is_safe: false,
+            no_prefix: false,
+        }];
+        let out = generate_gleam(&funcs, &[], "my_ffi");
+        assert!(out.contains("pub fn rust_calculate_total() -> Int"));
     }
 }

@@ -108,9 +108,9 @@ where
                 }
             }),
             NifOutcome::YieldWith(flags, new_args) => CURRENT_NIF_CONTINUATION.with(|c| {
-                let (name, fun, _, _) = c
-                    .get()
-                    .expect("NifOutcome::YieldWith may only be used inside a #[gleam_nif] function");
+                let (name, fun, _, _) = c.get().expect(
+                    "NifOutcome::YieldWith may only be used inside a #[gleam_nif] function",
+                );
 
                 let cstr = unsafe { CStr::from_ptr(name) };
                 let fun_name = CString::from(cstr);
