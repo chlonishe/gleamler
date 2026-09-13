@@ -2,7 +2,10 @@
 name = "gleamler_codegen"
 version = "0.1.0"
 edition = "2024"
+authors = ["Chlon (@chlonishe)"]
 license = "MIT OR Apache-2.0"
+description = "Code generator for Gleamler NIF bindings and decoders"
+repository = "https://github.com/chlonishe/gleamler"
 
 [dependencies]
 syn = { version = "3.0", features = ["full"] }

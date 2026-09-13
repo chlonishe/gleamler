@@ -2,7 +2,10 @@
 name = "gleamler_macros"
 version = "0.1.0"
 edition = "2024"
+authors = ["Chlon (@chlonishe)"]
 license = "MIT OR Apache-2.0"
+description = "Procedural macros for the Gleamler NIF framework"
+repository = "https://github.com/chlonishe/gleamler"
 
 [lib]
 proc-macro = true

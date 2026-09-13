@@ -2,8 +2,10 @@
 name = "gleamler"
 version = "0.1.0"
 edition = "2024"
-build = "build.rs"
+authors = ["Chlon (@chlonishe)"]
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/chlonishe/gleamler"
+description = "Safe and efficient Rust NIF framework for Gleam"
 
 [features]
 default = ["nif_version_2_17"]
