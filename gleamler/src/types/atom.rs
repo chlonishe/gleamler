@@ -148,6 +148,12 @@ impl Atom {
 
     /// Return the atom whose text representation is the given `string`.
     ///
+    /// # Warning
+    /// Atoms in the Erlang VM are not garbage collected and the atom table
+    /// has a hard limit (by default 1,048,576 atoms). Do not use this function
+    /// with arbitrary user-supplied input to prevent atom exhaustion denial-of-service.
+    /// Use [`existing_from_str`](Self::existing_from_str) instead for untrusted input.
+    ///
     /// # Errors
     /// `Error::BadArg` if atom creation fails.
     pub fn from_str(env: Env, string: &str) -> NifResult<Self> {
