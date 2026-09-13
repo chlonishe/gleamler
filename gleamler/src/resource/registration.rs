@@ -58,6 +58,9 @@ impl Registration {
     /// Register all resource types that have been submitted to the inventory.
     /// Also processes fallback registrations for cdylib / LTO builds.
     pub fn register_all_collected(env: Env) -> Result<(), ResourceInitError> {
+        let _ = env.register::<crate::cancellation::CancellationResource>();
+        let _ = env.register::<crate::yielder::Yielder>();
+
         let mut seen = std::collections::HashSet::new();
 
         for reg in inventory::iter::<Registration>() {
