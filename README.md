@@ -99,7 +99,7 @@ edition = "2024"
 crate-type = ["cdylib"]
 
 [dependencies]
-gleamler = "0.1"
+gleamler = "0.1.1"
 ```
 
 ### 3. Write your NIF
