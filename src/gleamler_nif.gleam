@@ -2,6 +2,8 @@
 // Do not edit
 
 import gleam/dict
+import gleam/dynamic
+import gleam/dynamic/decode
 import gleam/option
 
 pub opaque type Resource(a) {
@@ -27,9 +29,32 @@ pub type GleamlerError {
   Custom(String)
 }
 
+@external(erlang, "gleamler_nif_ffi", "atom_or_string_to_string")
+@internal
+pub fn atom_or_string_to_string(term: dynamic.Dynamic) -> Result(String, Nil)
+
 /// A user record synchronized between Rust and Gleam
 pub type User {
   User(id: Int, name: String, is_active: Bool)
+}
+
+pub fn user_decoder() -> decode.Decoder(User) {
+  decode.one_of(
+    {
+      use id <- decode.field(1, decode.int)
+      use name <- decode.field(2, decode.string)
+      use is_active <- decode.field(3, decode.bool)
+      decode.success(User(id: id, name: name, is_active: is_active))
+    },
+    [
+      {
+        use id <- decode.field("id", decode.int)
+        use name <- decode.field("name", decode.string)
+        use is_active <- decode.field("is_active", decode.bool)
+        decode.success(User(id: id, name: name, is_active: is_active))
+      },
+    ],
+  )
 }
 
 /// Status enum synchronized between Rust and Gleam
@@ -37,6 +62,16 @@ pub type UserStatus {
   Pending
   Active
   Banned
+}
+
+pub fn user_status_decoder() -> decode.Decoder(UserStatus) {
+  use dyn <- decode.then(decode.dynamic)
+  case atom_or_string_to_string(dyn) {
+    Ok("pending") | Ok("Pending") -> decode.success(Pending)
+    Ok("active") | Ok("Active") -> decode.success(Active)
+    Ok("banned") | Ok("Banned") -> decode.success(Banned)
+    _ -> decode.failure(Pending, "UserStatus")
+  }
 }
 
 @external(erlang, "gleamler_nif_ffi", "make_user")

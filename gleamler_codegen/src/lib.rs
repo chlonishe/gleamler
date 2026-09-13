@@ -573,13 +573,15 @@ fn parse_nif_function(func: ItemFn) -> Result<NifFunc, String> {
 }
 
 pub fn generate_erl(funcs: &[NifFunc], erl_module: &str, lib_name: &str) -> String {
-    let exports: Vec<_> = funcs
+    let mut exports: Vec<_> = funcs
         .iter()
         .map(|f| {
             let name = f.alias.as_ref().unwrap_or(&f.name);
             format!("{}/{}", name, f.arity)
         })
         .collect();
+    exports.push("atom_or_string_to_string/1".to_string());
+
     let stubs: Vec<_> = funcs
         .iter()
         .map(|f| {
@@ -607,6 +609,9 @@ init() ->
         ok -> ok;
         Error -> io:format("[Gleamler NIF] Load error: ~p~n", [Error]), Error
     end.
+atom_or_string_to_string(Term) when is_atom(Term) -> {{ok, atom_to_binary(Term, utf8)}};
+atom_or_string_to_string(Term) when is_binary(Term) -> {{ok, Term}};
+atom_or_string_to_string(_) -> {{error, nil}}.
 {}"#,
         exports.join(", "),
         stubs.join("\n")
@@ -647,6 +652,18 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
     let has_gleamler_error = funcs
         .iter()
         .any(|f| f.ret.contains("GleamlerError") || f.is_safe);
+
+    let has_decode = types.iter().any(|ct| {
+        matches!(
+            ct.kind,
+            GleamTypeKind::Record | GleamTypeKind::UnitEnum | GleamTypeKind::Tuple
+        )
+    });
+
+    let has_unit_enum = types.iter().any(|ct| ct.kind == GleamTypeKind::UnitEnum);
+    if has_unit_enum {
+        has_dynamic = true;
+    }
 
     let check_type_str = |t: &str,
                           opt: &mut bool,
@@ -740,6 +757,9 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
     if has_dynamic {
         imports.push("import gleam/dynamic");
     }
+    if has_decode {
+        imports.push("import gleam/dynamic/decode");
+    }
     if has_process {
         imports.push("import gleam/erlang/process");
     }
@@ -770,6 +790,12 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
             "\npub type GleamlerError {\n  BadArg\n  Panic(String)\n  Custom(String)\n}\n",
         );
     }
+
+    if has_unit_enum {
+        out.push_str(&format!(
+            "@internal\n@external(erlang, \"{erl_module}\", \"atom_or_string_to_string\")\npub fn atom_or_string_to_string(term: dynamic.Dynamic) -> Result(String, Nil)\n\n"
+        ));
+    }
     out.push('\n');
 
     for custom_ty in types {
@@ -788,8 +814,10 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
                     field_tys.join(", ")
                 ));
             }
+            generate_tuple_decoder(&mut out, custom_ty);
             continue;
         }
+
         out.push_str(&format!("pub type {} {{\n", custom_ty.name));
         for v in &custom_ty.variants {
             if !v.docs.is_empty() {
@@ -815,6 +843,12 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
             }
         }
         out.push_str("}\n\n");
+
+        match custom_ty.kind {
+            GleamTypeKind::Record => generate_record_decoder(&mut out, custom_ty),
+            GleamTypeKind::UnitEnum => generate_unit_enum_decoder(&mut out, custom_ty),
+            _ => {}
+        }
     }
 
     for (i, f) in funcs.iter().enumerate() {
@@ -1035,6 +1069,190 @@ pub fn parse_nif_types(source: &str) -> Vec<GleamCustomType> {
     types
 }
 
+fn gleam_type_to_decoder(ty: &str) -> String {
+    let ty = ty.trim();
+    match ty {
+        "Int" => "decode.int".to_string(),
+        "Float" => "decode.float".to_string(),
+        "String" => "decode.string".to_string(),
+        "Bool" => "decode.bool".to_string(),
+        "BitArray" => "decode.bit_array".to_string(),
+        "dynamic.Dynamic" => "decode.dynamic".to_string(),
+        _ => {
+            if let Some(inner) = ty.strip_prefix("List(").and_then(|s| s.strip_suffix(')')) {
+                format!("decode.list({})", gleam_type_to_decoder(inner))
+            } else if let Some(inner) = ty
+                .strip_prefix("option.Option(")
+                .and_then(|s| s.strip_suffix(')'))
+            {
+                format!("decode.optional({})", gleam_type_to_decoder(inner))
+            } else if let Some(inner) = ty
+                .strip_prefix("dict.Dict(")
+                .and_then(|s| s.strip_suffix(')'))
+            {
+                if let Some((k, v)) = split_generic_two(inner) {
+                    format!(
+                        "decode.dict({}, {})",
+                        gleam_type_to_decoder(k),
+                        gleam_type_to_decoder(v)
+                    )
+                } else {
+                    "decode.dynamic".to_string()
+                }
+            } else {
+                format!("{}_decoder()", ty.to_snake_case())
+            }
+        }
+    }
+}
+
+fn split_generic_two(s: &str) -> Option<(&str, &str)> {
+    let mut depth = 0;
+    for (i, c) in s.char_indices() {
+        match c {
+            '(' => depth += 1,
+            ')' => depth -= 1,
+            ',' if depth == 0 => {
+                let first = s[..i].trim();
+                let second = s[i + 1..].trim();
+                return Some((first, second));
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+fn generate_record_decoder(out: &mut String, ty: &GleamCustomType) {
+    let fn_name = format!("{}_decoder", ty.name.to_snake_case());
+    let type_name = &ty.name;
+    let variant = match ty.variants.first() {
+        Some(v) => v,
+        None => return,
+    };
+
+    out.push_str(&format!(
+        "pub fn {}() -> decode.Decoder({}) {{\n",
+        fn_name, type_name
+    ));
+
+    if variant.fields.is_empty() {
+        out.push_str(&format!("  decode.success({})\n}}\n\n", variant.name));
+        return;
+    }
+
+    out.push_str("  decode.one_of(\n    {\n");
+
+    // 1. Erlang tuple record branch (1-based index)
+    for (idx, field) in variant.fields.iter().enumerate() {
+        let raw_name = field.name.as_deref().unwrap_or("arg");
+        let var_name = clean_name(raw_name);
+        let decoder = gleam_type_to_decoder(&field.gleam_type);
+        out.push_str(&format!(
+            "      use {} <- decode.field({}, {})\n",
+            var_name,
+            idx + 1,
+            decoder
+        ));
+    }
+    let args: Vec<String> = variant
+        .fields
+        .iter()
+        .map(|f| {
+            let raw_name = f.name.as_deref().unwrap_or("arg");
+            let var_name = clean_name(raw_name);
+            if f.name.is_some() {
+                format!("{}: {}", var_name, var_name)
+            } else {
+                var_name
+            }
+        })
+        .collect();
+    out.push_str(&format!(
+        "      decode.success({}({}))\n    }},\n    [\n      {{\n",
+        variant.name,
+        args.join(", ")
+    ));
+
+    // 2. Map / JSON branch (string keys)
+    for field in &variant.fields {
+        let raw_name = field.name.as_deref().unwrap_or("arg");
+        let var_name = clean_name(raw_name);
+        let map_key = raw_name
+            .trim_start_matches('_')
+            .strip_prefix("r#")
+            .unwrap_or(raw_name);
+        let decoder = gleam_type_to_decoder(&field.gleam_type);
+        out.push_str(&format!(
+            "        use {} <- decode.field(\"{}\", {})\n",
+            var_name, map_key, decoder
+        ));
+    }
+    out.push_str(&format!(
+        "        decode.success({}({}))\n      }},\n    ],\n  )\n}}\n\n",
+        variant.name,
+        args.join(", ")
+    ));
+}
+
+fn generate_unit_enum_decoder(out: &mut String, ty: &GleamCustomType) {
+    if ty.variants.is_empty() {
+        return;
+    }
+    let fn_name = format!("{}_decoder", ty.name.to_snake_case());
+    let type_name = &ty.name;
+    let first_variant = &ty.variants[0].name;
+
+    out.push_str(&format!(
+        "pub fn {}() -> decode.Decoder({}) {{\n",
+        fn_name, type_name
+    ));
+    out.push_str(
+        "  use dyn <- decode.then(decode.dynamic)\n  case atom_or_string_to_string(dyn) {\n",
+    );
+
+    for v in &ty.variants {
+        let name = &v.name;
+        let snake = name.to_snake_case();
+        out.push_str(&format!(
+            "    Ok(\"{}\") | Ok(\"{}\") -> decode.success({})\n",
+            snake, name, name
+        ));
+    }
+
+    out.push_str(&format!(
+        "    _ -> decode.failure({}, \"{}\")\n  }}\n}}\n\n",
+        first_variant, type_name
+    ));
+}
+
+fn generate_tuple_decoder(out: &mut String, ty: &GleamCustomType) {
+    let variant = match ty.variants.first() {
+        Some(v) => v,
+        None => return,
+    };
+    let fn_name = format!("{}_decoder", ty.name.to_snake_case());
+    let type_name = &ty.name;
+
+    out.push_str(&format!(
+        "pub fn {}() -> decode.Decoder({}) {{\n",
+        fn_name, type_name
+    ));
+
+    for (idx, field) in variant.fields.iter().enumerate() {
+        let decoder = gleam_type_to_decoder(&field.gleam_type);
+        out.push_str(&format!(
+            "  use field_{} <- decode.field({}, {})\n",
+            idx, idx, decoder
+        ));
+    }
+
+    let vars: Vec<String> = (0..variant.fields.len())
+        .map(|i| format!("field_{}", i))
+        .collect();
+    out.push_str(&format!("  decode.success(#({}))\n}}\n\n", vars.join(", ")));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1108,7 +1326,8 @@ pub fn heavy(n: i64) -> i64 { n }
             no_prefix: false,
         }];
         let out = generate_erl(&funcs, DEFAULT_ERL_MODULE, DEFAULT_LIB_NAME);
-        assert!(out.contains("-export([add/2])."));
+        assert!(out.contains("add/2"));
+        assert!(out.contains("atom_or_string_to_string/1"));
         assert!(out.contains("add(_Arg0, _Arg1) -> exit(nif_library_not_loaded)."));
         assert!(out.contains("-module(gleamler_nif_ffi)."));
     }
@@ -1561,5 +1780,35 @@ pub fn heavy(n: i64) -> i64 { n }
         }];
         let out = generate_gleam(&funcs, &[], "my_ffi");
         assert!(out.contains("pub fn rust_calculate_total() -> Int"));
+    }
+
+    #[test]
+    fn test_generate_decoders_record_and_enum() {
+        let src = r#"
+        #[derive(NifRecord)]
+        pub struct Person {
+            pub name: String,
+            pub age: i64,
+        }
+
+        #[derive(NifUnitEnum)]
+        pub enum Color {
+            Red,
+            Green,
+            Blue,
+        }
+        "#;
+        let types = parse_nif_types(src);
+        assert_eq!(types.len(), 2);
+        let out = generate_gleam(&[], &types, "my_ffi");
+        assert!(out.contains("import gleam/dynamic/decode"));
+        assert!(out.contains("pub fn person_decoder() -> decode.Decoder(Person)"));
+        assert!(out.contains("use name <- decode.field(1, decode.string)"));
+        assert!(out.contains("use age <- decode.field(2, decode.int)"));
+        assert!(out.contains("use name <- decode.field(\"name\", decode.string)"));
+        assert!(out.contains("use age <- decode.field(\"age\", decode.int)"));
+        assert!(out.contains("pub fn color_decoder() -> decode.Decoder(Color)"));
+        assert!(out.contains("Ok(\"red\") | Ok(\"Red\") -> decode.success(Red)"));
+        assert!(out.contains("_ -> decode.failure(Red, \"Color\")"));
     }
 }

@@ -1,4 +1,6 @@
 import gleam/dict
+import gleam/dynamic
+import gleam/dynamic/decode
 import gleam/int
 import gleam/list
 import gleam/option
@@ -8,6 +10,9 @@ import gleeunit/should
 
 @external(erlang, "gleamler_stress_ffi", "rescue_panic")
 fn rescue_panic() -> Result(Int, String)
+
+@external(erlang, "gleamler_stress_ffi", "to_dynamic")
+fn to_dynamic(a: a) -> dynamic.Dynamic
 
 pub fn main() {
   gleeunit.main()
@@ -196,4 +201,27 @@ pub fn safe_panic_recovery_test() {
 
   gleamler_nif.rust_safe_panic_recovery(False)
   |> should.equal(Ok(42))
+}
+
+pub fn decoder_record_tuple_test() {
+  let user = gleamler_nif.rust_make_user(42, "Bob")
+  let res = decode.run(to_dynamic(user), gleamler_nif.user_decoder())
+  res |> should.equal(Ok(user))
+}
+
+pub fn decoder_record_map_test() {
+  let map =
+    dict.from_list([
+      #("id", to_dynamic(99)),
+      #("name", to_dynamic("Eve")),
+      #("is_active", to_dynamic(False)),
+    ])
+  let res = decode.run(to_dynamic(map), gleamler_nif.user_decoder())
+  res |> should.equal(Ok(gleamler_nif.User(99, "Eve", False)))
+}
+
+pub fn decoder_unit_enum_test() {
+  let status = gleamler_nif.Active
+  let res = decode.run(to_dynamic(status), gleamler_nif.user_status_decoder())
+  res |> should.equal(Ok(gleamler_nif.Active))
 }
