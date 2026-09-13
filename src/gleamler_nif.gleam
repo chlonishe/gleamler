@@ -15,6 +15,10 @@ pub fn resource_dummy() -> Resource(a) {
   Resource
 }
 
+pub type CancellationToken {
+  CancellationToken
+}
+
 pub type Counter {
   Counter
 }
@@ -165,6 +169,23 @@ pub fn rust_safe_div(a: Float, b: Float) -> Result(Float, GleamlerError)
 
 @external(erlang, "gleamler_nif_ffi", "safe_panic_recovery")
 pub fn rust_safe_panic_recovery(trigger: Bool) -> Result(Int, GleamlerError)
+
+@external(erlang, "gleamler_nif_ffi", "cancel_token_new")
+pub fn rust_cancel_token_new() -> Resource(CancellationToken)
+
+@external(erlang, "gleamler_nif_ffi", "cancel_token_for_caller")
+pub fn rust_cancel_token_for_caller() -> Result(
+  Resource(CancellationToken),
+  GleamlerError,
+)
+
+@external(erlang, "gleamler_nif_ffi", "cancel_token_is_cancelled")
+pub fn rust_cancel_token_is_cancelled(
+  token: Resource(CancellationToken),
+) -> Bool
+
+@external(erlang, "gleamler_nif_ffi", "cancel_token_cancel")
+pub fn rust_cancel_token_cancel(token: Resource(CancellationToken)) -> Nil
 
 @external(erlang, "gleamler_nif_ffi", "stress_i128_min")
 pub fn rust_stress_i128_min() -> Int

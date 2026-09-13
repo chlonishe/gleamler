@@ -1,5 +1,5 @@
 -module(gleamler_nif_ffi).
--export([make_user/2, user_get_name/1, is_user_banned/1, counter_new/1, counter_read/1, cooperative_count/1, add/2, sub/2, greet/1, double_list/1, is_positive/1, divide/2, make_pair/2, factorial/1, fib/1, echo_i128/1, echo_u128/1, mul/2, net_ip_roundtrip/1, net_socket_roundtrip/1, net_socket_v4_roundtrip/1, net_socket_v6_roundtrip/1, collections_hashset_roundtrip/1, collections_btreeset_roundtrip/1, collections_vecdeque_roundtrip/1, collections_linkedlist_roundtrip/1, collections_btreemap_roundtrip/1, time_system_time_roundtrip/1, safe_div/2, safe_panic_recovery/1, stress_i128_min/0, stress_i128_max/0, stress_u128_max/0, stress_i64_max/0, stress_u64_max/0, stress_add_wrap/2, stress_mul_wrap/2, stress_repeat_string/2, stress_string_len/1, stress_sum_list/1, stress_reverse_list/1, stress_panic/1, stress_dirty_cpu/1, stress_dirty_io/1, stress_float_div/2, stress_tuple_swap/2, stress_maybe_div/2, stress_safe_sqrt/1, stress_now_ms/0, stress_float_is_special/1, stress_resource_roundtrip/0, stress_resource_intentional_leak/0, atom_or_string_to_string/1]).
+-export([make_user/2, user_get_name/1, is_user_banned/1, counter_new/1, counter_read/1, cooperative_count/1, add/2, sub/2, greet/1, double_list/1, is_positive/1, divide/2, make_pair/2, factorial/1, fib/1, echo_i128/1, echo_u128/1, mul/2, net_ip_roundtrip/1, net_socket_roundtrip/1, net_socket_v4_roundtrip/1, net_socket_v6_roundtrip/1, collections_hashset_roundtrip/1, collections_btreeset_roundtrip/1, collections_vecdeque_roundtrip/1, collections_linkedlist_roundtrip/1, collections_btreemap_roundtrip/1, time_system_time_roundtrip/1, safe_div/2, safe_panic_recovery/1, cancel_token_new/0, cancel_token_for_caller/0, cancel_token_is_cancelled/1, cancel_token_cancel/1, stress_i128_min/0, stress_i128_max/0, stress_u128_max/0, stress_i64_max/0, stress_u64_max/0, stress_add_wrap/2, stress_mul_wrap/2, stress_repeat_string/2, stress_string_len/1, stress_sum_list/1, stress_reverse_list/1, stress_panic/1, stress_dirty_cpu/1, stress_dirty_io/1, stress_float_div/2, stress_tuple_swap/2, stress_maybe_div/2, stress_safe_sqrt/1, stress_now_ms/0, stress_float_is_special/1, stress_resource_roundtrip/0, stress_resource_intentional_leak/0, atom_or_string_to_string/1]).
 -on_load(init/0).
 init() ->
     PrivDir = case code:which(?MODULE) of
@@ -45,6 +45,10 @@ collections_btreemap_roundtrip(_Arg0) -> exit(nif_library_not_loaded).
 time_system_time_roundtrip(_Arg0) -> exit(nif_library_not_loaded).
 safe_div(_Arg0, _Arg1) -> exit(nif_library_not_loaded).
 safe_panic_recovery(_Arg0) -> exit(nif_library_not_loaded).
+cancel_token_new() -> exit(nif_library_not_loaded).
+cancel_token_for_caller() -> exit(nif_library_not_loaded).
+cancel_token_is_cancelled(_Arg0) -> exit(nif_library_not_loaded).
+cancel_token_cancel(_Arg0) -> exit(nif_library_not_loaded).
 stress_i128_min() -> exit(nif_library_not_loaded).
 stress_i128_max() -> exit(nif_library_not_loaded).
 stress_u128_max() -> exit(nif_library_not_loaded).

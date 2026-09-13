@@ -1,4 +1,5 @@
 use crate::GleamlerError;
+use crate::cancellation::CancellationToken;
 use crate::schedule::SchedulerFlags;
 #[cfg(feature = "stress")]
 use crate::stress_nifs::ValgrindTestResource;
@@ -85,6 +86,10 @@ pub fn cooperative_count(counter: ResourceArc<Counter>) -> NifOutcome<i64> {
 fn on_load(env: Env, _info: Term) -> bool {
     #[allow(unused_mut)]
     let mut ok = env.register::<Counter>().is_ok();
+    ok = ok
+        && env
+            .register::<crate::cancellation::CancellationResource>()
+            .is_ok();
     #[cfg(feature = "stress")]
     {
         ok = ok && env.register::<ValgrindTestResource>().is_ok();
@@ -214,8 +219,6 @@ pub fn time_system_time_roundtrip(t: SystemTime) -> SystemTime {
     t
 }
 
-init_nifs!(load = on_load);
-
 #[gleam_nif(safe)]
 pub fn safe_div(a: f64, b: f64) -> Result<f64, GleamlerError> {
     if b == 0.0 {
@@ -232,3 +235,26 @@ pub fn safe_panic_recovery(trigger: bool) -> i64 {
     }
     42
 }
+
+#[gleam_nif]
+pub fn cancel_token_new() -> CancellationToken {
+    CancellationToken::new()
+}
+
+#[gleam_nif]
+pub fn cancel_token_for_caller(env: Env) -> Result<CancellationToken, GleamlerError> {
+    env.cancellation_token()
+        .map_err(|_| GleamlerError::Custom("failed to create token".to_string()))
+}
+
+#[gleam_nif]
+pub fn cancel_token_is_cancelled(token: CancellationToken) -> bool {
+    token.is_cancelled()
+}
+
+#[gleam_nif]
+pub fn cancel_token_cancel(token: CancellationToken) {
+    token.cancel();
+}
+
+init_nifs!(load = on_load);

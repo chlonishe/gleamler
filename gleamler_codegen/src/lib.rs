@@ -374,6 +374,8 @@ fn type_to_gleam_ctx(ty: &Type, ctx: &str) -> Result<String, String> {
                     }
                 }
 
+                "CancellationToken" => Ok("Resource(CancellationToken)".into()),
+
                 "Term" => Ok("dynamic.Dynamic".into()),
                 "LocalPid" => Ok("dynamic.Dynamic".into()),
                 "LocalPort" => Ok("dynamic.Dynamic".into()),
@@ -1810,5 +1812,10 @@ pub fn heavy(n: i64) -> i64 { n }
         assert!(out.contains("pub fn color_decoder() -> decode.Decoder(Color)"));
         assert!(out.contains("Ok(\"red\") | Ok(\"Red\") -> decode.success(Red)"));
         assert!(out.contains("_ -> decode.failure(Red, \"Color\")"));
+    }
+    #[test]
+    fn type_to_gleam_cancellation_token() {
+        let ty: Type = parse_quote!(CancellationToken);
+        assert_eq!(type_to_gleam(&ty), "Resource(CancellationToken)");
     }
 }

@@ -331,6 +331,12 @@ impl<'a> Env<'a> {
         if res == 0 { Ok(()) } else { Err(Error::BadArg) }
     }
 
+    /// Creates a cancellation token tied to the calling Erlang/Gleam process.
+    /// If the process terminates, the token will automatically be cancelled.
+    pub fn cancellation_token(self) -> Result<crate::cancellation::CancellationToken, Error> {
+        crate::cancellation::CancellationToken::for_caller(self)
+    }
+
     /// Returns the atom cache index of an existing atom term.
     /// Requires NIF version ≥ 2.18 (OTP 29+).
     #[inline]

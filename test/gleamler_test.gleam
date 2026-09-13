@@ -14,6 +14,18 @@ fn rescue_panic() -> Result(Int, String)
 @external(erlang, "gleamler_stress_ffi", "to_dynamic")
 fn to_dynamic(a: a) -> dynamic.Dynamic
 
+@external(erlang, "gleamler_stress_ffi", "test_process_monitor_cancellation")
+fn test_process_monitor_cancellation(
+  create_fn: fn() ->
+    Result(
+      gleamler_nif.Resource(gleamler_nif.CancellationToken),
+      gleamler_nif.GleamlerError,
+    ),
+) -> Result(
+  gleamler_nif.Resource(gleamler_nif.CancellationToken),
+  gleamler_nif.GleamlerError,
+)
+
 pub fn main() {
   gleeunit.main()
 }
@@ -224,4 +236,25 @@ pub fn decoder_unit_enum_test() {
   let status = gleamler_nif.Active
   let res = decode.run(to_dynamic(status), gleamler_nif.user_status_decoder())
   res |> should.equal(Ok(gleamler_nif.Active))
+}
+
+pub fn cancel_token_manual_test() {
+  let token = gleamler_nif.rust_cancel_token_new()
+  gleamler_nif.rust_cancel_token_is_cancelled(token)
+  |> should.equal(False)
+
+  gleamler_nif.rust_cancel_token_cancel(token)
+  gleamler_nif.rust_cancel_token_is_cancelled(token)
+  |> should.equal(True)
+}
+
+pub fn cancel_token_process_death_test() {
+  let res =
+    test_process_monitor_cancellation(fn() {
+      gleamler_nif.rust_cancel_token_for_caller()
+    })
+
+  let assert Ok(token) = res
+  gleamler_nif.rust_cancel_token_is_cancelled(token)
+  |> should.equal(True)
 }

@@ -21,6 +21,7 @@ mod term;
 mod tests;
 mod thread;
 
+pub mod cancellation;
 #[cfg(any(feature = "nifs", feature = "stress", test))]
 pub mod nifs;
 pub mod resource;
@@ -35,6 +36,7 @@ pub mod serde;
 pub use crate::serde::SerdeTerm;
 
 pub use crate::alloc::EnifAllocator;
+pub use crate::cancellation::{CancellationResource, CancellationToken};
 pub use crate::codegen_runtime::NifOutcome;
 pub use crate::dynamic::TermType;
 #[cfg(feature = "nif_version_2_17")]
