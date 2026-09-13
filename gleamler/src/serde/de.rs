@@ -211,6 +211,15 @@ impl<'de, 'a: 'de> de::Deserializer<'de> for Deserializer<'a> {
     where
         V: Visitor<'de>,
     {
+        if self.term.is_atom() {
+            if atoms::nan() == self.term {
+                return visitor.visit_f32(f32::NAN);
+            } else if atoms::inf() == self.term {
+                return visitor.visit_f32(f32::INFINITY);
+            } else if atoms::neg_inf() == self.term {
+                return visitor.visit_f32(f32::NEG_INFINITY);
+            }
+        }
         visitor.visit_f32(util::parse_number(&self.term)?)
     }
 
@@ -219,6 +228,15 @@ impl<'de, 'a: 'de> de::Deserializer<'de> for Deserializer<'a> {
     where
         V: Visitor<'de>,
     {
+        if self.term.is_atom() {
+            if atoms::nan() == self.term {
+                return visitor.visit_f64(f64::NAN);
+            } else if atoms::inf() == self.term {
+                return visitor.visit_f64(f64::INFINITY);
+            } else if atoms::neg_inf() == self.term {
+                return visitor.visit_f64(f64::NEG_INFINITY);
+            }
+        }
         visitor.visit_f64(util::parse_number(&self.term)?)
     }
 

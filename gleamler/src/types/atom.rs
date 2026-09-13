@@ -199,6 +199,12 @@ impl<'a> PartialEq<Term<'a>> for Atom {
     }
 }
 
+impl<'a> PartialEq<Atom> for Term<'a> {
+    fn eq(&self, other: &Atom) -> bool {
+        self.as_c_arg() == other.as_c_arg()
+    }
+}
+
 /// ## Atom terms
 impl Term<'_> {
     /// When the term is an atom, this method will return the string
