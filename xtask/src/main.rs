@@ -385,6 +385,11 @@ fn ci(sh: &Shell, fast: bool) -> Result<()> {
     cmd!(sh, "gleam format --check").run()?;
     test_gleam(sh)?;
 
+    println!("==> CI: checking examples...");
+    for example in ["hello", "counter", "dirty", "serde_demo", "async_worker"] {
+        build_example(sh, example, false)?;
+    }
+
     if !fast {
         if has_cargo_subcommand(sh, "deny") {
             println!("==> CI: cargo deny");
