@@ -1,5 +1,5 @@
 -module(gleamler_nif_ffi).
--export([inspect_point/1, make_point/2, atom_or_string_to_string/1]).
+-export([inspect_point/1, make_point/2, atom_or_string_to_string/1, identity/1]).
 -on_load(init/0).
 init() ->
     PrivDir = case code:which(?MODULE) of
@@ -15,5 +15,6 @@ init() ->
 atom_or_string_to_string(Term) when is_atom(Term) -> {ok, atom_to_binary(Term, utf8)};
 atom_or_string_to_string(Term) when is_binary(Term) -> {ok, Term};
 atom_or_string_to_string(_) -> {error, nil}.
+identity(X) -> X.
 inspect_point(_Arg0) -> exit(nif_library_not_loaded).
 make_point(_Arg0, _Arg1) -> exit(nif_library_not_loaded).

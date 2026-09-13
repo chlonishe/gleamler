@@ -29,6 +29,7 @@ pub mod schedule;
 #[cfg(feature = "stress")]
 pub mod stress_nifs;
 pub mod types;
+pub mod yielder;
 
 #[cfg(feature = "serde")]
 pub mod serde;
@@ -54,6 +55,7 @@ pub use crate::types::{
     Atom, Binary, BitArray, Decoder, Encoder, ErlOption, ListIterator, LocalPid, LocalPort,
     MapIterator, NewBinary, OwnedBinary, Reference, Subject,
 };
+pub use crate::yielder::Yielder;
 
 pub type NifResult<T> = Result<T, Error>;
 

@@ -33,6 +33,9 @@ where
 unsafe impl<T> Send for ResourceArc<T> where T: Resource {}
 unsafe impl<T> Sync for ResourceArc<T> where T: Resource {}
 
+impl<T> std::panic::UnwindSafe for ResourceArc<T> where T: Resource {}
+impl<T> std::panic::RefUnwindSafe for ResourceArc<T> where T: Resource {}
+
 impl<T> ResourceArc<T>
 where
     T: Resource,

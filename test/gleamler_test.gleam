@@ -4,6 +4,7 @@ import gleam/dynamic/decode
 import gleam/int
 import gleam/list
 import gleam/option
+import gleam/yielder
 import gleamler_nif
 import gleeunit
 import gleeunit/should
@@ -257,4 +258,18 @@ pub fn cancel_token_process_death_test() {
   let assert Ok(token) = res
   gleamler_nif.rust_cancel_token_is_cancelled(token)
   |> should.equal(True)
+}
+
+pub fn stream_yielder_test() {
+  let stream =
+    gleamler_nif.rust_stream_range(1, 1_000_000)
+    |> gleamler_nif.to_yielder()
+
+  let first_five =
+    stream
+    |> yielder.take(5)
+    |> yielder.to_list()
+
+  first_five
+  |> should.equal([1, 2, 3, 4, 5])
 }

@@ -1,5 +1,5 @@
 -module(gleamler_nif_ffi).
--export([counter_new/0, counter_inc/1, counter_get/1, atom_or_string_to_string/1]).
+-export([counter_new/0, counter_inc/1, counter_get/1, atom_or_string_to_string/1, identity/1]).
 -on_load(init/0).
 init() ->
     PrivDir = case code:which(?MODULE) of
@@ -15,6 +15,7 @@ init() ->
 atom_or_string_to_string(Term) when is_atom(Term) -> {ok, atom_to_binary(Term, utf8)};
 atom_or_string_to_string(Term) when is_binary(Term) -> {ok, Term};
 atom_or_string_to_string(_) -> {error, nil}.
+identity(X) -> X.
 counter_new() -> exit(nif_library_not_loaded).
 counter_inc(_Arg0) -> exit(nif_library_not_loaded).
 counter_get(_Arg0) -> exit(nif_library_not_loaded).

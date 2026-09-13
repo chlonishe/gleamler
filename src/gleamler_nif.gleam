@@ -5,6 +5,7 @@ import gleam/dict
 import gleam/dynamic
 import gleam/dynamic/decode
 import gleam/option
+import gleam/yielder
 
 pub opaque type Resource(a) {
   Resource
@@ -25,6 +26,24 @@ pub type Counter {
 
 pub type ValgrindTestResource {
   ValgrindTestResource
+}
+
+pub type Yielder {
+  Yielder
+}
+
+@external(erlang, "gleamler_nif_ffi", "identity")
+@internal
+pub fn coerce(a: a) -> b
+
+/// Wraps a Rust `Yielder` resource into a native Gleam `yielder.Yielder` stream.
+pub fn to_yielder(resource: Resource(Yielder)) -> yielder.Yielder(a) {
+  yielder.unfold(resource, fn(r) {
+    case rust_yielder_next(r) {
+      option.Some(item) -> yielder.Next(coerce(item), r)
+      option.None -> yielder.Done
+    }
+  })
 }
 
 pub type GleamlerError {
@@ -186,6 +205,14 @@ pub fn rust_cancel_token_is_cancelled(
 
 @external(erlang, "gleamler_nif_ffi", "cancel_token_cancel")
 pub fn rust_cancel_token_cancel(token: Resource(CancellationToken)) -> Nil
+
+@external(erlang, "gleamler_nif_ffi", "stream_range")
+pub fn rust_stream_range(start: Int, end: Int) -> Resource(Yielder)
+
+@external(erlang, "gleamler_nif_ffi", "yielder_next")
+pub fn rust_yielder_next(
+  iter: Resource(Yielder),
+) -> option.Option(dynamic.Dynamic)
 
 @external(erlang, "gleamler_nif_ffi", "stress_i128_min")
 pub fn rust_stress_i128_min() -> Int

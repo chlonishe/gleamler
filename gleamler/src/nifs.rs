@@ -3,6 +3,7 @@ use crate::cancellation::CancellationToken;
 use crate::schedule::SchedulerFlags;
 #[cfg(feature = "stress")]
 use crate::stress_nifs::ValgrindTestResource;
+use crate::yielder::Yielder;
 use crate::{Env, NifOutcome, Resource, ResourceArc, Term, gleam_nif, init_nifs};
 use crate::{NifRecord, NifUnitEnum};
 use std::collections::{BTreeMap, BTreeSet, HashSet, LinkedList, VecDeque};
@@ -90,6 +91,7 @@ fn on_load(env: Env, _info: Term) -> bool {
         && env
             .register::<crate::cancellation::CancellationResource>()
             .is_ok();
+    ok = ok && env.register::<crate::yielder::Yielder>().is_ok();
     #[cfg(feature = "stress")]
     {
         ok = ok && env.register::<ValgrindTestResource>().is_ok();
@@ -255,6 +257,16 @@ pub fn cancel_token_is_cancelled(token: CancellationToken) -> bool {
 #[gleam_nif]
 pub fn cancel_token_cancel(token: CancellationToken) {
     token.cancel();
+}
+
+#[gleam_nif]
+pub fn stream_range(start: i64, end: i64) -> ResourceArc<Yielder> {
+    Yielder::new(start..end)
+}
+
+#[gleam_nif]
+pub fn yielder_next(env: Env, iter: ResourceArc<Yielder>) -> Option<Term> {
+    iter.next(env)
 }
 
 init_nifs!(load = on_load);
