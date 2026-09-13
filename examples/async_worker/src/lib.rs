@@ -17,7 +17,7 @@ fn start_work(subject: Subject<WorkerMsg>, steps: i64) -> bool {
     let tag = subject.tag();
 
     // Create a process-independent environment for the background thread
-    let mut thread_env = OwnedEnv::new();
+    let thread_env = OwnedEnv::new();
     let saved_tag = thread_env.save(tag);
 
     thread::spawn(move || {
@@ -25,19 +25,15 @@ fn start_work(subject: Subject<WorkerMsg>, steps: i64) -> bool {
             thread::sleep(Duration::from_millis(100));
 
             // Send progress update back to the Gleam process
-            let _ = Subject::send_from_owned(
-                &pid,
-                &saved_tag,
-                &mut thread_env,
-                WorkerMsg::Progress(step),
-            );
+            let _ =
+                Subject::send_from_owned(&pid, &saved_tag, &thread_env, WorkerMsg::Progress(step));
         }
 
         // Send final completion message
         let _ = Subject::send_from_owned(
             &pid,
             &saved_tag,
-            &mut thread_env,
+            &thread_env,
             WorkerMsg::Done(format!("Successfully finished all {} steps!", steps)),
         );
     });
