@@ -681,14 +681,16 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
                 | GleamTypeKind::UnitEnum
                 | GleamTypeKind::Tuple
                 | GleamTypeKind::Map
+                | GleamTypeKind::TaggedEnum
         )
     });
 
     let has_unit_enum = types.iter().any(|ct| ct.kind == GleamTypeKind::UnitEnum);
     let has_record = types.iter().any(|ct| ct.kind == GleamTypeKind::Record);
     let has_map = types.iter().any(|ct| ct.kind == GleamTypeKind::Map);
+    let has_tagged_enum = types.iter().any(|ct| ct.kind == GleamTypeKind::TaggedEnum);
 
-    if has_unit_enum || has_record || has_map {
+    if has_unit_enum || has_record || has_map || has_tagged_enum {
         has_dynamic = true;
     }
 
@@ -830,8 +832,8 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
         }
     }
 
-    let needs_coerce = has_yielder || has_map || has_record;
-    let needs_atom_helper = has_unit_enum || has_record;
+    let needs_coerce = has_yielder || has_map || has_record || has_tagged_enum;
+    let needs_atom_helper = has_unit_enum || has_record || has_tagged_enum;
 
     if needs_coerce {
         out.push_str(&format!(
@@ -877,7 +879,7 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
         ));
     }
 
-    if has_record {
+    if has_record || has_tagged_enum {
         out.push_str(
             "\n@internal\npub fn check_tag(\n  tag_dyn: dynamic.Dynamic,\n  expected: String,\n  next: fn(Nil) -> decode.Decoder(a),\n) -> decode.Decoder(a) {\n  case atom_or_string_to_string(tag_dyn) {\n    Ok(tag) if tag == expected -> next(Nil)\n    _ -> decode.failure(coerce(Nil), expected)\n  }\n}\n",
         );
@@ -941,6 +943,7 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
             GleamTypeKind::Record => generate_record_decoder(&mut out, custom_ty),
             GleamTypeKind::UnitEnum => generate_unit_enum_decoder(&mut out, custom_ty),
             GleamTypeKind::Map => generate_map_decoder(&mut out, custom_ty),
+            GleamTypeKind::TaggedEnum => generate_tagged_enum_decoder(&mut out, custom_ty),
             _ => {}
         }
     }
@@ -1391,6 +1394,80 @@ fn generate_unit_enum_decoder(out: &mut String, ty: &GleamCustomType) {
         "    _ -> decode.failure({}, \"{}\")\n  }}\n}}\n\n",
         first_variant, type_name
     ));
+}
+
+fn generate_tagged_enum_decoder(out: &mut String, ty: &GleamCustomType) {
+    if ty.variants.is_empty() {
+        return;
+    }
+
+    let fn_name = format!("{}_decoder", ty.name.to_snake_case());
+    let type_name = &ty.name;
+
+    let mut variant_blocks = Vec::new();
+
+    for v in &ty.variants {
+        let snake_variant = v.name.to_snake_case();
+        let variant_name = &v.name;
+
+        if v.fields.is_empty() {
+            variant_blocks.push(format!(
+                "      use dyn <- decode.then(decode.dynamic)\n\
+                 \x20\x20\x20\x20\x20\x20case atom_or_string_to_string(dyn) {{\n\
+                 \x20\x20\x20\x20\x20\x20\x20\x20Ok(\"{snake_variant}\") | Ok(\"{variant_name}\") -> decode.success({variant_name})\n\
+                 \x20\x20\x20\x20\x20\x20\x20\x20_ -> decode.failure(coerce(Nil), \"{type_name}\")\n\
+                 \x20\x20\x20\x20\x20\x20}}"
+            ));
+        } else {
+            let mut s = format!(
+                "      use tag_dyn <- decode.field(0, decode.dynamic)\n\
+                 \x20\x20\x20\x20\x20\x20use _ <- check_tag(tag_dyn, \"{snake_variant}\")\n"
+            );
+
+            let mut field_args = Vec::new();
+            for (idx, field) in v.fields.iter().enumerate() {
+                let raw_name = field.name.as_deref().unwrap_or("arg");
+                let var_name = if field.name.is_some() {
+                    clean_name(raw_name)
+                } else {
+                    format!("field_{idx}")
+                };
+
+                let decoder = gleam_type_to_decoder(&field.gleam_type);
+                s.push_str(&format!(
+                    "      use {} <- decode.field({}, {})\n",
+                    var_name,
+                    idx + 1,
+                    decoder
+                ));
+
+                if field.name.is_some() {
+                    field_args.push(format!("{}: {}", var_name, var_name));
+                } else {
+                    field_args.push(var_name);
+                }
+            }
+
+            s.push_str(&format!(
+                "      decode.success({}({}))",
+                variant_name,
+                field_args.join(", ")
+            ));
+
+            variant_blocks.push(s);
+        }
+    }
+
+    out.push_str(&format!(
+        "pub fn {}() -> decode.Decoder({}) {{\n  decode.one_of(\n    {{\n{}\n    }},\n    [\n",
+        fn_name, type_name, variant_blocks[0]
+    ));
+
+    for block in &variant_blocks[1..] {
+        out.push_str(&format!("      {{\n{}\n      }},\n", block));
+    }
+
+    out.push_str("    ],\n  )\n}\n\n");
 }
 
 fn generate_tuple_decoder(out: &mut String, ty: &GleamCustomType) {
@@ -2004,5 +2081,25 @@ pub fn heavy(n: i64) -> i64 { n }
         assert!(out.contains("pub type Config"));
         assert!(out.contains("pub fn config_decoder() -> decode.Decoder(Config)"));
         assert!(out.contains("use host <- decode_map_field(\"host\", decode.string)"));
+    }
+
+    #[test]
+    fn test_generate_decoder_tagged_enum() {
+        let src = r#"
+        #[derive(NifTaggedEnum)]
+        pub enum Action {
+            Stop,
+            Move(i64, i64),
+            Message { text: String },
+        }
+        "#;
+        let types = parse_nif_types(src);
+        assert_eq!(types.len(), 1);
+        assert_eq!(types[0].kind, GleamTypeKind::TaggedEnum);
+        let out = generate_gleam(&[], &types, "my_ffi");
+        assert!(out.contains("pub fn action_decoder() -> decode.Decoder(Action)"));
+        assert!(out.contains("Ok(\"stop\")"));
+        assert!(out.contains("use _ <- check_tag(tag_dyn, \"move\")"));
+        assert!(out.contains("use _ <- check_tag(tag_dyn, \"message\")"));
     }
 }
