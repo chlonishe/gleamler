@@ -9,10 +9,10 @@ use std::sync::mpsc::channel;
 use std::time::{Duration, Instant};
 
 #[derive(Parser, Debug)]
-#[command(name = "xtask", about = "Gleamler build & test automation", default_subcommand = "build")]
+#[command(name = "xtask", about = "Gleamler build & test automation")]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand, Debug)]
@@ -91,7 +91,13 @@ fn main() -> Result<()> {
     let root = workspace_root()?;
     sh.change_dir(&root);
 
-    match cli.command {
+    let command = cli.command.unwrap_or(Commands::Build {
+        release: false,
+        stress: true,
+        target: None,
+    });
+
+    match command {
         Commands::Build {
             release,
             stress,
