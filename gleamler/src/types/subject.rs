@@ -44,16 +44,63 @@ impl<'a, T> Subject<'a, T> {
         env.send(&self.pid, payload)
     }
 
+    /// Save the subject for sending messages from non-scheduler threads.
+    pub fn save(&self, owned_env: &crate::OwnedEnv) -> SavedSubject<T> {
+        SavedSubject {
+            pid: self.pid,
+            tag: owned_env.save(self.tag),
+            _marker: PhantomData,
+        }
+    }
+
+    /// Send a message to the subject from a non-scheduler thread using a saved tag.
+    ///
+    /// The tag term is loaded from `tag_env` and copied into an ephemeral message
+    /// environment for transmission via `enif_send`, keeping `tag_env` (and `tag`)
+    /// valid across multiple sends.
     pub fn send_from_owned(
         pid: &LocalPid,
         tag: &crate::env::SavedTerm,
-        owned_env: &mut crate::OwnedEnv,
+        tag_env: &crate::OwnedEnv,
         message: T,
     ) -> Result<(), SendError>
     where
         T: Encoder,
     {
-        owned_env.send_and_clear(pid, |env| (tag.load(env), message).encode(env))
+        let mut msg_env = crate::OwnedEnv::new();
+        tag_env.run(|t_env| {
+            let loaded_tag = tag.load(t_env);
+            msg_env.send_and_clear(pid, |m_env| {
+                (loaded_tag.in_env(m_env), message).encode(m_env)
+            })
+        })
+    }
+}
+
+/// A subject saved into an [`OwnedEnv`] for sending messages from background threads.
+#[derive(Clone)]
+pub struct SavedSubject<T> {
+    pid: LocalPid,
+    tag: crate::env::SavedTerm,
+    _marker: PhantomData<T>,
+}
+
+unsafe impl<T> Send for SavedSubject<T> {}
+
+impl<T> SavedSubject<T> {
+    pub fn pid(&self) -> LocalPid {
+        self.pid
+    }
+
+    pub fn tag(&self) -> &crate::env::SavedTerm {
+        &self.tag
+    }
+
+    pub fn send(&self, tag_env: &crate::OwnedEnv, message: T) -> Result<(), SendError>
+    where
+        T: Encoder,
+    {
+        Subject::send_from_owned(&self.pid, &self.tag, tag_env, message)
     }
 }
 
