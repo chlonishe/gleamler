@@ -36,6 +36,10 @@ impl<'a, T> Subject<'a, T> {
         self.tag
     }
 
+    pub fn is_alive(&self, env: Env) -> bool {
+        env.is_process_alive(self.pid)
+    }
+
     pub fn send(&self, env: Env<'a>, message: T) -> Result<(), SendError>
     where
         T: Encoder,
@@ -53,11 +57,22 @@ impl<'a, T> Subject<'a, T> {
         }
     }
 
+    /// Creates an owned, high-performance `SubjectSender` ready to be moved into background threads.
+    /// Reuses its message environment across all sends without allocating memory in loops.
+    pub fn to_sender(&self) -> SubjectSender<T> {
+        let tag_env = crate::OwnedEnv::new();
+        let tag = tag_env.save(self.tag);
+        let msg_env = crate::OwnedEnv::new();
+        SubjectSender {
+            pid: self.pid,
+            tag,
+            tag_env,
+            msg_env,
+            _marker: PhantomData,
+        }
+    }
+
     /// Send a message to the subject from a non-scheduler thread using a saved tag.
-    ///
-    /// The tag term is loaded from `tag_env` and copied into an ephemeral message
-    /// environment for transmission via `enif_send`, keeping `tag_env` (and `tag`)
-    /// valid across multiple sends.
     pub fn send_from_owned(
         pid: &LocalPid,
         tag: &crate::env::SavedTerm,
@@ -96,11 +111,73 @@ impl<T> SavedSubject<T> {
         &self.tag
     }
 
+    pub fn is_alive(&self, env: Env) -> bool {
+        env.is_process_alive(self.pid)
+    }
+
     pub fn send(&self, tag_env: &crate::OwnedEnv, message: T) -> Result<(), SendError>
     where
         T: Encoder,
     {
         Subject::send_from_owned(&self.pid, &self.tag, tag_env, message)
+    }
+
+    /// Zero-allocation send reusing an external `OwnedEnv` across loop iterations.
+    pub fn send_with(
+        &self,
+        tag_env: &crate::OwnedEnv,
+        msg_env: &mut crate::OwnedEnv,
+        message: T,
+    ) -> Result<(), SendError>
+    where
+        T: Encoder,
+    {
+        let pid = self.pid;
+        let tag = &self.tag;
+        tag_env.run(|t_env| {
+            let loaded_tag = tag.load(t_env);
+            msg_env.send_and_clear(&pid, |m_env| {
+                (loaded_tag.in_env(m_env), message).encode(m_env)
+            })
+        })
+    }
+}
+
+/// High-performance sender that can be moved into OS threads.
+/// It encapsulates both tag and message environments, reusing memory in-place.
+pub struct SubjectSender<T> {
+    pid: LocalPid,
+    tag: crate::env::SavedTerm,
+    tag_env: crate::OwnedEnv,
+    msg_env: crate::OwnedEnv,
+    _marker: PhantomData<T>,
+}
+
+unsafe impl<T> Send for SubjectSender<T> {}
+
+impl<T> SubjectSender<T> {
+    pub fn pid(&self) -> LocalPid {
+        self.pid
+    }
+
+    pub fn is_alive(&self, env: Env) -> bool {
+        env.is_process_alive(self.pid)
+    }
+
+    /// Sends a message to the Gleam subject reusing the internal environment (zero malloc/free).
+    pub fn send(&mut self, message: T) -> Result<(), SendError>
+    where
+        T: Encoder,
+    {
+        let pid = self.pid;
+        let tag = &self.tag;
+        let msg_env = &mut self.msg_env;
+        self.tag_env.run(|t_env| {
+            let loaded_tag = tag.load(t_env);
+            msg_env.send_and_clear(&pid, |m_env| {
+                (loaded_tag.in_env(m_env), message).encode(m_env)
+            })
+        })
     }
 }
 

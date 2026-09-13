@@ -55,7 +55,7 @@ pub use crate::term::Term;
 pub use crate::thread::{JobSpawner, ThreadSpawner, spawn};
 pub use crate::types::{
     Atom, Binary, BitArray, Decoder, Encoder, ErlOption, ListIterator, LocalPid, LocalPort,
-    MapIterator, NewBinary, OwnedBinary, Reference, Subject,
+    MapIterator, NewBinary, OwnedBinary, Reference, SavedSubject, Subject, SubjectSender,
 };
 pub use crate::yielder::Yielder;
 

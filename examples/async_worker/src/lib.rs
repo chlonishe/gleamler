@@ -1,4 +1,4 @@
-use gleamler::{Env, NifTaggedEnum, OwnedEnv, Subject, gleam_nif, init_nifs};
+use gleamler::{Env, NifTaggedEnum, Subject, gleam_nif, init_nifs};
 use std::thread;
 use std::time::Duration;
 
@@ -19,31 +19,27 @@ fn start_work(env: Env, subject: Subject<WorkerMsg>, steps: i64) -> bool {
         Err(_) => return false,
     };
 
-    let thread_env = OwnedEnv::new();
-    let saved_subject = subject.save(&thread_env);
+    let mut sender = subject.to_sender();
 
     thread::spawn(move || {
         for step in 1..=steps {
             if cancel_token.is_cancelled() {
-                // Gleam actor has terminated or cancelled; exit immediately
                 return;
             }
 
             thread::sleep(Duration::from_millis(100));
 
-            // Send progress update back to the Gleam process
-            let _ = saved_subject.send(&thread_env, WorkerMsg::Progress(step));
+            let _ = sender.send(WorkerMsg::Progress(step));
         }
 
         if cancel_token.is_cancelled() {
             return;
         }
 
-        // Send final completion message
-        let _ = saved_subject.send(
-            &thread_env,
-            WorkerMsg::Done(format!("Successfully finished all {} steps!", steps)),
-        );
+        let _ = sender.send(WorkerMsg::Done(format!(
+            "Successfully finished all {} steps!",
+            steps
+        )));
     });
 
     true
