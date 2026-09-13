@@ -17,7 +17,7 @@ enum Commands {
     Build {
         #[arg(long)]
         release: bool,
-        #[arg(long)]
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
         stress: bool,
         #[arg(long)]
         target: Option<String>,
@@ -34,7 +34,7 @@ enum Commands {
     },
 
     Codegen {
-        #[arg(long)]
+        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
         with_stress: bool,
     },
 
