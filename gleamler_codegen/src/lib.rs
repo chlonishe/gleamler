@@ -694,6 +694,11 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
         has_dynamic = true;
     }
 
+    let has_record = types.iter().any(|ct| ct.kind == GleamTypeKind::Record);
+    if has_unit_enum || has_record {
+        has_dynamic = true;
+    }
+
     let map_type_names: std::collections::HashSet<_> = types
         .iter()
         .filter(|ct| ct.kind == GleamTypeKind::Map)
@@ -862,6 +867,12 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
              \x20\x20\x20\x20Error(_) -> decode.failure(coerce(Nil), key)\n\
              \x20\x20}}\n\
              }}\n\n"
+        ));
+    }
+
+    if has_unit_enum || has_record {
+        out.push_str(&format!(
+            "@internal\n@external(erlang, \"{erl_module}\", \"atom_or_string_to_string\")\npub fn atom_or_string_to_string(term: dynamic.Dynamic) -> Result(String, Nil)\n\n"
         ));
     }
 
@@ -1234,6 +1245,7 @@ fn generate_record_decoder(out: &mut String, ty: &GleamCustomType) {
         Some(v) => v,
         None => return,
     };
+    let expected_tag = ty.name.to_snake_case();
 
     out.push_str(&format!(
         "pub fn {}() -> decode.Decoder({}) {{\n",
@@ -1248,6 +1260,15 @@ fn generate_record_decoder(out: &mut String, ty: &GleamCustomType) {
     out.push_str("  decode.one_of(\n    {\n");
 
     // 1. Erlang tuple record branch (1-based index)
+    out.push_str(&format!(
+        "      use tag_dyn <- decode.field(0, decode.dynamic)\n\
+         \x20\x20\x20\x20\x20\x20case atom_or_string_to_string(tag_dyn) {{\n\
+         \x20\x20\x20\x20\x20\x20\x20\x20Ok(\"{expected_tag}\") -> decode.success(Nil)\n\
+         \x20\x20\x20\x20\x20\x20\x20\x20_ -> decode.failure(Nil, \"{type_name}\")\n\
+         \x20\x20\x20\x20\x20\x20}}\n\
+         \x20\x20\x20\x20\x20\x20use _ <- decode.then\n"
+    ));
+
     for (idx, field) in variant.fields.iter().enumerate() {
         let raw_name = field.name.as_deref().unwrap_or("arg");
         let var_name = clean_name(raw_name);
