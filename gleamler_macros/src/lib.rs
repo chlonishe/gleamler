@@ -29,7 +29,14 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
     let ffi_fn_name = syn::Ident::new(&format!("ffi_{}", fn_name), fn_name.span());
     let nif_const_name = syn::Ident::new(&format!("__GLEAMLER_NIF_{}", fn_name), fn_name.span());
 
-    let mut nif_flags = quote!(0);
+    #[derive(Copy, Clone, PartialEq, Eq)]
+    enum DirtyMode {
+        None,
+        Cpu,
+        Io,
+    }
+
+    let mut dirty_mode = DirtyMode::None;
     let mut alias: Option<syn::LitStr> = None;
     let mut is_safe = false;
 
@@ -41,15 +48,19 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
             .expect("gleam_nif attributes must be comma-separated meta items");
         for meta in metas {
             if meta.path().is_ident("dirty_cpu") {
-                nif_flags = quote!(
-                    ::gleamler::schedule::SchedulerFlags::DirtyCpu
-                        as ::gleamler::codegen_runtime::c_uint
-                );
+                if dirty_mode != DirtyMode::None {
+                    panic!(
+                        "gleam_nif: cannot specify both dirty_cpu and dirty_io (or duplicate flags)"
+                    );
+                }
+                dirty_mode = DirtyMode::Cpu;
             } else if meta.path().is_ident("dirty_io") {
-                nif_flags = quote!(
-                    ::gleamler::schedule::SchedulerFlags::DirtyIo
-                        as ::gleamler::codegen_runtime::c_uint
-                );
+                if dirty_mode != DirtyMode::None {
+                    panic!(
+                        "gleam_nif: cannot specify both dirty_cpu and dirty_io (or duplicate flags)"
+                    );
+                }
+                dirty_mode = DirtyMode::Io;
             } else if meta.path().is_ident("safe") {
                 is_safe = true;
             } else if meta.path().is_ident("no_prefix") {
@@ -73,6 +84,16 @@ pub fn gleam_nif(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
     }
+
+    let nif_flags = match dirty_mode {
+        DirtyMode::None => quote!(0),
+        DirtyMode::Cpu => quote!(
+            ::gleamler::schedule::SchedulerFlags::DirtyCpu as ::gleamler::codegen_runtime::c_uint
+        ),
+        DirtyMode::Io => quote!(
+            ::gleamler::schedule::SchedulerFlags::DirtyIo as ::gleamler::codegen_runtime::c_uint
+        ),
+    };
 
     let export_name = alias
         .as_ref()

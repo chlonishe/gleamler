@@ -6,8 +6,13 @@ import gleam/dynamic
 /// Decodes a term into a `Point` and returns its debug representation.
 /// Errors are mapped to `{error, Reason}` tuples in Erlang.
 @external(erlang, "gleamler_nif_ffi", "inspect_point")
-pub fn rust_inspect_point(term: dynamic.Dynamic) -> NifResult(String)
+pub fn rust_inspect_point(
+  term: dynamic.Dynamic,
+) -> Result(String, dynamic.Dynamic)
 
 /// Builds an Erlang term from a Rust struct.
 @external(erlang, "gleamler_nif_ffi", "make_point")
-pub fn rust_make_point(x: Float, y: Float) -> NifResult(dynamic.Dynamic)
+pub fn rust_make_point(
+  x: Float,
+  y: Float,
+) -> Result(dynamic.Dynamic, dynamic.Dynamic)

@@ -6,7 +6,7 @@ init() ->
         non_existing -> {ok, Cwd} = file:get_cwd(), filename:join(Cwd, "priv");
         BeamPath -> filename:join([filename:dirname(BeamPath), "..", "priv"])
     end,
-    LibName = "gleamler",
+    LibName = "dirty",
     Path = filename:join(PrivDir, LibName),
     case erlang:load_nif(Path, 0) of
         ok -> ok;
