@@ -547,6 +547,25 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
 
     let primary = std::env::var("GLEAMLER_DISABLE_NIF_INIT").is_err();
     let maybe_primary = if primary {
+        // Защита от дублирования, если имя модуля FFI совпадает с именем крейта
+        let maybe_erl_init = if erl_init_fn != init_fn_name {
+            quote! {
+                #[cfg(not(test))]
+                #[cfg(target_os = "windows")]
+                #[unsafe(no_mangle)]
+                pub unsafe extern "C" fn #erl_init_fn(
+                    callbacks: *mut ::gleamler::codegen_runtime::DynNifCallbacks,
+                ) -> *const ::gleamler::sys::ErlNifEntry {
+                    if callbacks.is_null() {
+                        return std::ptr::null();
+                    }
+                    unsafe { #init_fn_name(callbacks) }
+                }
+            }
+        } else {
+            quote! {}
+        };
+
         quote! {
             #[cfg(not(test))]
             #[cfg(not(target_os = "windows"))]
@@ -561,17 +580,13 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
             pub unsafe extern "C" fn nif_init(
                 callbacks: *mut ::gleamler::codegen_runtime::DynNifCallbacks,
             ) -> *const ::gleamler::sys::ErlNifEntry {
+                if callbacks.is_null() {
+                    return std::ptr::null();
+                }
                 unsafe { #init_fn_name(callbacks) }
             }
 
-            #[cfg(not(test))]
-            #[cfg(target_os = "windows")]
-            #[unsafe(no_mangle)]
-            pub unsafe extern "C" fn #erl_init_fn(
-                callbacks: *mut ::gleamler::codegen_runtime::DynNifCallbacks,
-            ) -> *const ::gleamler::sys::ErlNifEntry {
-                unsafe { #init_fn_name(callbacks) }
-            }
+            #maybe_erl_init
         }
     } else {
         quote! {}
@@ -594,6 +609,9 @@ pub fn init_nifs(input: TokenStream) -> TokenStream {
         pub unsafe extern "C" fn #init_fn_name(
             callbacks: *mut ::gleamler::codegen_runtime::DynNifCallbacks,
         ) -> *const ::gleamler::sys::ErlNifEntry {
+            if callbacks.is_null() {
+                return std::ptr::null();
+            }
             unsafe {
                 ::gleamler::codegen_runtime::internal_set_symbols(*callbacks);
             }
