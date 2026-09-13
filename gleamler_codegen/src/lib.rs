@@ -40,6 +40,7 @@ pub enum GleamTypeKind {
     TaggedEnum,
     UntaggedEnum,
     Tuple,
+    Map,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -583,6 +584,7 @@ pub fn generate_erl(funcs: &[NifFunc], erl_module: &str, lib_name: &str) -> Stri
         })
         .collect();
     exports.push("atom_or_string_to_string/1".to_string());
+    exports.push("get_map_field/2".to_string());
     exports.push("identity/1".to_string());
 
     let stubs: Vec<_> = funcs
@@ -616,6 +618,21 @@ atom_or_string_to_string(Term) when is_atom(Term) -> {{ok, atom_to_binary(Term, 
 atom_or_string_to_string(Term) when is_binary(Term) -> {{ok, Term}};
 atom_or_string_to_string(_) -> {{error, nil}}.
 identity(X) -> X.
+get_map_field(Map, Key) when is_map(Map), is_binary(Key) ->
+    case maps:find(Key, Map) of
+        {{ok, Val}} -> {{ok, Val}};
+        error ->
+            try binary_to_existing_atom(Key, utf8) of
+                AtomKey ->
+                    case maps:find(AtomKey, Map) of
+                        {{ok, Val2}} -> {{ok, Val2}};
+                        error -> {{error, missing_field}}
+                    end
+            catch
+                error:badarg -> {{error, missing_field}}
+            end
+    end;
+get_map_field(_, _) -> {{error, not_a_map}}.
 {}"#,
         exports.join(", "),
         stubs.join("\n")
@@ -660,12 +677,30 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
     let has_decode = types.iter().any(|ct| {
         matches!(
             ct.kind,
-            GleamTypeKind::Record | GleamTypeKind::UnitEnum | GleamTypeKind::Tuple
+            GleamTypeKind::Record
+                | GleamTypeKind::UnitEnum
+                | GleamTypeKind::Tuple
+                | GleamTypeKind::Map
         )
     });
 
     let has_unit_enum = types.iter().any(|ct| ct.kind == GleamTypeKind::UnitEnum);
     if has_unit_enum {
+        has_dynamic = true;
+    }
+
+    let has_map = types.iter().any(|ct| ct.kind == GleamTypeKind::Map);
+    if has_map {
+        has_dynamic = true;
+    }
+
+    let map_type_names: std::collections::HashSet<_> = types
+        .iter()
+        .filter(|ct| ct.kind == GleamTypeKind::Map)
+        .map(|ct| ct.name.as_str())
+        .collect();
+
+    if !map_type_names.is_empty() {
         has_dynamic = true;
     }
 
@@ -812,6 +847,24 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
         ));
     }
 
+    if has_map {
+        out.push_str(&format!(
+            "@internal\n@external(erlang, \"{erl_module}\", \"get_map_field\")\npub fn get_map_field(map: dynamic.Dynamic, key: String) -> Result(dynamic.Dynamic, Nil)\n\n\
+             @internal\npub fn decode_map_field(\n  key: String,\n  field_decoder: decode.Decoder(a),\n  next: fn(a) -> decode.Decoder(b),\n) -> decode.Decoder(b) {{\n\
+             \x20\x20use dyn <- decode.then(decode.dynamic)\n\
+             \x20\x20case get_map_field(dyn, key) {{\n\
+             \x20\x20\x20\x20Ok(val) -> {{\n\
+             \x20\x20\x20\x20\x20\x20case decode.run(val, field_decoder) {{\n\
+             \x20\x20\x20\x20\x20\x20\x20\x20Ok(decoded) -> next(decoded)\n\
+             \x20\x20\x20\x20\x20\x20\x20\x20Error(_) -> decode.failure(coerce(Nil), key)\n\
+             \x20\x20\x20\x20\x20\x20}}\n\
+             \x20\x20\x20\x20}}\n\
+             \x20\x20\x20\x20Error(_) -> decode.failure(coerce(Nil), key)\n\
+             \x20\x20}}\n\
+             }}\n\n"
+        ));
+    }
+
     if has_gleamler_error {
         out.push_str(
             "\npub type GleamlerError {\n  BadArg\n  Panic(String)\n  Custom(String)\n}\n",
@@ -874,6 +927,7 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
         match custom_ty.kind {
             GleamTypeKind::Record => generate_record_decoder(&mut out, custom_ty),
             GleamTypeKind::UnitEnum => generate_unit_enum_decoder(&mut out, custom_ty),
+            GleamTypeKind::Map => generate_map_decoder(&mut out, custom_ty),
             _ => {}
         }
     }
@@ -897,9 +951,20 @@ pub fn generate_gleam(funcs: &[NifFunc], types: &[GleamCustomType], erl_module: 
         let args: Vec<_> = f
             .args
             .iter()
-            .map(|(n, t)| format!("{}: {}", clean_name(n), t))
+            .map(|(n, t)| {
+                let ty = if map_type_names.contains(t.as_str()) {
+                    "dynamic.Dynamic"
+                } else {
+                    t.as_str()
+                };
+                format!("{}: {}", clean_name(n), ty)
+            })
             .collect();
-        let ret = &f.ret;
+        let ret = if map_type_names.contains(f.ret.as_str()) {
+            "dynamic.Dynamic"
+        } else {
+            f.ret.as_str()
+        };
         out.push_str(&format!(
             "@external(erlang, \"{erl_module}\", \"{}\")\npub fn {}({}) -> {}\n",
             erl_name,
@@ -983,7 +1048,8 @@ pub fn parse_nif_types(source: &str) -> Vec<GleamCustomType> {
             Item::Struct(s) => {
                 let is_record = has_derive(&s.attrs, "NifRecord");
                 let is_tuple = has_derive(&s.attrs, "NifTuple");
-                if !is_record && !is_tuple {
+                let is_map = has_derive(&s.attrs, "NifMap");
+                if !is_record && !is_tuple && !is_map {
                     continue;
                 }
                 let struct_name = s.ident.to_string();
@@ -1023,6 +1089,17 @@ pub fn parse_nif_types(source: &str) -> Vec<GleamCustomType> {
                         kind: GleamTypeKind::Tuple,
                         variants: vec![GleamVariant {
                             name: String::new(),
+                            fields,
+                            docs: Vec::new(),
+                        }],
+                        docs: extract_docs(&s.attrs),
+                    });
+                } else if is_map {
+                    types.push(GleamCustomType {
+                        name: struct_name.clone(),
+                        kind: GleamTypeKind::Map,
+                        variants: vec![GleamVariant {
+                            name: struct_name,
                             fields,
                             docs: Vec::new(),
                         }],
@@ -1222,6 +1299,50 @@ fn generate_record_decoder(out: &mut String, ty: &GleamCustomType) {
     ));
 }
 
+fn generate_map_decoder(out: &mut String, ty: &GleamCustomType) {
+    let fn_name = format!("{}_decoder", ty.name.to_snake_case());
+    let type_name = &ty.name;
+    let variant = match ty.variants.first() {
+        Some(v) => v,
+        None => return,
+    };
+
+    out.push_str(&format!(
+        "pub fn {}() -> decode.Decoder({}) {{\n",
+        fn_name, type_name
+    ));
+
+    for field in &variant.fields {
+        let raw_name = field.name.as_deref().unwrap_or("arg");
+        let var_name = clean_name(raw_name);
+        let map_key = raw_name
+            .trim_start_matches('_')
+            .strip_prefix("r#")
+            .unwrap_or(raw_name);
+        let decoder = gleam_type_to_decoder(&field.gleam_type);
+        out.push_str(&format!(
+            "  use {} <- decode_map_field(\"{}\", {})\n",
+            var_name, map_key, decoder
+        ));
+    }
+
+    let args: Vec<String> = variant
+        .fields
+        .iter()
+        .map(|f| {
+            let raw_name = f.name.as_deref().unwrap_or("arg");
+            let var_name = clean_name(raw_name);
+            format!("{}: {}", var_name, var_name)
+        })
+        .collect();
+
+    out.push_str(&format!(
+        "  decode.success({}({}))\n}}\n\n",
+        variant.name,
+        args.join(", ")
+    ));
+}
+
 fn generate_unit_enum_decoder(out: &mut String, ty: &GleamCustomType) {
     if ty.variants.is_empty() {
         return;
@@ -1358,6 +1479,7 @@ pub fn heavy(n: i64) -> i64 { n }
         assert!(out.contains("identity/1"));
         assert!(out.contains("add(_Arg0, _Arg1) -> exit(nif_library_not_loaded)."));
         assert!(out.contains("-module(gleamler_nif_ffi)."));
+        assert!(out.contains("get_map_field/2"));
     }
 
     #[test]
@@ -1839,9 +1961,29 @@ pub fn heavy(n: i64) -> i64 { n }
         assert!(out.contains("Ok(\"red\") | Ok(\"Red\") -> decode.success(Red)"));
         assert!(out.contains("_ -> decode.failure(Red, \"Color\")"));
     }
+
     #[test]
     fn type_to_gleam_cancellation_token() {
         let ty: Type = parse_quote!(CancellationToken);
         assert_eq!(type_to_gleam(&ty), "Resource(CancellationToken)");
+    }
+
+    #[test]
+    fn parse_nif_map_struct() {
+        let src = r#"
+        #[derive(NifMap)]
+        pub struct Config {
+            pub host: String,
+            pub port: i64,
+        }
+        "#;
+        let types = parse_nif_types(src);
+        assert_eq!(types.len(), 1);
+        assert_eq!(types[0].name, "Config");
+        assert_eq!(types[0].kind, GleamTypeKind::Map);
+        let out = generate_gleam(&[], &types, "my_ffi");
+        assert!(out.contains("pub type Config"));
+        assert!(out.contains("pub fn config_decoder() -> decode.Decoder(Config)"));
+        assert!(out.contains("use host <- decode_map_field(\"host\", decode.string)"));
     }
 }

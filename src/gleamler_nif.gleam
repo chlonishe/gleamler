@@ -46,6 +46,31 @@ pub fn to_yielder(resource: Resource(Yielder)) -> yielder.Yielder(a) {
   })
 }
 
+@external(erlang, "gleamler_nif_ffi", "get_map_field")
+@internal
+pub fn get_map_field(
+  map: dynamic.Dynamic,
+  key: String,
+) -> Result(dynamic.Dynamic, Nil)
+
+@internal
+pub fn decode_map_field(
+  key: String,
+  field_decoder: decode.Decoder(a),
+  next: fn(a) -> decode.Decoder(b),
+) -> decode.Decoder(b) {
+  use dyn <- decode.then(decode.dynamic)
+  case get_map_field(dyn, key) {
+    Ok(val) -> {
+      case decode.run(val, field_decoder) {
+        Ok(decoded) -> next(decoded)
+        Error(_) -> decode.failure(coerce(Nil), key)
+      }
+    }
+    Error(_) -> decode.failure(coerce(Nil), key)
+  }
+}
+
 pub type GleamlerError {
   BadArg
   Panic(String)
@@ -95,6 +120,16 @@ pub fn user_status_decoder() -> decode.Decoder(UserStatus) {
     Ok("banned") | Ok("Banned") -> decode.success(Banned)
     _ -> decode.failure(Pending, "UserStatus")
   }
+}
+
+pub type ServerConfig {
+  ServerConfig(host: String, port: Int)
+}
+
+pub fn server_config_decoder() -> decode.Decoder(ServerConfig) {
+  use host <- decode_map_field("host", decode.string)
+  use port <- decode_map_field("port", decode.int)
+  decode.success(ServerConfig(host: host, port: port))
 }
 
 @external(erlang, "gleamler_nif_ffi", "make_user")
@@ -213,6 +248,12 @@ pub fn rust_stream_range(start: Int, end: Int) -> Resource(Yielder)
 pub fn rust_yielder_next(
   iter: Resource(Yielder),
 ) -> option.Option(dynamic.Dynamic)
+
+@external(erlang, "gleamler_nif_ffi", "make_server_config")
+pub fn rust_make_server_config(host: String, port: Int) -> dynamic.Dynamic
+
+@external(erlang, "gleamler_nif_ffi", "server_config_get_port")
+pub fn rust_server_config_get_port(config: dynamic.Dynamic) -> Int
 
 @external(erlang, "gleamler_nif_ffi", "stress_i128_min")
 pub fn rust_stress_i128_min() -> Int

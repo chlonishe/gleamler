@@ -5,7 +5,7 @@ use crate::schedule::SchedulerFlags;
 use crate::stress_nifs::ValgrindTestResource;
 use crate::yielder::Yielder;
 use crate::{Env, NifOutcome, Resource, ResourceArc, Term, gleam_nif, init_nifs};
-use crate::{NifRecord, NifUnitEnum};
+use crate::{NifMap, NifRecord, NifUnitEnum};
 use std::collections::{BTreeMap, BTreeSet, HashSet, LinkedList, VecDeque};
 use std::net::{IpAddr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::sync::atomic::{AtomicI64, Ordering};
@@ -267,6 +267,22 @@ pub fn stream_range(start: i64, end: i64) -> ResourceArc<Yielder> {
 #[gleam_nif]
 pub fn yielder_next(env: Env, iter: ResourceArc<Yielder>) -> Option<Term> {
     iter.next(env)
+}
+
+#[derive(NifMap, Debug, PartialEq, Clone)]
+pub struct ServerConfig {
+    pub host: String,
+    pub port: i64,
+}
+
+#[gleam_nif]
+pub fn make_server_config(host: String, port: i64) -> ServerConfig {
+    ServerConfig { host, port }
+}
+
+#[gleam_nif]
+pub fn server_config_get_port(config: ServerConfig) -> i64 {
+    config.port
 }
 
 init_nifs!(load = on_load);

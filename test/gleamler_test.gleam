@@ -273,3 +273,25 @@ pub fn stream_yielder_test() {
   first_five
   |> should.equal([1, 2, 3, 4, 5])
 }
+
+pub fn typegen_nif_map_test() {
+  let dyn_cfg = gleamler_nif.rust_make_server_config("localhost", 9000)
+
+  let res = decode.run(dyn_cfg, gleamler_nif.server_config_decoder())
+  let assert Ok(cfg) = res
+
+  cfg.host |> should.equal("localhost")
+  cfg.port |> should.equal(9000)
+
+  gleamler_nif.rust_server_config_get_port(dyn_cfg)
+  |> should.equal(9000)
+
+  let map =
+    dict.from_list([
+      #("host", to_dynamic("0.0.0.0")),
+      #("port", to_dynamic(80)),
+    ])
+  let res_map =
+    decode.run(to_dynamic(map), gleamler_nif.server_config_decoder())
+  res_map |> should.equal(Ok(gleamler_nif.ServerConfig("0.0.0.0", 80)))
+}
