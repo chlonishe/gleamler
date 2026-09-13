@@ -51,6 +51,7 @@ pub struct CallbacksApiBuilder<'a>(&'a mut String);
 impl ApiBuilder for CallbacksApiBuilder<'_> {
     fn init(&mut self) {
         writeln!(self.0, "#[allow(dead_code)]").unwrap();
+        writeln!(self.0, "#[repr(C)]").unwrap();
         writeln!(self.0, "#[derive(Default, Copy, Clone, Debug)]").unwrap();
         writeln!(self.0, "pub struct DynNifCallbacks {{").unwrap();
     }
