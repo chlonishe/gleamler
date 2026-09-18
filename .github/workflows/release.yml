@@ -13,19 +13,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Linux
+          # Linux (glibc)
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             asset: gleamler-x86_64-linux.so
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
             asset: gleamler-aarch64-linux.so
+          # Linux (musl)
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
             asset: gleamler-x86_64-linux-musl.so
-          - target: aarch64-unknown-linux-musl
-            os: ubuntu-latest
-            asset: gleamler-aarch64-linux-musl.so
           # macOS
           - target: x86_64-apple-darwin
             os: macos-13
@@ -41,6 +39,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -50,9 +49,14 @@ jobs:
         run: |
           sudo apt-get update
           case "${{ matrix.target }}" in
-            aarch64-unknown-linux-gnu)  sudo apt-get install -y gcc-aarch64-linux-gnu ;;
-            x86_64-unknown-linux-musl)  sudo apt-get install -y musl-tools ;;
-            aarch64-unknown-linux-musl) sudo apt-get install -y gcc-aarch64-linux-gnu musl-tools ;;
+            aarch64-unknown-linux-gnu)
+              sudo apt-get install -y gcc-aarch64-linux-gnu
+              ;;
+            x86_64-unknown-linux-musl)
+              sudo apt-get install -y musl-tools
+              sudo ln -s /usr/lib/x86_64-linux-gnu/libgcc_s.so.1 /usr/lib/x86_64-linux-musl/libgcc_s.so.1 || true
+              sudo ln -s /usr/lib/x86_64-linux-gnu/libgcc_s.so.1 /usr/lib/x86_64-linux-musl/libgcc_s.so || true
+              ;;
           esac
 
       - name: Build
