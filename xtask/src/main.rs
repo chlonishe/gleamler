@@ -1,12 +1,12 @@
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
+use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
-use xshell::{cmd, Shell};
-use notify::{Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::sync::mpsc::channel;
 use std::time::{Duration, Instant};
+use xshell::{cmd, Shell};
 
 #[derive(Parser, Debug)]
 #[command(name = "xtask", about = "Gleamler build & test automation")]
@@ -22,7 +22,7 @@ enum Commands {
     Build {
         #[arg(long)]
         release: bool,
-        #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+        #[arg(long)]
         stress: bool,
         #[arg(long)]
         target: Option<String>,
@@ -37,9 +37,7 @@ enum Commands {
     },
 
     /// Scaffold a new NIF crate template
-    New {
-        name: String,
-    },
+    New { name: String },
 
     /// Regenerate Gleam FFI and decoder stubs
     #[command(alias = "gen")]
@@ -229,7 +227,11 @@ fn build_example(sh: &Shell, name: &str, release: bool) -> Result<()> {
     let erl_out = format!("{example_dir}/{name}_ffi.erl");
     let gleam_out = format!("{example_dir}/{name}.gleam");
     let erl_module = "gleamler_nif_ffi";
-    cmd!(sh, "cargo run -p gleamler_codegen -- {example_dir} {erl_out} {gleam_out} {erl_module} {name}").run()?;
+    cmd!(
+        sh,
+        "cargo run -p gleamler_codegen -- {example_dir} {erl_out} {gleam_out} {erl_module} {name}"
+    )
+    .run()?;
     let _ = cmd!(sh, "gleam format {gleam_out}").run();
 
     println!("\n[OK] Example '{name}' is ready!");
@@ -463,7 +465,9 @@ fn resolve_target_dir(target: Option<&str>) -> PathBuf {
 
 fn watch(sh: &Shell, package: &str, stress: bool) -> Result<()> {
     println!("==> Starting Gleamler Watch Mode for `{package}`...");
-    println!("==> Watching for changes in `.rs` and `.gleam` files (ignoring build/, target/, priv/)...");
+    println!(
+        "==> Watching for changes in `.rs` and `.gleam` files (ignoring build/, target/, priv/)..."
+    );
 
     run_watch_cycle(sh, package, stress);
 
@@ -492,7 +496,11 @@ fn watch(sh: &Shell, package: &str, stress: bool) -> Result<()> {
 
                 let should_trigger = event.paths.iter().any(|path| {
                     let s = path.to_string_lossy();
-                    if s.contains("target") || s.contains("build") || s.contains("priv") || s.contains(".git") {
+                    if s.contains("target")
+                        || s.contains("build")
+                        || s.contains("priv")
+                        || s.contains(".git")
+                    {
                         return false;
                     }
                     s.ends_with(".rs") || s.ends_with(".gleam")
