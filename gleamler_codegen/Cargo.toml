@@ -1,6 +1,6 @@
 [package]
 name = "gleamler_codegen"
-version = "0.1.0"
+version = "0.1.2"
 edition = "2024"
 authors = ["Chlon (@chlonishe)"]
 license = "MIT OR Apache-2.0"
